@@ -6020,16 +6020,19 @@ Place the button just before the master fader block.
 
 - [ ] **Step 8: Manual verification**
 
-Run `npm run dev`, import two files onto two tracks, then confirm:
-- Clicking a clip selects it (border brightens); ⌘-click adds a second; clicking empty lane clears.
-- Dragging a clip body moves it; dropping it onto another clip trims/splits that clip rather than overlapping it.
-- Dragging vertically moves the clip between tracks.
-- Dragging the left edge trims the head — **and the audio under the untouched part does not shift**. Verify by putting the playhead on a recognisable word, then head-trimming: the word stays put.
-- Dragging the right edge trims the tail and refuses to extend past the source's end.
-- Dragging the top-left corner draws a growing fade-in triangle; top-right does the fade-out.
-- Snapping pulls a dragged clip to neighbouring clip edges and the playhead; holding **Shift** disables it.
-- Dragging on empty lane area draws a blue range band; dragging up or down extends it across tracks.
-- One drag = one undo step (⌘Z after a drag returns the clip to exactly where it started).
+- Export a two-track project as WAV; open it in another player and confirm the length, the mix
+  balance, and that fades are audible.
+- **Solo a track, then export: the exported file must contain BOTH tracks.** This is the single
+  most important check in the plan — it is the invariant the whole `planSchedule` design exists to
+  guarantee. If solo leaked into the export, auditioning one track and then exporting would
+  silently destroy the user's mix with no error.
+- **Mute a track, then export: the muted track must be absent.** Mute is a document-level decision
+  about the mix and must apply.
+- Select a time range and export: the file covers exactly that range. A CLIP selection must NOT
+  narrow the export.
+- Export the same project as MP3 and as M4A and confirm each sounds like the WAV.
+- Confirm the format list contains only formats that actually succeed — a format offered and then
+  failing is worse than one never listed.
 
 - [ ] **Step 9: Run tests, verify the build gate, commit**
 
@@ -6037,15 +6040,9 @@ Run: `npm test && npm run build`
 Expected: all pass; 0 errors, 0 warnings.
 
 ```bash
-git add src/lib/hit-test.ts src/lib/hit-test.test.ts src/lib/clip-drag.svelte.ts \
-        src/lib/ClipView.svelte src/lib/TrackLane.svelte src/lib/RangeOverlay.svelte src/App.svelte
-git commit -m "feat: clip select, move, trim, fade handles and range selection"
+git add src/export/ src/lib/ExportDialog.svelte src/lib/Toolbar.svelte
+git commit -m "feat: mixdown and export"
 ```
-
----
-
-
----
 
 ### Task 28: Project files, autosave and preferences
 
