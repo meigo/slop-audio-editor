@@ -23,11 +23,18 @@ export class AudioEngine {
     return this.#graph !== null;
   }
 
-  /** Where the playhead is now, in project seconds. Derived from the clock, never counted. */
+  /** Where the playhead is now, in project seconds. Derived from the clock, never counted.
+   *
+   *  Clamped to never read BEFORE `#startOffsetS`: `#startCtxTime` is `SCHEDULE_LEAD_S` ahead of
+   *  `ctx.currentTime` at the moment `play` is called, so during that lead-in `elapsed` is
+   *  negative. Without the clamp, `stop()` — called right after `play()` on a quick play-then-stop
+   *  — would write that negative position back into `#startOffsetS`, nudging the playhead
+   *  backwards from where the user asked it to start. */
   positionS(): number {
     if (!this.#graph) return this.#startOffsetS;
     const ctx = getAudioContext();
-    return Math.min(this.#endS, this.#startOffsetS + (ctx.currentTime - this.#startCtxTime));
+    const elapsed = Math.max(0, ctx.currentTime - this.#startCtxTime);
+    return Math.min(this.#endS, this.#startOffsetS + elapsed);
   }
 
   play(

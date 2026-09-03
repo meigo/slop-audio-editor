@@ -40,6 +40,7 @@ vi.mock("./context", () => ({
 // Imported after the mock is declared — vi.mock is hoisted above imports by Vitest, so this is
 // equivalent to importing before, but keeping it below reads clearer next to the mock it depends on.
 const { AudioEngine } = await import("./engine");
+const { SCHEDULE_LEAD_S } = await import("./render");
 
 function emptyPool(): SourcePool {
   return { get: (): Source | undefined => undefined } as unknown as SourcePool;
@@ -69,5 +70,33 @@ describe("AudioEngine.play with an empty window", () => {
     engine.play(createProject(), emptyPool(), 5, 5, new Set());
     await new Promise((r) => setTimeout(r, 0));
     expect(engine.playing).toBe(false);
+  });
+});
+
+describe("AudioEngine.positionS", () => {
+  it("does not read before startOffsetS during the schedule lead-in", () => {
+    const engine = new AudioEngine();
+    fakeCtx.currentTime = 0;
+    engine.play(createProject(), emptyPool(), 3, 10, new Set());
+    // ctx.currentTime has not advanced past the lead-in yet (#startCtxTime is SCHEDULE_LEAD_S
+    // ahead of it) — without the clamp this reads 3 - SCHEDULE_LEAD_S.
+    expect(engine.positionS()).toBe(3);
+    expect(SCHEDULE_LEAD_S).toBeGreaterThan(0); // sanity: the lead-in this test relies on exists
+  });
+
+  it("stop() does not nudge the playhead backwards during the lead-in", () => {
+    const engine = new AudioEngine();
+    fakeCtx.currentTime = 0;
+    engine.play(createProject(), emptyPool(), 3, 10, new Set());
+    engine.stop();
+    expect(engine.positionS()).toBe(3);
+  });
+
+  it("advances normally once real playback time has passed", () => {
+    const engine = new AudioEngine();
+    fakeCtx.currentTime = 0;
+    engine.play(createProject(), emptyPool(), 3, 10, new Set());
+    fakeCtx.currentTime = SCHEDULE_LEAD_S + 2; // 2s of real playback since the lead-in ended
+    expect(engine.positionS()).toBe(5);
   });
 });
