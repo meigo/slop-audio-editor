@@ -20,6 +20,13 @@
   });
 
   function commitDraft() {
+    // Both blur and Escape land here. Committing what is ALREADY displayed would be a real edit,
+    // not a no-op: the field shows `value.toFixed(2)`, so for any value with finer precision than
+    // two decimals — which every pointer drag produces — `Number(draft)` differs from `value` by a
+    // few milliseconds. `edits.ts`'s `d === 0` and `c.gain === g` guards cannot catch a delta that
+    // small-but-nonzero, so it would push an undo entry and, mid-playback, force a reschedule,
+    // just for tabbing through the inspector.
+    if (draft === value.toFixed(2)) return;
     const v = Number(draft);
     if (Number.isFinite(v)) onCommit(Math.max(min, v));
     else draft = value.toFixed(2);
