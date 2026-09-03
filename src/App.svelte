@@ -20,7 +20,14 @@
 
   // Runs once on mount: pull yesterday's session back in before the user touches anything.
   $effect(() => {
-    void restoreAutosave();
+    void restoreAutosave().catch((err) => {
+      // A corrupt or half-written autosave must not look like "your work vanished". The editor is
+      // still usable with an empty project, so degrade to that — but say what happened, or the
+      // user has no way to tell a restore failure from never having had a session at all.
+      loadError =
+        "Could not restore your last session: " +
+        (err instanceof Error ? err.message : String(err));
+    });
   });
 
   async function onDrop(e: DragEvent) {
