@@ -374,11 +374,12 @@ Range: the whole project (0 → timeline length), or the selected time range if 
 | **WAV** | Small in-repo encoder — 16-bit PCM, plus a 32-bit float option | Always. The guaranteed path. |
 | **M4A / AAC** | mediabunny + WebCodecs | Chromium; the format slop-animator already uses |
 | **WebM / Opus** | mediabunny + WebCodecs | Chromium |
+| **MP3** | mediabunny + `@mediabunny/mp3-encoder` | Any browser (the extension carries its own encoder) |
 
-**MP3 is unresolved.** WebCodecs decodes MP3 but, as far as is known, ships no MP3 *encoder*, which
-would mean a separate library (e.g. lamejs) or no MP3 at all. This must be verified against
-mediabunny's actual capabilities during implementation — it is a research task in the plan, not a
-promise made here.
+> **RESOLVED 2026-09-03, during planning.** This section previously flagged MP3 as unresolved,
+> because WebCodecs ships no MP3 *encoder*. It does not — but mediabunny publishes an official
+> extension package, `@mediabunny/mp3-encoder`, whose `registerMp3Encoder()` installs one. MP3 is
+> therefore in v1 scope with no third-party library and no separate decision.
 
 The export UI offers only formats the browser reports as supported; unsupported ones are hidden
 rather than offered and failed.
@@ -486,7 +487,6 @@ WebCodecs export.
 
 | Item | Handling |
 |---|---|
-| **MP3 export may be impossible** without an extra library | Research task in the plan (§9). WAV is the guaranteed path either way. |
 | **Peak resolution at deep zoom** — 188 pairs/s is ~5 ms per pair, coarse when zoomed to a word | Ship one level, measure. If it is visibly blocky, add a finer level or read the buffer directly below a zoom threshold. |
 | **Node count** when scheduling a large project up front | Measure before optimising. Upgrade path (look-ahead scheduler) is behind `planSchedule` and needs no model change. |
 | **Long-file memory** — 30 min stereo ≈ 345 MB decoded | Accepted. Fail loudly rather than silently degrade. |
@@ -509,6 +509,8 @@ Choices made during brainstorming, with the reason, so a later reader does not r
   impossible rather than a convention to remember.
 - **Zip project files with embedded sources** — a browser has no stable paths to relink to.
 - **No pan, no crossfades, no effects, no recording in v1** — YAGNI against the three stated uses.
+- **MP3 via `@mediabunny/mp3-encoder`** — the one open question at design time; answered during
+  planning (see §9). WAV remains the guaranteed, dependency-free path.
 
 ## 15. Suggested milestone order
 
