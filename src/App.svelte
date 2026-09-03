@@ -1,5 +1,6 @@
 <script lang="ts">
   import Playhead from "./lib/Playhead.svelte";
+  import RangeOverlay from "./lib/RangeOverlay.svelte";
   import Ruler from "./lib/Ruler.svelte";
   import TimelineViewport from "./lib/TimelineViewport.svelte";
   import TrackLane from "./lib/TrackLane.svelte";
@@ -40,6 +41,7 @@
         {#each appState.project.tracks as track (track.id)}
           <TrackLane {track} />
         {/each}
+        <RangeOverlay />
         <Playhead />
       </TimelineViewport>
     </div>
