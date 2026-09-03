@@ -30,7 +30,10 @@ export const state = $state({
 });
 
 let history = createHistory<Project>();
+type GestureKind = "structural" | "mix";
+
 let gestureBase: Project | null = null;
+let gestureKind: GestureKind = "structural";
 let clipboard: ClipboardData = { entries: [] };
 
 export function canUndoNow(): boolean {
@@ -52,10 +55,18 @@ export function commit(fn: (p: Project) => Project): void {
   restartIfPlaying();
 }
 
-/** A continuous gesture (dragging a clip, dragging a fade handle) mutates live via `amend` and
- *  produces ONE history entry when the pointer comes up. */
-export function beginGesture(): void {
+/** A continuous gesture (dragging a clip, riding a fader) mutates live via `amend` and produces
+ *  ONE history entry when the pointer comes up.
+ *
+ *  `kind` decides whether the commit reschedules playback. A "structural" gesture (move, trim,
+ *  fade handles) changes WHICH audio plays, so the schedule must be rebuilt. A "mix" gesture
+ *  (track or master gain) only changes a level that is already a live GainNode — rescheduling it
+ *  would stop and restart every source node, producing an audible dropout on every fader
+ *  release. That is the whole reason track gain is its own node rather than folded into the
+ *  clip's gain. */
+export function beginGesture(kind: GestureKind = "structural"): void {
   gestureBase = state.project;
+  gestureKind = kind;
 }
 
 export function amend(fn: (p: Project) => Project): void {
@@ -66,9 +77,10 @@ export function endGesture(): void {
   if (gestureBase && gestureBase !== state.project) {
     history = record(history, gestureBase);
     state.dirty = true;
-    restartIfPlaying();
+    if (gestureKind === "structural") restartIfPlaying();
   }
   gestureBase = null;
+  gestureKind = "structural";
 }
 
 export function undoEdit(): void {
