@@ -33,6 +33,13 @@ export interface RenderedGraph {
  * Track and master gains are REAL nodes rather than folded into each clip's gain, so the faders
  * can be ridden during playback without rescheduling anything.
  */
+/**
+ * Builds the whole graph and only THEN starts any node (in a second pass below). If building the
+ * graph throws partway — e.g. a fade curve `setValueCurveAtTime` rejects — no node has been
+ * started yet, so there is nothing left connected to the destination playing with no reference to
+ * stop it. The catch below disconnects whatever was built so far and rethrows, rather than
+ * leaving a half-built graph dangling off `ctx.destination`.
+ */
 export function renderPlan(
   ctx: BaseAudioContext,
   plan: readonly ScheduledClip[],
@@ -46,44 +53,54 @@ export function renderPlan(
 
   const trackGains = new Map<string, GainNode>();
   const sources: AudioBufferSourceNode[] = [];
+  const toStart: { node: AudioBufferSourceNode; when: number; offset: number; duration: number }[] = [];
 
-  for (const sc of plan) {
-    const source = pool.get(sc.sourceId);
-    if (!source) continue; // a clip whose media never loaded is silent, not a crash
+  try {
+    for (const sc of plan) {
+      const source = pool.get(sc.sourceId);
+      if (!source) continue; // a clip whose media never loaded is silent, not a crash
 
-    let trackGain = trackGains.get(sc.trackId);
-    if (!trackGain) {
-      trackGain = ctx.createGain();
-      trackGain.gain.value = project.tracks.find((t) => t.id === sc.trackId)?.gain ?? 1;
-      trackGain.connect(masterGain);
-      trackGains.set(sc.trackId, trackGain);
+      let trackGain = trackGains.get(sc.trackId);
+      if (!trackGain) {
+        trackGain = ctx.createGain();
+        trackGain.gain.value = project.tracks.find((t) => t.id === sc.trackId)?.gain ?? 1;
+        trackGain.connect(masterGain);
+        trackGains.set(sc.trackId, trackGain);
+      }
+
+      const clipGain = ctx.createGain();
+      clipGain.gain.value = sc.gain;
+      clipGain.connect(trackGain);
+
+      if (sc.fadeIn) {
+        const c = scaleCurve(
+          fadeInCurve(sc.fadeIn.shape, FADE_CURVE_POINTS, sc.fadeIn.fromT, sc.fadeIn.toT),
+          sc.gain,
+        );
+        clipGain.gain.setValueCurveAtTime(c, startAt + sc.fadeIn.atS, sc.fadeIn.durS);
+      }
+      if (sc.fadeOut) {
+        const c = scaleCurve(
+          fadeOutCurve(sc.fadeOut.shape, FADE_CURVE_POINTS, sc.fadeOut.fromT, sc.fadeOut.toT),
+          sc.gain,
+        );
+        clipGain.gain.setValueCurveAtTime(c, startAt + sc.fadeOut.atS, sc.fadeOut.durS);
+      }
+
+      const node = ctx.createBufferSource();
+      node.buffer = source.buffer;
+      node.connect(clipGain);
+      sources.push(node);
+      toStart.push({ node, when: startAt + sc.when, offset: sc.sourceOffset, duration: sc.duration });
     }
-
-    const clipGain = ctx.createGain();
-    clipGain.gain.value = sc.gain;
-    clipGain.connect(trackGain);
-
-    if (sc.fadeIn) {
-      const c = scaleCurve(
-        fadeInCurve(sc.fadeIn.shape, FADE_CURVE_POINTS, sc.fadeIn.fromT, sc.fadeIn.toT),
-        sc.gain,
-      );
-      clipGain.gain.setValueCurveAtTime(c, startAt + sc.fadeIn.atS, sc.fadeIn.durS);
-    }
-    if (sc.fadeOut) {
-      const c = scaleCurve(
-        fadeOutCurve(sc.fadeOut.shape, FADE_CURVE_POINTS, sc.fadeOut.fromT, sc.fadeOut.toT),
-        sc.gain,
-      );
-      clipGain.gain.setValueCurveAtTime(c, startAt + sc.fadeOut.atS, sc.fadeOut.durS);
-    }
-
-    const node = ctx.createBufferSource();
-    node.buffer = source.buffer;
-    node.connect(clipGain);
-    node.start(startAt + sc.when, sc.sourceOffset, sc.duration);
-    sources.push(node);
+  } catch (err) {
+    masterGain.disconnect();
+    for (const g of trackGains.values()) g.disconnect();
+    for (const n of sources) n.disconnect();
+    throw err;
   }
+
+  for (const { node, when, offset, duration } of toStart) node.start(when, offset, duration);
 
   return { trackGains, masterGain, sources };
 }
