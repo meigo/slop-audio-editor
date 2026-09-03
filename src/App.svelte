@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Inspector from "./lib/Inspector.svelte";
   import Playhead from "./lib/Playhead.svelte";
   import RangeOverlay from "./lib/RangeOverlay.svelte";
   import Ruler from "./lib/Ruler.svelte";
@@ -37,6 +38,5 @@
     </div>
   </div>
 
-  <!-- Inspector lands here in Task 25 -->
-  <footer class="h-10 shrink-0 border-t border-neutral-700"></footer>
+  <Inspector />
 </div>
