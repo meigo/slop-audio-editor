@@ -1,5 +1,6 @@
 <script lang="ts">
   import Inspector from "./lib/Inspector.svelte";
+  import KeyboardShortcuts from "./lib/KeyboardShortcuts.svelte";
   import Playhead from "./lib/Playhead.svelte";
   import RangeOverlay from "./lib/RangeOverlay.svelte";
   import Ruler from "./lib/Ruler.svelte";
@@ -16,6 +17,7 @@
 </script>
 
 <div class="flex h-full flex-col bg-neutral-900 text-neutral-200">
+  <KeyboardShortcuts onSave={() => {}} viewportWidthPx={timelineWidth} />
   <Toolbar />
 
   <div class="flex min-h-0 flex-1">
