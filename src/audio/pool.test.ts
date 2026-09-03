@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { SourcePool, type Source } from "./pool";
+import { computePeaks } from "./peaks";
+import { computePeaksChunked, SourcePool, type Source } from "./pool";
 
 function fakeSource(id: string, name: string): Source {
   return {
@@ -45,5 +46,40 @@ describe("SourcePool", () => {
     pool.add(fakeSource("a", "new.wav"));
     expect(pool.all()).toHaveLength(1);
     expect(pool.get("a")?.name).toBe("new.wav");
+  });
+});
+
+describe("computePeaksChunked", () => {
+  // Mirrors PEAK_CHUNK_PAIRS in pool.ts (4096). Kept small samplesPerPair so a real chunk-boundary
+  // crossing doesn't require allocating millions of samples.
+  const PEAK_CHUNK_PAIRS = 4096;
+  const samplesPerPair = 4;
+
+  // Two independently-scaled ramps: monotonic (so a misaligned offset produces detectably wrong
+  // values, unlike an all-zeros input) and per-channel-distinct (so channel averaging is exercised).
+  function ramp(n: number, scale: number): Float32Array {
+    const out = new Float32Array(n);
+    for (let i = 0; i < n; i++) out[i] = i * scale;
+    return out;
+  }
+
+  it("matches unchunked computePeaks exactly across an exact multiple of the chunk size", async () => {
+    const totalPairs = PEAK_CHUNK_PAIRS * 2;
+    const n = totalPairs * samplesPerPair;
+    const channels = [ramp(n, 1), ramp(n, 2)];
+    const expected = computePeaks(channels, samplesPerPair);
+    const actual = await computePeaksChunked(channels, samplesPerPair);
+    expect(Array.from(actual)).toEqual(Array.from(expected));
+  });
+
+  it("matches unchunked computePeaks exactly with a partial final chunk", async () => {
+    const totalPairs = PEAK_CHUNK_PAIRS * 2 + 37;
+    // n is not a multiple of samplesPerPair, so the last pair (and the last chunk) is partial —
+    // this is what exercises the `Math.min(n, endPair * samplesPerPair)` clipping.
+    const n = totalPairs * samplesPerPair - 3;
+    const channels = [ramp(n, 1), ramp(n, 2)];
+    const expected = computePeaks(channels, samplesPerPair);
+    const actual = await computePeaksChunked(channels, samplesPerPair);
+    expect(Array.from(actual)).toEqual(Array.from(expected));
   });
 });
