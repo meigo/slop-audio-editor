@@ -1,7 +1,8 @@
 /** Every editing operation, as a pure function `(project, ...) => Project`.
  *  No DOM, no Web Audio, no $state. This module is the heart of the test suite. */
 
-import { createTrack, type Project, type Track } from "./document";
+import { createTrack, newId, type Clip, type Project, type Track } from "./document";
+import { insertClip } from "./overlap";
 
 /** Replace one track by id. Returns the SAME project object when the id is unknown or the
  *  callback is a no-op, so callers can cheaply detect "nothing changed". */
@@ -53,4 +54,72 @@ export function setTrackMuted(p: Project, trackId: string, muted: boolean): Proj
 export function setMasterGain(p: Project, gain: number): Project {
   const g = Math.max(0, gain);
   return g === p.masterGain ? p : { ...p, masterGain: g };
+}
+
+export function makeClip(sourceId: string, startS: number, durS: number, inS = 0): Clip {
+  return {
+    id: newId("clip"), sourceId, startS, inS, durS,
+    gain: 1, fadeInS: 0, fadeOutS: 0, fadeShape: "linear",
+  };
+}
+
+export function addClip(p: Project, trackId: string, clip: Clip): Project {
+  return mapTrack(p, trackId, (t) => ({ ...t, clips: insertClip(t.clips, clip) }));
+}
+
+export function deleteClips(p: Project, clipIds: readonly string[]): Project {
+  const ids = new Set(clipIds);
+  if (ids.size === 0) return p;
+  let changed = false;
+  const tracks = p.tracks.map((t) => {
+    const clips = t.clips.filter((c) => !ids.has(c.id));
+    if (clips.length === t.clips.length) return t;
+    changed = true;
+    return { ...t, clips };
+  });
+  return changed ? { ...p, tracks } : p;
+}
+
+/**
+ * Move a set of clips by `deltaS` seconds and `deltaTrackIndex` tracks.
+ *
+ * Every moved clip is REMOVED FIRST from every track and only then re-inserted. If we inserted
+ * as we went, a clip sliding past its own selected sibling could overwrite that sibling before
+ * the sibling itself gets a chance to move (insertClip resolves overlaps by deleting whatever is
+ * already there).
+ *
+ * The time delta is clamped ONCE for the whole group, not per clip: clamping each clip
+ * independently at t=0 would let the leading clip stop at 0 while trailing clips keep sliding
+ * left underneath it, collapsing the group's internal spacing. Clamping the single shared delta
+ * against the earliest clip's start keeps every clip's offset from the others intact.
+ */
+export function moveClips(
+  p: Project,
+  clipIds: readonly string[],
+  deltaS: number,
+  deltaTrackIndex: number,
+): Project {
+  const ids = new Set(clipIds);
+  if (ids.size === 0) return p;
+
+  const moving: { clip: Clip; fromTrackIndex: number }[] = [];
+  p.tracks.forEach((t, i) => {
+    for (const c of t.clips) if (ids.has(c.id)) moving.push({ clip: c, fromTrackIndex: i });
+  });
+  if (moving.length === 0) return p;
+
+  const minStart = Math.min(...moving.map((m) => m.clip.startS));
+  const dt = Math.max(deltaS, -minStart);
+  const minTrack = Math.min(...moving.map((m) => m.fromTrackIndex));
+  const maxTrack = Math.max(...moving.map((m) => m.fromTrackIndex));
+  const dTrack = Math.max(-minTrack, Math.min(deltaTrackIndex, p.tracks.length - 1 - maxTrack));
+  if (dt === 0 && dTrack === 0) return p;
+
+  // Strip the movers out of every track first.
+  const tracks: Track[] = p.tracks.map((t) => ({ ...t, clips: t.clips.filter((c) => !ids.has(c.id)) }));
+  for (const { clip, fromTrackIndex } of moving) {
+    const target = tracks[fromTrackIndex + dTrack];
+    target.clips = insertClip(target.clips, { ...clip, startS: clip.startS + dt });
+  }
+  return { ...p, tracks };
 }
