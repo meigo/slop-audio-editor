@@ -204,3 +204,41 @@ export function splitAt(p: Project, trackIds: readonly string[], atS: number): P
   }
   return next;
 }
+
+/**
+ * Cut `[fromS, toS)` out of the given tracks: split at both edges, drop what is inside, and — if
+ * `ripple` — close the gap by shifting everything after it left.
+ *
+ * `trackIds` scopes the ripple. It is NEVER global: sliding every track would pull a music bed out
+ * of sync with the narration you were editing. The caller passes the tracks the time-range
+ * selection covers, so an edit on one track leaves its neighbours where they are.
+ */
+export function deleteRange(
+  p: Project,
+  trackIds: readonly string[],
+  fromS: number,
+  toS: number,
+  ripple: boolean,
+): Project {
+  if (!(toS > fromS)) return p;
+  const span = toS - fromS;
+  let next = splitAt(p, trackIds, fromS);
+  next = splitAt(next, trackIds, toS);
+
+  for (const trackId of trackIds) {
+    next = mapTrack(next, trackId, (t) => {
+      const kept = t.clips.filter((c) => !(c.startS >= fromS && clipEndS(c) <= toS));
+      const removed = kept.length !== t.clips.length;
+      if (!removed && !ripple) return t;
+      const clips = ripple
+        ? kept.map((c) => (c.startS >= toS ? { ...c, startS: c.startS - span } : c))
+        : kept;
+      // Nothing was cut and nothing sat after the range — genuinely unchanged.
+      if (!removed && clips.every((c, i) => c === kept[i]) && clips.length === t.clips.length) {
+        return t;
+      }
+      return { ...t, clips };
+    });
+  }
+  return next;
+}
