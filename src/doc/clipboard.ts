@@ -24,10 +24,7 @@ export function copyClips(p: Project, clipIds: readonly string[]): ClipboardData
   const baseTrack = Math.min(...found.map((f) => f.trackIndex));
   return {
     entries: found.map((f) => ({
-      // A fresh id here too (not just at paste time): the clipboard entry must never alias the
-      // source clip's id, or a copy-without-removal (unlike cut) would make a same-track paste
-      // indistinguishable from the still-present original by id.
-      clip: { ...f.clip, id: newId("clip"), startS: f.clip.startS - baseTime },
+      clip: { ...f.clip, startS: f.clip.startS - baseTime },
       trackOffset: f.trackIndex - baseTrack,
     })),
   };

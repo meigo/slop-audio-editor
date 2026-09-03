@@ -62,7 +62,16 @@ describe("pasteClips", () => {
     const original = p.tracks[0].clips[0];
     const data = copyClips(p, [original.id]);
     const next = pasteClips(p, data, p.tracks[0].id, 30);
-    expect(next.tracks[0].clips.map((c) => c.id)).not.toContain(data.entries[0].clip.id);
+
+    const pasted = next.tracks[0].clips.find((c) => c.startS === 30);
+    expect(pasted).toBeDefined();
+    expect(pasted!.id).not.toBe(original.id);
+
+    // The real invariant: no track ever holds two clips with the same id.
+    const ids = next.tracks[0].clips.map((c) => c.id);
+    expect(new Set(ids).size).toBe(ids.length);
+
+    // ...and the original survives the copy exactly once.
     expect(next.tracks[0].clips.filter((c) => c.id === original.id)).toHaveLength(1);
   });
 
