@@ -198,7 +198,13 @@ export async function importFiles(
       });
       pool.add(source);
       // Source bytes are immutable and large — written ONCE here, never on the document debounce.
-      void putSource({ id: source.id, name: source.name, bytes: source.bytes });
+      // Awaited (not `void`) and left to propagate: a quota failure or aborted write must not be
+      // silently discarded, since the user has just imported audio they expect to survive a
+      // reload. A caller that awaits `importFiles` inside a try/catch (drag-and-drop in
+      // App.svelte) surfaces this in its error banner; the toolbar's plain "Import audio" button
+      // currently calls `importFiles` fire-and-forget and would not display it — a pre-existing
+      // gap in that one call site, out of this task's scope.
+      await putSource({ id: source.id, name: source.name, bytes: source.bytes });
       commit((p) => addClip(p, trackId, makeClip(source.id, at, source.durationS)));
       at += source.durationS;
     } finally {
