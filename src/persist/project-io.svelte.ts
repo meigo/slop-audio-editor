@@ -1,6 +1,7 @@
 import { decodeSource, type Source } from "../audio/pool";
+import type { Project } from "../doc/document";
 import { pool, state as appState } from "../state/appState.svelte";
-import { clearAutosave, putSource, readAutosave } from "./autosave";
+import { clearAutosave, deleteSource, putSource, readAutosave } from "./autosave";
 import {
   PROJECT_FILE_EXT, ProjectFileError, packProject, unpackProject, type SourceRecord,
 } from "./project-file";
@@ -64,10 +65,43 @@ export async function openProjectFile(file: File): Promise<void> {
   for (const s of sources) await putSource(s);
 }
 
+function referencedSourceIds(project: Project): Set<string> {
+  const ids = new Set<string>();
+  for (const t of project.tracks) for (const c of t.clips) ids.add(c.sourceId);
+  return ids;
+}
+
+/** Deletes any of `candidateIds` the given project's clips do not reference. `putSource` is
+ *  append-only, so this is the only pruning path — called after restoring an autosave (against the
+ *  ids it just read) and after starting a new project (against the ids already in the pool) — that
+ *  keeps orphaned sources from accumulating in IndexedDB forever. Best-effort: a failed delete is
+ *  logged and skipped rather than surfaced, since the orphan it leaves behind is exactly the
+ *  pre-existing (non-broken) state. */
+export async function pruneUnreferencedSources(
+  project: Project,
+  candidateIds: Iterable<string>,
+): Promise<void> {
+  const referenced = referencedSourceIds(project);
+  for (const id of candidateIds) {
+    if (referenced.has(id)) continue;
+    try {
+      await deleteSource(id);
+    } catch (err) {
+      console.warn("Autosave: failed to prune orphaned source", id, err);
+    }
+  }
+}
+
 export async function restoreAutosave(): Promise<boolean> {
   const saved = await readAutosave();
   if (!saved) return false;
-  await loadInto(saved.project, saved.sources);
+  const referenced = referencedSourceIds(saved.project);
+  const sources = saved.sources.filter((s) => referenced.has(s.id));
+  await loadInto(saved.project, sources);
+  await pruneUnreferencedSources(
+    saved.project,
+    saved.sources.map((s) => s.id),
+  );
   return true;
 }
 

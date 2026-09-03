@@ -5,10 +5,10 @@
   } from "@lucide/svelte";
   import { createProject } from "../doc/document";
   import { addTrack, setMasterGain, splitAt } from "../doc/edits";
-  import { openProjectFile, saveProjectFile } from "../persist/project-io.svelte";
+  import { openProjectFile, pruneUnreferencedSources, saveProjectFile } from "../persist/project-io.svelte";
   import {
     amend, beginGesture, canRedoNow, canUndoNow, commit, endGesture, engine, importFiles,
-    redoEdit, seekTo, selectedTrackIds, state as appState, togglePlay, undoEdit,
+    pool, redoEdit, seekTo, selectedTrackIds, state as appState, togglePlay, undoEdit,
   } from "../state/appState.svelte";
   import ExportDialog from "./ExportDialog.svelte";
   import Fader from "./Fader.svelte";
@@ -38,7 +38,16 @@
 
 <div class="flex h-11 items-center gap-3 border-b border-neutral-700 px-2 text-neutral-300">
   <div class="flex items-center gap-1">
-    <button class={BTN} title="New project" onclick={() => commit(() => createProject())}>
+    <button
+      class={BTN}
+      title="New project"
+      onclick={() => {
+        commit(() => createProject());
+        // A fresh project references no sources, so every source the pool still knows about is
+        // now an orphan — otherwise these accumulate in IndexedDB forever (see autosave.ts).
+        void pruneUnreferencedSources(appState.project, pool.records().map((s) => s.id));
+      }}
+    >
       <FilePlus2 size={16} />
     </button>
     <button class={BTN} title="Open project" onclick={() => projectInput?.click()}>

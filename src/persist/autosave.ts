@@ -47,6 +47,13 @@ export async function putSource(record: SourceRecord): Promise<void> {
   );
 }
 
+/** Removes one source record. `putSource` is otherwise append-only, so this is the only way an
+ *  orphaned source — no longer referenced by any clip in the document — stops taking up space. */
+export async function deleteSource(id: string): Promise<void> {
+  const db = await open();
+  await awaitRequest(tx(db, SRC_STORE, "readwrite").delete(id));
+}
+
 let timer: ReturnType<typeof setTimeout> | null = null;
 
 /** `project` must ALREADY be a plain snapshot — this is a `.ts` module, so `$state.snapshot` is
