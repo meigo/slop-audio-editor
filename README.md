@@ -105,11 +105,16 @@ a large amount of memory.
 
 ## Known limitations
 
-- **No UI to remove a track.** The underlying operation exists and is tested, but nothing in the
-  interface exposes it. An accidental "Add track" is undoable, at least.
+- **No UI to remove or reorder a track.** Both underlying operations exist and are tested, but
+  nothing in the interface exposes either. An accidental "Add track" is undoable, at least.
 - **Inspector number fields work at 10 ms granularity** — values display and commit at two decimal
   places, matching the nudge step, not full sample precision.
 - **`⇧Delete` (delete-and-ripple) only ripples a time-range selection**, not a selection of clips.
+- **Splitting or range-cutting a clip that has fades carries both fades onto each fragment** —
+  a cut can introduce an audible dip at the new join, since neither fragment loses the fade it
+  didn't "keep" from the original clip.
+- **A saved `.slopaudio` embeds every source imported in the session**, not only those the
+  document still references, so a file can be larger than the audio it actually uses.
 - **The export format you last chose does not persist** between sessions — the export dialog
   always opens back on WAV.
 - **Chromium-first.** WAV export is guaranteed everywhere; MP3, M4A, and WebM depend on the
