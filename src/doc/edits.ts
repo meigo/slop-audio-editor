@@ -1,7 +1,7 @@
 /** Every editing operation, as a pure function `(project, ...) => Project`.
  *  No DOM, no Web Audio, no $state. This module is the heart of the test suite. */
 
-import { MIN_CLIP_S, clipEndS, createTrack, findClip, newId, type Clip, type Project, type Track } from "./document";
+import { MIN_CLIP_S, clipEndS, createTrack, findClip, newId, type Clip, type FadeShape, type Project, type Track } from "./document";
 import { clampFades, insertClip, sliceClip } from "./overlap";
 
 /** Replace one track by id. Returns the SAME project object when the id is unknown or the
@@ -241,4 +241,33 @@ export function deleteRange(
     });
   }
   return next;
+}
+
+export function setClipGain(p: Project, clipId: string, gain: number): Project {
+  const g = Math.max(0, gain);
+  return mapClip(p, clipId, (c) => (c.gain === g ? c : { ...c, gain: g }));
+}
+
+/** Patch a clip's fades. `clampFades` decides what happens when they collide: the pair is scaled
+ *  to fill exactly the clip, so dragging one handle past the other pushes the other back instead
+ *  of rejecting the drag. */
+export function setClipFade(
+  p: Project,
+  clipId: string,
+  patch: { fadeInS?: number; fadeOutS?: number; fadeShape?: FadeShape },
+): Project {
+  return mapClip(p, clipId, (c) => {
+    const next: Clip = {
+      ...c,
+      fadeInS: patch.fadeInS ?? c.fadeInS,
+      fadeOutS: patch.fadeOutS ?? c.fadeOutS,
+      fadeShape: patch.fadeShape ?? c.fadeShape,
+    };
+    const clamped = clampFades(next);
+    return clamped.fadeInS === c.fadeInS &&
+      clamped.fadeOutS === c.fadeOutS &&
+      clamped.fadeShape === c.fadeShape
+      ? c
+      : clamped;
+  });
 }
