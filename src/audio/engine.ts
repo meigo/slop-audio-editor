@@ -39,7 +39,19 @@ export class AudioEngine {
   ): void {
     this.stop();
     const end = toS > 0 ? toS : projectDurationS(project);
-    if (!(end > fromS)) return;
+    if (!(end > fromS)) {
+      // An empty window still "runs" for zero time. Notify completion the same way the timer
+      // below does — asynchronously, so it lands after the caller's own `state.playing = true`
+      // rather than racing it — or the caller is left believing playback is running forever:
+      // Pause icon shown, playhead frozen, no audio.
+      this.#startOffsetS = fromS;
+      this.#endS = fromS;
+      this.#stopTimer = setTimeout(() => {
+        this.stop();
+        this.onEnded?.();
+      }, 0);
+      return;
+    }
 
     const ctx = getAudioContext();
     void ctx.resume();
