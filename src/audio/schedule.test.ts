@@ -128,7 +128,26 @@ describe("planSchedule fades", () => {
     let p = oneClip();
     p = setClipFade(p, p.tracks[0].clips[0].id, { fadeInS: 6, fadeOutS: 6 });
     const s = planSchedule(p, 0, 100, NO_SOLO)[0];
-    expect(s.fadeIn!.atS + s.fadeIn!.durS).toBeLessThanOrEqual(s.fadeOut!.atS + 1e-9);
+    // Strict, no tolerance: setValueCurveAtTime throws on an overlap and is
+    // implementation-defined on exact abutment, so the two spans must never touch.
+    expect(s.fadeIn!.atS + s.fadeIn!.durS).toBeLessThan(s.fadeOut!.atS);
+  });
+
+  it("keeps fade-in and fade-out strictly separated across many clamped fade-length pairs", () => {
+    const clipDurS = 10; // oneClip()'s clip length
+    let sawClamp = false;
+    for (let fadeInS = 0.1; fadeInS < clipDurS; fadeInS += 0.37) {
+      for (let fadeOutS = 0.1; fadeOutS < clipDurS; fadeOutS += 0.41) {
+        if (fadeInS + fadeOutS > clipDurS) sawClamp = true;
+        let p = oneClip();
+        p = setClipFade(p, p.tracks[0].clips[0].id, { fadeInS, fadeOutS });
+        const s = planSchedule(p, 0, 100, NO_SOLO)[0];
+        if (s.fadeIn && s.fadeOut) {
+          expect(s.fadeIn.atS + s.fadeIn.durS).toBeLessThan(s.fadeOut.atS);
+        }
+      }
+    }
+    expect(sawClamp).toBe(true); // sanity: the sweep actually drove clampFades
   });
 });
 

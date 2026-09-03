@@ -1,4 +1,7 @@
-import { clipEndS, type Clip, type FadeShape, type Project } from "../doc/document";
+import { clipEndS, PROJECT_SAMPLE_RATE, type Clip, type FadeShape, type Project } from "../doc/document";
+
+/** The minimum gap enforced between a fade-in's end and a fade-out's start (see `scheduleClip`). */
+const MIN_FADE_GAP_S = 1 / PROJECT_SAMPLE_RATE;
 
 export interface FadeSpec {
   /** Seconds from the START OF THE RENDER WINDOW — feed straight to `setValueCurveAtTime`. */
@@ -56,6 +59,26 @@ function scheduleClip(c: Clip, trackId: string, fromS: number, toS: number): Sch
   const s = Math.max(start, fromS);
   const e = Math.min(end, toS);
   if (!(e > s)) return null;
+  let fadeIn = fadeSpec(start, c.fadeInS, c.fadeShape, s, e, fromS);
+  const fadeOut = fadeSpec(end - c.fadeOutS, c.fadeOutS, c.fadeShape, s, e, fromS);
+  // clampFades scales a colliding fade-in/fade-out pair to fill the clip EXACTLY, so the spans
+  // built above can end up overlapping by a float ulp or abutting exactly. setValueCurveAtTime
+  // throws on the former and is implementation-defined (observed to throw in Chromium) on the
+  // latter, so force a strict one-sample gap by shrinking the fade-in — never the fade-out, so
+  // the tail the listener actually hears reaching silence is never touched.
+  if (fadeIn && fadeOut) {
+    const maxEndS = fadeOut.atS - MIN_FADE_GAP_S;
+    const curEndS = fadeIn.atS + fadeIn.durS;
+    if (curEndS > maxEndS) {
+      const newDurS = maxEndS - fadeIn.atS;
+      if (newDurS <= 0) {
+        fadeIn = null;
+      } else {
+        const scale = newDurS / fadeIn.durS;
+        fadeIn = { ...fadeIn, durS: newDurS, toT: fadeIn.fromT + (fadeIn.toT - fadeIn.fromT) * scale };
+      }
+    }
+  }
   return {
     trackId,
     sourceId: c.sourceId,
@@ -63,8 +86,8 @@ function scheduleClip(c: Clip, trackId: string, fromS: number, toS: number): Sch
     sourceOffset: c.inS + (s - start),
     duration: e - s,
     gain: c.gain,
-    fadeIn: fadeSpec(start, c.fadeInS, c.fadeShape, s, e, fromS),
-    fadeOut: fadeSpec(end - c.fadeOutS, c.fadeOutS, c.fadeShape, s, e, fromS),
+    fadeIn,
+    fadeOut,
   };
 }
 
