@@ -1,17 +1,19 @@
 <script lang="ts">
   import {
-    Pause, Play, Plus, Redo2, Repeat, Scissors, Square, Undo2, Upload,
+    Download, Pause, Play, Plus, Redo2, Repeat, Scissors, Square, Undo2, Upload,
   } from "@lucide/svelte";
   import { addTrack, setMasterGain, splitAt } from "../doc/edits";
   import {
     amend, beginGesture, canRedoNow, canUndoNow, commit, endGesture, engine, importFiles,
     redoEdit, seekTo, selectedTrackIds, state as appState, togglePlay, undoEdit,
   } from "../state/appState.svelte";
+  import ExportDialog from "./ExportDialog.svelte";
   import Fader from "./Fader.svelte";
   import { formatTime } from "./geometry";
 
   let fileInput = $state<HTMLInputElement | null>(null);
   let masterDragging = false;
+  let exporting = $state(false);
 
   // Inline rather than an `@apply` rule: in Tailwind 4 an `@apply` inside a component <style>
   // block needs an `@reference` to the stylesheet in every file, which is more ceremony than
@@ -90,6 +92,10 @@
     <input type="checkbox" bind:checked={appState.snap} /> Snap
   </label>
 
+  <button class={BTN} title="Export mix" onclick={() => (exporting = true)}>
+    <Download size={16} />
+  </button>
+
   <div class="ml-auto flex items-center gap-2 text-xs">
     <span class="text-neutral-500">Master</span>
     <Fader
@@ -99,3 +105,7 @@
     />
   </div>
 </div>
+
+{#if exporting}
+  <ExportDialog onClose={() => (exporting = false)} />
+{/if}
