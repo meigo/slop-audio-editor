@@ -3,8 +3,9 @@ import type { SourcePool } from "../audio/pool";
 import { renderPlan } from "../audio/render";
 import { planSchedule } from "../audio/schedule";
 
-/** Solo is monitoring, never a document field, and MUST NOT reach an export. Passing this frozen
- *  empty set is the enforcement, not a convention a caller has to remember. */
+/** Solo is monitoring, never a document field, and MUST NOT reach an export. This binding is
+ *  module-private and unexported, so no caller can pass a different set in its place — passing
+ *  this empty set is the enforcement, not a convention a caller has to remember. */
 const NO_SOLO: ReadonlySet<string> = new Set();
 
 /**

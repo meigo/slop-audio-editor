@@ -15,7 +15,16 @@
   let error = $state<string | null>(null);
 
   $effect(() => {
-    void availableFormats().then((f) => (formats = f));
+    void availableFormats()
+      .then((f) => (formats = f))
+      .catch(() => {
+        // The encoder module failed to load (blocked chunk, offline, bad cache). WAV needs no
+        // codec support and is unaffected, so degrade to it rather than failing the dialog — but
+        // say why, or the missing formats look like a bug in the app.
+        formats = ["wav16", "wav32"];
+        format = "wav16";
+        error = "Could not load the extra encoders; WAV export is still available.";
+      });
   });
 
   const range = $derived(exportWindow(appState.project, appState.selection));

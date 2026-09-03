@@ -18,8 +18,9 @@ function channelsOf(buffer: AudioBuffer): Float32Array[] {
 }
 
 /** mediabunny is ~megabytes and is needed ONLY when the user exports. Loading it lazily keeps it
- *  out of the initial bundle, so opening the editor stays fast and the cost is paid on the first
- *  export instead. Memoised so the module and the MP3 encoder registration happen exactly once. */
+ *  out of the initial bundle, so opening the editor stays fast and the cost is paid when the
+ *  export dialog is first opened instead. Memoised so the module and the MP3 encoder registration
+ *  happen exactly once. */
 let mediabunnyPromise: Promise<typeof import("mediabunny")> | null = null;
 
 function loadMediabunny(): Promise<typeof import("mediabunny")> {
