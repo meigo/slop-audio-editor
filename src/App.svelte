@@ -10,7 +10,7 @@
   import TrackLane from "./lib/TrackLane.svelte";
   import { PROJECT_FILE_EXT } from "./persist/project-file";
   import { openProjectFile, restoreAutosave, saveProjectFile } from "./persist/project-io.svelte";
-  import { importFiles, state as appState } from "./state/appState.svelte";
+  import { importFiles, markRestoreSettled, state as appState } from "./state/appState.svelte";
 
   /** Left column holding track headers. Fixed so the ruler and lanes share one x origin. */
   const HEADER_W = 176;
@@ -20,14 +20,16 @@
 
   // Runs once on mount: pull yesterday's session back in before the user touches anything.
   $effect(() => {
-    void restoreAutosave().catch((err) => {
-      // A corrupt or half-written autosave must not look like "your work vanished". The editor is
-      // still usable with an empty project, so degrade to that — but say what happened, or the
-      // user has no way to tell a restore failure from never having had a session at all.
-      loadError =
-        "Could not restore your last session: " +
-        (err instanceof Error ? err.message : String(err));
-    });
+    void restoreAutosave()
+      .catch((err) => {
+        // A corrupt or half-written autosave must not look like "your work vanished". The editor
+        // is still usable with an empty project, so degrade to that — but say what happened, or
+        // the user has no way to tell a restore failure from never having had a session at all.
+        loadError =
+          "Could not restore your last session: " +
+          (err instanceof Error ? err.message : String(err));
+      })
+      .finally(() => markRestoreSettled());
   });
 
   async function onDrop(e: DragEvent) {

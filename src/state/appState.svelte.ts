@@ -34,12 +34,28 @@ export const state = $state({
   dirty: false,
 });
 
+/** Set once `restoreAutosave` (or its failure) has settled, from `App.svelte`'s `finally`. Until
+ *  then the debounced save below must not fire: it runs at module init with `state.project` still
+ *  the empty `createProject()`, and restoring decodes every source before assigning the real
+ *  project — a slow decode (or a failed restore) would otherwise let the 3 s debounce write that
+ *  empty document over the autosave the user is trying to recover, permanently. */
+let restoreSettled = false;
+
+export function markRestoreSettled(): void {
+  restoreSettled = true;
+}
+
 // Module-scope effects need their own root — there is no component owner here.
 $effect.root(() => {
   // The document is kilobytes, so a 3 s debounce is free. `$state.snapshot` is essential:
   // IndexedDB cannot structured-clone a $state proxy.
   $effect(() => {
-    scheduleDocumentSave($state.snapshot(state.project));
+    // Read unconditionally, even while gated below, so this effect stays subscribed to
+    // `state.project` and fires again (this time past the gate) on the next change once the
+    // restore has settled.
+    const snapshot = $state.snapshot(state.project);
+    if (!restoreSettled || state.importing !== null) return;
+    scheduleDocumentSave(snapshot);
   });
 
   $effect(() => {
