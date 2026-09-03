@@ -78,12 +78,18 @@
     accept="audio/*"
     multiple
     class="hidden"
-    onchange={(e) => {
+    onchange={async (e) => {
       const files = e.currentTarget.files;
-      if (files?.length) {
-        void importFiles(files, appState.project.tracks[0].id, appState.playheadS);
+      e.currentTarget.value = ""; // reset first, so re-picking the same file works even on failure
+      if (!files?.length) return;
+      try {
+        await importFiles(files, appState.project.tracks[0].id, appState.playheadS);
+      } catch (err) {
+        // A decode or autosave-write failure must be visible here, not console-only: this is the
+        // main way audio enters the app, and the user needs to know if what they just imported
+        // will not survive a reload.
+        fileError = err instanceof Error ? err.message : String(err);
       }
-      e.currentTarget.value = "";
     }}
   />
 
