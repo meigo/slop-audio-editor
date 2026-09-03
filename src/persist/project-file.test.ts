@@ -94,4 +94,34 @@ describe("errors", () => {
     });
     expect(() => unpackProject(bad)).toThrow(/missing/i);
   });
+
+  it("rejects a manifest whose project has no tracks array", () => {
+    const bad = zipSync({
+      "project.json": strToU8(JSON.stringify({
+        version: PROJECT_FILE_VERSION,
+        project: { name: "x", masterGain: 1 }, // tracks missing entirely
+        sources: [],
+      })),
+    });
+    expect(() => unpackProject(bad)).toThrow(ProjectFileError);
+    expect(() => unpackProject(bad)).toThrow(/shape/i);
+  });
+
+  it("rejects a manifest whose project's masterGain is not a number", () => {
+    const bad = zipSync({
+      "project.json": strToU8(JSON.stringify({
+        version: PROJECT_FILE_VERSION,
+        project: { name: "x", tracks: [], masterGain: "loud" },
+        sources: [],
+      })),
+    });
+    expect(() => unpackProject(bad)).toThrow(ProjectFileError);
+  });
+
+  it("rejects a manifest with no project field at all", () => {
+    const bad = zipSync({
+      "project.json": strToU8(JSON.stringify({ version: PROJECT_FILE_VERSION, sources: [] })),
+    });
+    expect(() => unpackProject(bad)).toThrow(ProjectFileError);
+  });
 });

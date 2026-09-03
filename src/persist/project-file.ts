@@ -63,11 +63,23 @@ export function unpackProject(zip: Uint8Array): { project: Project; sources: Sou
     );
   }
 
+  // A version check alone lets a malformed-but-parseable file (e.g. hand-edited, or truncated by
+  // a bad transfer) through as a valid manifest, which surfaces as a white screen far from this
+  // function rather than the file-load banner. Check the shape the rest of this function and
+  // `loadInto` assume.
+  const project = manifest.project;
+  if (
+    typeof project !== "object" || project === null ||
+    !Array.isArray(project.tracks) || typeof project.masterGain !== "number"
+  ) {
+    throw new ProjectFileError("Project file is corrupt — the project data has an unexpected shape.");
+  }
+
   const sources = (manifest.sources ?? []).map((s) => {
     const bytes = files[s.file];
     if (!bytes) throw new ProjectFileError(`Project file is missing audio for "${s.name}".`);
     return { id: s.id, name: s.name, bytes };
   });
 
-  return { project: manifest.project, sources };
+  return { project, sources };
 }
