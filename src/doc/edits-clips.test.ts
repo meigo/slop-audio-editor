@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { __resetIds, createProject, type Project } from "./document";
 import { addClip, addTrack, deleteClips, makeClip, moveClips } from "./edits";
+import { expectNoOverlaps } from "./test-helpers";
 
 function twoTracks(): Project {
   return addTrack(createProject(), "B");
@@ -70,14 +71,18 @@ describe("moveClips", () => {
     let p = twoTracks();
     p = addClip(p, p.tracks[0].id, makeClip("s", 2, 2));
     const id = p.tracks[0].clips[0].id;
-    expect(moveClips(p, [id], 3, 0).tracks[0].clips[0].startS).toBe(5);
+    const next = moveClips(p, [id], 3, 0);
+    expect(next.tracks[0].clips[0].startS).toBe(5);
+    expectNoOverlaps(next);
   });
 
   it("clamps at t=0 rather than going negative", () => {
     let p = twoTracks();
     p = addClip(p, p.tracks[0].id, makeClip("s", 1, 2));
     const id = p.tracks[0].clips[0].id;
-    expect(moveClips(p, [id], -5, 0).tracks[0].clips[0].startS).toBe(0);
+    const next = moveClips(p, [id], -5, 0);
+    expect(next.tracks[0].clips[0].startS).toBe(0);
+    expectNoOverlaps(next);
   });
 
   it("moves a clip to another track", () => {
@@ -87,13 +92,16 @@ describe("moveClips", () => {
     const next = moveClips(p, [id], 0, 1);
     expect(next.tracks[0].clips).toHaveLength(0);
     expect(next.tracks[1].clips).toHaveLength(1);
+    expectNoOverlaps(next);
   });
 
   it("clamps a track move at the ends of the track list", () => {
     let p = twoTracks();
     p = addClip(p, p.tracks[0].id, makeClip("s", 0, 2));
     const id = p.tracks[0].clips[0].id;
-    expect(moveClips(p, [id], 0, -3).tracks[0].clips).toHaveLength(1);
+    const next = moveClips(p, [id], 0, -3);
+    expect(next.tracks[0].clips).toHaveLength(1);
+    expectNoOverlaps(next);
   });
 
   it("overwrites a clip it lands on", () => {
@@ -103,6 +111,7 @@ describe("moveClips", () => {
     const moving = p.tracks[0].clips[1].id;
     const next = moveClips(p, [moving], -8, 0);
     expect(next.tracks[0].clips.map((c) => [c.startS, c.durS])).toEqual([[0, 2], [2, 4]]);
+    expectNoOverlaps(next);
   });
 
   it("does not let group members overwrite each other", () => {
@@ -112,6 +121,7 @@ describe("moveClips", () => {
     const ids = p.tracks[0].clips.map((c) => c.id);
     const next = moveClips(p, ids, 10, 0);
     expect(next.tracks[0].clips.map((c) => [c.startS, c.durS])).toEqual([[10, 4], [14, 4]]);
+    expectNoOverlaps(next);
   });
 
   it("preserves relative offsets when the group is clamped at t=0", () => {
@@ -121,5 +131,6 @@ describe("moveClips", () => {
     const ids = p.tracks[0].clips.map((c) => c.id);
     const next = moveClips(p, ids, -10, 0);
     expect(next.tracks[0].clips.map((c) => c.startS)).toEqual([0, 4]);
+    expectNoOverlaps(next);
   });
 });

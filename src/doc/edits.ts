@@ -206,8 +206,15 @@ export function splitAt(p: Project, trackIds: readonly string[], atS: number): P
 }
 
 /**
- * Cut `[fromS, toS)` out of the given tracks: split at both edges, drop what is inside, and — if
- * `ripple` — close the gap by shifting everything after it left.
+ * Cut `[fromS, toS)` out of the given tracks, and — if `ripple` — close the gap by shifting
+ * everything after it left.
+ *
+ * Each clip is handled directly with `sliceClip` rather than by routing through `splitAt`:
+ * `splitAt` REFUSES a split that would leave a sub-`MIN_CLIP_S` sliver, which for a cut would mean
+ * leaving the whole original clip in place — overlapping both the clips kept before it and the
+ * ones rippled left over the top of it. A cut must drop slivers, not preserve the clip they came
+ * from, so `sliceClip` (which already returns null for a sub-`MIN_CLIP_S` fragment) is used
+ * directly on each clip that overlaps the range.
  *
  * `trackIds` scopes the ripple. It is NEVER global: sliding every track would pull a music bed out
  * of sync with the narration you were editing. The caller passes the tracks the time-range
@@ -222,21 +229,42 @@ export function deleteRange(
 ): Project {
   if (!(toS > fromS)) return p;
   const span = toS - fromS;
-  let next = splitAt(p, trackIds, fromS);
-  next = splitAt(next, trackIds, toS);
+  let next = p;
 
   for (const trackId of trackIds) {
     next = mapTrack(next, trackId, (t) => {
-      const kept = t.clips.filter((c) => !(c.startS >= fromS && clipEndS(c) <= toS));
-      const removed = kept.length !== t.clips.length;
-      if (!removed && !ripple) return t;
-      const clips = ripple
-        ? kept.map((c) => (c.startS >= toS ? { ...c, startS: c.startS - span } : c))
-        : kept;
-      // Nothing was cut and nothing sat after the range — genuinely unchanged.
-      if (!removed && clips.every((c, i) => c === kept[i]) && clips.length === t.clips.length) {
-        return t;
+      let changed = false;
+      const clips: Clip[] = [];
+      for (const c of t.clips) {
+        if (clipEndS(c) <= fromS) {
+          // Entirely before the cut — untouched.
+          clips.push(c);
+          continue;
+        }
+        if (c.startS >= toS) {
+          // Entirely after the cut — shift left to close the gap if rippling.
+          if (ripple) {
+            clips.push({ ...c, startS: c.startS - span });
+            changed = true;
+          } else {
+            clips.push(c);
+          }
+          continue;
+        }
+        // Overlaps the cut range: keep only what survives outside it.
+        changed = true;
+        const head = sliceClip(c, -Infinity, fromS);
+        const tail = sliceClip(c, toS, Infinity);
+        if (head) clips.push(head);
+        if (tail) {
+          const shifted = ripple ? { ...tail, startS: tail.startS - span } : tail;
+          // A fresh id only when a head ALSO survived (a genuine split into two pieces),
+          // matching insertClip's rule.
+          clips.push(head ? { ...shifted, id: newId("clip") } : shifted);
+        }
       }
+      if (!changed) return t;
+      clips.sort((a, b) => a.startS - b.startS);
       return { ...t, clips };
     });
   }

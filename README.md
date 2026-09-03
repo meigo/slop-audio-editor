@@ -109,9 +109,6 @@ a large amount of memory.
   interface exposes it. An accidental "Add track" is undoable, at least.
 - **Inspector number fields work at 10 ms granularity** — values display and commit at two decimal
   places, matching the nudge step, not full sample precision.
-- **A range cut whose edge lands within 10 ms of a clip edge can leave a sub-10 ms sliver of that
-  clip**, because a split that would produce a piece shorter than the 10 ms minimum clip length is
-  refused rather than forced.
 - **`⇧Delete` (delete-and-ripple) only ripples a time-range selection**, not a selection of clips.
 - **The export format you last chose does not persist** between sessions — the export dialog
   always opens back on WAV.

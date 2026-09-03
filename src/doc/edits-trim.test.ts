@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { __resetIds, createProject, type Project } from "./document";
 import { addClip, makeClip, splitAt, trimClipEnd, trimClipStart } from "./edits";
+import { expectNoOverlaps } from "./test-helpers";
 
 /** One track holding one clip: 4s of a 20s source, starting 2s in, placed at t=5. */
 function oneClip(): { p: Project; clipId: string; trackId: string } {
@@ -44,8 +45,9 @@ describe("trimClipStart", () => {
     let { p, trackId } = oneClip();
     p = addClip(p, trackId, makeClip("s", 0, 4, 0)); // occupies 0..4
     const clipId = p.tracks[0].clips[1].id;
-    const c = trimClipStart(p, clipId, -10).tracks[0].clips[1];
-    expect(c.startS).toBe(4);
+    const next = trimClipStart(p, clipId, -10);
+    expect(next.tracks[0].clips[1].startS).toBe(4);
+    expectNoOverlaps(next);
   });
 
   it("clamps fades that no longer fit", () => {
@@ -84,18 +86,22 @@ describe("trimClipEnd", () => {
     let { p, trackId } = oneClip();
     p = addClip(p, trackId, makeClip("s", 11, 2, 0)); // occupies 11..13
     const clipId = p.tracks[0].clips[0].id;
-    expect(trimClipEnd(p, clipId, 99, 20).tracks[0].clips[0].durS).toBe(6); // 5..11
+    const next = trimClipEnd(p, clipId, 99, 20);
+    expect(next.tracks[0].clips[0].durS).toBe(6); // 5..11
+    expectNoOverlaps(next);
   });
 });
 
 describe("splitAt", () => {
   it("splits a clip crossing the point into two, the tail getting a new id", () => {
     const { p, clipId, trackId } = oneClip();
-    const clips = splitAt(p, [trackId], 7).tracks[0].clips;
+    const next = splitAt(p, [trackId], 7);
+    const clips = next.tracks[0].clips;
     expect(clips).toHaveLength(2);
     expect(clips[0]).toMatchObject({ id: clipId, startS: 5, inS: 2, durS: 2 });
     expect(clips[1]).toMatchObject({ startS: 7, inS: 4, durS: 2 });
     expect(clips[1].id).not.toBe(clipId);
+    expectNoOverlaps(next);
   });
 
   it("leaves clips that do not cross the point alone", () => {
