@@ -1,0 +1,101 @@
+<script lang="ts">
+  import {
+    Pause, Play, Plus, Redo2, Repeat, Scissors, Square, Undo2, Upload,
+  } from "@lucide/svelte";
+  import { addTrack, setMasterGain, splitAt } from "../doc/edits";
+  import {
+    amend, beginGesture, canRedoNow, canUndoNow, commit, endGesture, engine, importFiles,
+    redoEdit, seekTo, selectedTrackIds, state as appState, togglePlay, undoEdit,
+  } from "../state/appState.svelte";
+  import Fader from "./Fader.svelte";
+  import { formatTime } from "./geometry";
+
+  let fileInput = $state<HTMLInputElement | null>(null);
+  let masterDragging = false;
+
+  // Inline rather than an `@apply` rule: in Tailwind 4 an `@apply` inside a component <style>
+  // block needs an `@reference` to the stylesheet in every file, which is more ceremony than
+  // one shared string.
+  const BTN =
+    "rounded p-1 text-neutral-300 hover:bg-neutral-700 disabled:opacity-30 disabled:hover:bg-transparent";
+
+  function onMasterGain(g: number) {
+    if (!masterDragging) {
+      masterDragging = true;
+      beginGesture("mix"); // MIX gesture — see TrackHeader
+    }
+    amend((p) => setMasterGain(p, g));
+    engine.setMasterGain(g);
+  }
+</script>
+
+<div class="flex h-11 items-center gap-3 border-b border-neutral-700 px-2 text-neutral-300">
+  <button class={BTN} title="Import audio" onclick={() => fileInput?.click()}>
+    <Upload size={16} />
+  </button>
+  <input
+    bind:this={fileInput}
+    type="file"
+    accept="audio/*"
+    multiple
+    class="hidden"
+    onchange={(e) => {
+      const files = e.currentTarget.files;
+      if (files?.length) {
+        void importFiles(files, appState.project.tracks[0].id, appState.playheadS);
+      }
+      e.currentTarget.value = "";
+    }}
+  />
+
+  <div class="flex items-center gap-1">
+    <button class={BTN} title="Play/pause (Space)" onclick={togglePlay}>
+      {#if appState.playing}<Pause size={16} />{:else}<Play size={16} />{/if}
+    </button>
+    <button class={BTN} title="Stop" onclick={() => { if (appState.playing) togglePlay(); seekTo(0); }}>
+      <Square size={16} />
+    </button>
+    <button
+      class={BTN}
+      class:text-sky-400={appState.loop}
+      title="Loop the selected range (L)"
+      onclick={() => (appState.loop = !appState.loop)}
+    >
+      <Repeat size={16} />
+    </button>
+  </div>
+
+  <span class="w-24 tabular-nums text-sm">{formatTime(appState.playheadS)}</span>
+
+  <div class="flex items-center gap-1">
+    <button class={BTN} disabled={!canUndoNow()} title="Undo (⌘Z)" onclick={undoEdit}>
+      <Undo2 size={16} />
+    </button>
+    <button class={BTN} disabled={!canRedoNow()} title="Redo (⇧⌘Z)" onclick={redoEdit}>
+      <Redo2 size={16} />
+    </button>
+    <button
+      class={BTN}
+      title="Split at playhead (S)"
+      onclick={() => commit((p) => splitAt(p, selectedTrackIds(), appState.playheadS))}
+    >
+      <Scissors size={16} />
+    </button>
+    <button class={BTN} title="Add track" onclick={() => commit((p) => addTrack(p))}>
+      <Plus size={16} />
+    </button>
+  </div>
+
+  <label class="flex items-center gap-1 text-xs">
+    <input type="checkbox" bind:checked={appState.snap} /> Snap
+  </label>
+
+  <div class="ml-auto flex items-center gap-2 text-xs">
+    <span class="text-neutral-500">Master</span>
+    <Fader
+      gain={appState.project.masterGain}
+      onInput={onMasterGain}
+      onCommit={() => { if (masterDragging) { masterDragging = false; endGesture(); } }}
+    />
+  </div>
+</div>
