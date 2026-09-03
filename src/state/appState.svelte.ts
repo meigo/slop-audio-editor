@@ -73,7 +73,7 @@ type GestureKind = "structural" | "mix";
 
 let gestureBase: Project | null = null;
 let gestureKind: GestureKind = "structural";
-let clipboard: ClipboardData = { entries: [] };
+let clipboard: ClipboardData = { entries: [], sourceTrackId: null };
 
 export function canUndoNow(): boolean {
   return canUndo(history);
@@ -241,6 +241,14 @@ export function cutSelection(): void {
   state.selection = NO_SELECTION;
 }
 
+/** Pastes onto the track the copy came from when that track still exists, falling back to
+ *  `trackId` (the caller's idea of the "current" track) otherwise — `selectedTrackIds()` returns
+ *  every track when the selection is not a range, so that fallback alone would always resolve to
+ *  the first track, silently overwriting it. */
 export function pasteAtPlayhead(trackId: string): void {
-  commit((p) => pasteClips(p, clipboard, trackId, state.playheadS));
+  const target =
+    clipboard.sourceTrackId && state.project.tracks.some((t) => t.id === clipboard.sourceTrackId)
+      ? clipboard.sourceTrackId
+      : trackId;
+  commit((p) => pasteClips(p, clipboard, target, state.playheadS));
 }

@@ -35,7 +35,17 @@ describe("copyClips", () => {
   });
 
   it("returns an empty clipboard for no ids", () => {
-    expect(copyClips(scene(), []).entries).toEqual([]);
+    const data = copyClips(scene(), []);
+    expect(data.entries).toEqual([]);
+    expect(data.sourceTrackId).toBeNull();
+  });
+
+  it("records the topmost copied clip's track as sourceTrackId", () => {
+    const p = scene();
+    expect(copyClips(p, [p.tracks[0].clips[0].id]).sourceTrackId).toBe(p.tracks[0].id);
+    // Order of the passed-in ids does not matter — it's the topmost TRACK that wins.
+    const ids = [p.tracks[1].clips[0].id, p.tracks[0].clips[0].id];
+    expect(copyClips(p, ids).sourceTrackId).toBe(p.tracks[0].id);
   });
 });
 
@@ -101,7 +111,7 @@ describe("pasteClips", () => {
 
   it("is a no-op for an empty clipboard or unknown track", () => {
     const p = scene();
-    expect(pasteClips(p, { entries: [] }, p.tracks[0].id, 5)).toBe(p);
+    expect(pasteClips(p, { entries: [], sourceTrackId: null }, p.tracks[0].id, 5)).toBe(p);
     expect(pasteClips(p, copyClips(p, [p.tracks[0].clips[0].id]), "nope", 5)).toBe(p);
   });
 });
