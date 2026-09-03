@@ -1,4 +1,4 @@
-import { decodeSource } from "../audio/pool";
+import { decodeSource, type Source } from "../audio/pool";
 import { pool, state as appState } from "../state/appState.svelte";
 import { clearAutosave, putSource, readAutosave } from "./autosave";
 import {
@@ -27,23 +27,31 @@ export function saveProjectFile(): void {
   appState.dirty = false;
 }
 
-/** Replace everything: clear the pool, re-decode every embedded source, install the document.
- *  Sources are decoded and added to the pool BEFORE `appState.project` is assigned — the pool is
- *  a plain (non-reactive) Map, and `Waveform.svelte` reads it inside an `$effect` Svelte cannot
- *  track. Assigning the project first would put clips into reactive state whose source is not in
- *  the pool yet, rendering blank until some unrelated redraw happened to fix it. */
+/** Replace everything: decode every source, and only then install the new pool and document.
+ *
+ *  The decode loop runs BEFORE any state is touched, on purpose. A corrupt source inside an
+ *  otherwise-valid file must leave the current project exactly as it was — clearing the pool
+ *  first would strand the still-installed project on sources that no longer exist, turning one
+ *  bad import into a lost session. This also strengthens the pool-before-project ordering rule:
+ *  every source is now decoded before ANY state is touched, not merely before `appState.project`
+ *  is assigned. */
 async function loadInto(project: typeof appState.project, sources: SourceRecord[]): Promise<void> {
-  pool.clear();
+  const decoded: Source[] = [];
   for (const s of sources) {
     appState.importing = { name: s.name, fraction: 0 };
     try {
-      pool.add(await decodeSource(s.id, s.name, s.bytes, (f) => {
-        appState.importing = { name: s.name, fraction: f };
-      }));
+      decoded.push(
+        await decodeSource(s.id, s.name, s.bytes, (f) => {
+          appState.importing = { name: s.name, fraction: f };
+        }),
+      );
     } finally {
       appState.importing = null;
     }
   }
+  // Past this line nothing can fail, so the swap is effectively atomic.
+  pool.clear();
+  for (const d of decoded) pool.add(d);
   appState.project = project;
   appState.dirty = false;
 }
@@ -51,8 +59,8 @@ async function loadInto(project: typeof appState.project, sources: SourceRecord[
 export async function openProjectFile(file: File): Promise<void> {
   const bytes = new Uint8Array(await file.arrayBuffer());
   const { project, sources } = unpackProject(bytes); // throws ProjectFileError, surfaced by caller
+  await loadInto(project, sources); // may throw — must happen before anything is destroyed
   await clearAutosave();
-  await loadInto(project, sources);
   for (const s of sources) await putSource(s);
 }
 
