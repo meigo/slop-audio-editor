@@ -7,10 +7,15 @@ import {
 import { createProject, projectDurationS, type Project } from "../doc/document";
 import { addClip, makeClip } from "../doc/edits";
 import { NO_SELECTION, type Selection } from "../doc/selection";
+import { putSource, scheduleDocumentSave } from "../persist/autosave";
+import { loadPreferences, savePreferences } from "../persist/preferences";
 import { canRedo, canUndo, createHistory, record, redo, undo } from "./history";
 
 export const pool = new SourcePool();
 export const engine = new AudioEngine();
+
+// Applied at module init, before any component reads the store.
+const prefs = loadPreferences();
 
 /** The single source of truth. `soloed` is a SvelteSet: a plain Set is NOT reactive in runes
  *  mode, so mutating one would silently fail to update the track headers. */
@@ -21,12 +26,30 @@ export const state = $state({
   playheadS: 0,
   playing: false,
   loop: false,
-  pxPerSecond: 60,
+  pxPerSecond: prefs.pxPerSecond,
   scrollS: 0,
-  trackHeightPx: 88,
-  snap: true,
+  trackHeightPx: prefs.trackHeightPx,
+  snap: prefs.snap,
   importing: null as { name: string; fraction: number } | null,
   dirty: false,
+});
+
+// Module-scope effects need their own root — there is no component owner here.
+$effect.root(() => {
+  // The document is kilobytes, so a 3 s debounce is free. `$state.snapshot` is essential:
+  // IndexedDB cannot structured-clone a $state proxy.
+  $effect(() => {
+    scheduleDocumentSave($state.snapshot(state.project));
+  });
+
+  $effect(() => {
+    savePreferences({
+      pxPerSecond: state.pxPerSecond,
+      snap: state.snap,
+      trackHeightPx: state.trackHeightPx,
+      lastFormat: prefs.lastFormat,
+    });
+  });
 });
 
 let history = createHistory<Project>();
@@ -174,6 +197,8 @@ export async function importFiles(
         state.importing = { name: file.name, fraction: f };
       });
       pool.add(source);
+      // Source bytes are immutable and large — written ONCE here, never on the document debounce.
+      void putSource({ id: source.id, name: source.name, bytes: source.bytes });
       commit((p) => addClip(p, trackId, makeClip(source.id, at, source.durationS)));
       at += source.durationS;
     } finally {

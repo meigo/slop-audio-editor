@@ -1,8 +1,11 @@
 <script lang="ts">
   import {
-    Download, Pause, Play, Plus, Redo2, Repeat, Scissors, Square, Undo2, Upload,
+    Download, FilePlus2, FolderOpen, Pause, Play, Plus, Redo2, Repeat, Save, Scissors, Square,
+    Undo2, Upload,
   } from "@lucide/svelte";
+  import { createProject } from "../doc/document";
   import { addTrack, setMasterGain, splitAt } from "../doc/edits";
+  import { openProjectFile, saveProjectFile } from "../persist/project-io.svelte";
   import {
     amend, beginGesture, canRedoNow, canUndoNow, commit, endGesture, engine, importFiles,
     redoEdit, seekTo, selectedTrackIds, state as appState, togglePlay, undoEdit,
@@ -12,6 +15,8 @@
   import { formatTime } from "./geometry";
 
   let fileInput = $state<HTMLInputElement | null>(null);
+  let projectInput = $state<HTMLInputElement | null>(null);
+  let fileError = $state<string | null>(null);
   let masterDragging = false;
   let exporting = $state(false);
 
@@ -32,6 +37,38 @@
 </script>
 
 <div class="flex h-11 items-center gap-3 border-b border-neutral-700 px-2 text-neutral-300">
+  <div class="flex items-center gap-1">
+    <button class={BTN} title="New project" onclick={() => commit(() => createProject())}>
+      <FilePlus2 size={16} />
+    </button>
+    <button class={BTN} title="Open project" onclick={() => projectInput?.click()}>
+      <FolderOpen size={16} />
+    </button>
+    <button class={BTN} title="Save project (⌘S)" onclick={saveProjectFile}>
+      <Save size={16} />
+      {#if appState.dirty}<span class="ml-0.5 text-sky-400">•</span>{/if}
+    </button>
+  </div>
+  <input
+    bind:this={projectInput}
+    type="file"
+    accept=".slopaudio,application/zip"
+    class="hidden"
+    onchange={async (e) => {
+      const f = e.currentTarget.files?.[0];
+      e.currentTarget.value = "";
+      if (!f) return;
+      try {
+        await openProjectFile(f);
+      } catch (err) {
+        fileError = err instanceof Error ? err.message : String(err);
+      }
+    }}
+  />
+  {#if fileError}
+    <span class="text-xs text-red-400">{fileError}</span>
+  {/if}
+
   <button class={BTN} title="Import audio" onclick={() => fileInput?.click()}>
     <Upload size={16} />
   </button>

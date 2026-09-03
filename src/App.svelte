@@ -8,16 +8,56 @@
   import Toolbar from "./lib/Toolbar.svelte";
   import TrackHeader from "./lib/TrackHeader.svelte";
   import TrackLane from "./lib/TrackLane.svelte";
-  import { state as appState } from "./state/appState.svelte";
+  import { PROJECT_FILE_EXT } from "./persist/project-file";
+  import { openProjectFile, restoreAutosave, saveProjectFile } from "./persist/project-io.svelte";
+  import { importFiles, state as appState } from "./state/appState.svelte";
 
   /** Left column holding track headers. Fixed so the ruler and lanes share one x origin. */
   const HEADER_W = 176;
 
   let timelineWidth = $state(0);
+  let loadError = $state<string | null>(null);
+
+  // Runs once on mount: pull yesterday's session back in before the user touches anything.
+  $effect(() => {
+    void restoreAutosave();
+  });
+
+  async function onDrop(e: DragEvent) {
+    e.preventDefault();
+    const files = Array.from(e.dataTransfer?.files ?? []);
+    if (files.length === 0) return;
+    const projectFile = files.find((f) => f.name.endsWith(PROJECT_FILE_EXT));
+    try {
+      if (projectFile) await openProjectFile(projectFile);
+      else await importFiles(files, appState.project.tracks[0].id, appState.playheadS);
+    } catch (err) {
+      loadError = err instanceof Error ? err.message : String(err);
+    }
+  }
 </script>
 
-<div class="flex h-full flex-col bg-neutral-900 text-neutral-200">
-  <KeyboardShortcuts onSave={() => {}} viewportWidthPx={timelineWidth} />
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div
+  class="relative flex h-full flex-col bg-neutral-900 text-neutral-200"
+  ondragover={(e) => e.preventDefault()}
+  ondrop={onDrop}
+>
+  {#if appState.importing}
+    <div class="absolute inset-x-0 top-0 z-50 bg-sky-700 px-2 py-1 text-xs">
+      Loading {appState.importing.name} — {Math.round(appState.importing.fraction * 100)}%
+    </div>
+  {/if}
+  {#if loadError}
+    <button
+      class="absolute inset-x-0 top-0 z-50 bg-red-800 px-2 py-1 text-left text-xs"
+      onclick={() => (loadError = null)}
+    >
+      {loadError} — click to dismiss
+    </button>
+  {/if}
+
+  <KeyboardShortcuts onSave={saveProjectFile} viewportWidthPx={timelineWidth} />
   <Toolbar />
 
   <div class="flex min-h-0 flex-1">
