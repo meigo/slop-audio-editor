@@ -1,8 +1,8 @@
 /** Every editing operation, as a pure function `(project, ...) => Project`.
  *  No DOM, no Web Audio, no $state. This module is the heart of the test suite. */
 
-import { createTrack, newId, type Clip, type Project, type Track } from "./document";
-import { insertClip } from "./overlap";
+import { MIN_CLIP_S, clipEndS, createTrack, findClip, newId, type Clip, type Project, type Track } from "./document";
+import { clampFades, insertClip, sliceClip } from "./overlap";
 
 /** Replace one track by id. Returns the SAME project object when the id is unknown or the
  *  callback is a no-op, so callers can cheaply detect "nothing changed". */
@@ -122,4 +122,85 @@ export function moveClips(
     target.clips = insertClip(target.clips, { ...clip, startS: clip.startS + dt });
   }
   return { ...p, tracks };
+}
+
+/** Replace one clip in place, by id, keeping the track sorted. */
+function mapClip(p: Project, clipId: string, fn: (c: Clip, t: Track) => Clip): Project {
+  const found = findClip(p, clipId);
+  if (!found) return p;
+  const next = fn(found.clip, found.track);
+  if (next === found.clip) return p;
+  return mapTrack(p, found.track.id, (t) => ({
+    ...t,
+    clips: t.clips.map((c) => (c.id === clipId ? next : c)).sort((a, b) => a.startS - b.startS),
+  }));
+}
+
+/**
+ * Drag the HEAD handle by `deltaS` (positive = trim more off the front).
+ *
+ * `startS` and `inS` move by the SAME delta on purpose: the two changes cancel in timeline terms,
+ * so the audio you KEEP stays under the same timeline position it was already under. You trim a
+ * head because the sync is already right — a head trim that re-syncs the clip is a bug.
+ *
+ * The DELTA is clamped, not the fields, so the two can never be clamped by different amounts and
+ * break the invariant this function exists to hold.
+ */
+export function trimClipStart(p: Project, clipId: string, deltaS: number): Project {
+  return mapClip(p, clipId, (c, t) => {
+    const i = t.clips.indexOf(c);
+    const prevEnd = i > 0 ? clipEndS(t.clips[i - 1]) : 0;
+    const lo = Math.max(-c.inS, prevEnd - c.startS); // no negative in-point, no eating the neighbour
+    const hi = c.durS - MIN_CLIP_S;
+    const d = Math.max(lo, Math.min(deltaS, hi));
+    if (d === 0) return c;
+    return clampFades({ ...c, startS: c.startS + d, inS: c.inS + d, durS: c.durS - d });
+  });
+}
+
+/** Drag the TAIL handle by `deltaS` (positive = longer). `sourceDurS` is the whole source's
+ *  duration — the tail can never run past the end of the audio it came from. */
+export function trimClipEnd(
+  p: Project,
+  clipId: string,
+  deltaS: number,
+  sourceDurS: number,
+): Project {
+  return mapClip(p, clipId, (c, t) => {
+    const i = t.clips.indexOf(c);
+    const nextStart = i < t.clips.length - 1 ? t.clips[i + 1].startS : Infinity;
+    const lo = MIN_CLIP_S - c.durS;
+    const hi = Math.min(sourceDurS - c.inS - c.durS, nextStart - clipEndS(c));
+    const d = Math.max(lo, Math.min(deltaS, hi));
+    if (d === 0) return c;
+    return clampFades({ ...c, durS: c.durS + d });
+  });
+}
+
+/** Split every clip crossing `atS` on the given tracks. A split that would produce a piece shorter
+ *  than MIN_CLIP_S is refused outright rather than producing a sliver. */
+export function splitAt(p: Project, trackIds: readonly string[], atS: number): Project {
+  let next = p;
+  for (const trackId of trackIds) {
+    next = mapTrack(next, trackId, (t) => {
+      let changed = false;
+      const clips: Clip[] = [];
+      for (const c of t.clips) {
+        if (c.startS >= atS || clipEndS(c) <= atS) {
+          clips.push(c);
+          continue;
+        }
+        const head = sliceClip(c, -Infinity, atS);
+        const tail = sliceClip(c, atS, Infinity);
+        if (!head || !tail) {
+          clips.push(c);
+          continue;
+        }
+        clips.push(head, { ...tail, id: newId("clip") });
+        changed = true;
+      }
+      return changed ? { ...t, clips } : t;
+    });
+  }
+  return next;
 }
