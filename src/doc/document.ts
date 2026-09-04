@@ -106,3 +106,12 @@ export function findClip(p: Project, clipId: string): { track: Track; clip: Clip
   }
   return undefined;
 }
+
+/** Resolves a preferred track id against the project, falling back to the first track when
+ *  `preferredId` is null or names a track that no longer exists (e.g. it was deleted). A project
+ *  always has at least one track, so this always returns something usable — callers never need to
+ *  null-check. */
+export function resolveTrackId(p: Project, preferredId: string | null): string {
+  if (preferredId !== null && findTrack(p, preferredId)) return preferredId;
+  return p.tracks[0].id;
+}

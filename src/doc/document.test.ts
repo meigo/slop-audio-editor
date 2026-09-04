@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   __resetIds, adoptIds, clipEndS, createProject, createTrack, findClip, findTrack,
-  newId, projectDurationS, trackDurationS, type Clip,
+  newId, projectDurationS, resolveTrackId, trackDurationS, type Clip,
 } from "./document";
-import { addClip, addTrack, makeClip } from "./edits";
+import { addClip, addTrack, makeClip, removeTrack } from "./edits";
 
 function clip(over: Partial<Clip> = {}): Clip {
   return {
@@ -125,5 +125,32 @@ describe("lookups", () => {
     expect(findTrack(p, "nope")).toBeUndefined();
     expect(findClip(p, c.id)).toEqual({ track: p.tracks[0], clip: c });
     expect(findClip(p, "nope")).toBeUndefined();
+  });
+});
+
+describe("resolveTrackId", () => {
+  it("returns the preferred id when it exists", () => {
+    let p = createProject();
+    p = addTrack(p, "Track 2");
+    const wanted = p.tracks[1].id;
+    expect(resolveTrackId(p, wanted)).toBe(wanted);
+  });
+
+  it("falls back to the first track when the preferred id is unknown", () => {
+    const p = createProject();
+    expect(resolveTrackId(p, "nope")).toBe(p.tracks[0].id);
+  });
+
+  it("falls back to the first track when preferredId is null", () => {
+    const p = createProject();
+    expect(resolveTrackId(p, null)).toBe(p.tracks[0].id);
+  });
+
+  it("falls back to the first track when the preferred track was the one removed", () => {
+    let p = createProject();
+    p = addTrack(p, "Track 2");
+    const removedId = p.tracks[0].id;
+    p = removeTrack(p, removedId);
+    expect(resolveTrackId(p, removedId)).toBe(p.tracks[0].id);
   });
 });
