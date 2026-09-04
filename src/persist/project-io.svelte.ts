@@ -65,7 +65,7 @@ export async function openProjectFile(file: File): Promise<void> {
   for (const s of sources) await putSource(s);
 }
 
-function referencedSourceIds(project: Project): Set<string> {
+export function referencedSourceIds(project: Project): Set<string> {
   const ids = new Set<string>();
   for (const t of project.tracks) for (const c of t.clips) ids.add(c.sourceId);
   return ids;
