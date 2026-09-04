@@ -4,7 +4,7 @@ import { SourcePool, sourceFromFile } from "../audio/pool";
 import {
   copyClips, cutClips, pasteClips, type ClipboardData,
 } from "../doc/clipboard";
-import { createProject, projectDurationS, type Project } from "../doc/document";
+import { createProject, projectDurationS, resolveTrackId, type Project } from "../doc/document";
 import { addClip, makeClip, setClipGain } from "../doc/edits";
 import { matchLoudnessGains, type LoudnessEntry } from "../doc/loudness-match";
 import { setIn, setOut, type PlayRange } from "../doc/play-range";
@@ -31,6 +31,11 @@ export const state = $state({
   /** In/out play-range markers. Session state, like `soloed`: NOT in the document, NOT saved,
    *  NOT undoable — this is what keeps it from ever reaching an export. */
   playRange: null as PlayRange | null,
+  /** The track the user last touched (clicked a header, a clip, or started a range drag on a
+   *  lane). Session state, exactly like `soloed` and `playRange`: NOT in the document, NOT saved,
+   *  NOT undoable. Read it through `currentTrackId()`, never directly — this field alone can name
+   *  a track that no longer exists. */
+  currentTrackId: null as string | null,
   pxPerSecond: prefs.pxPerSecond,
   scrollS: 0,
   trackHeightPx: prefs.trackHeightPx,
@@ -228,6 +233,17 @@ export function selectedTrackIds(): string[] {
     : state.project.tracks.map((t) => t.id);
 }
 
+/** The current track, resolved against the live project so a deleted track never leaks out. */
+export function currentTrackId(): string {
+  return resolveTrackId(state.project, state.currentTrackId);
+}
+
+/** A track becomes current when the user touches it: clicking its header, pointer-down on one of
+ *  its clips, or starting a range drag on its lane. */
+export function setCurrentTrack(trackId: string): void {
+  state.currentTrackId = trackId;
+}
+
 export async function importFiles(
   files: FileList | File[],
   trackId: string,
@@ -285,14 +301,12 @@ export function matchLoudness(): void {
   commit((p) => gains.reduce((proj, g) => setClipGain(proj, g.clipId, g.gain), p));
 }
 
-/** Pastes onto the track the copy came from when that track still exists, falling back to
- *  `trackId` (the caller's idea of the "current" track) otherwise — `selectedTrackIds()` returns
- *  every track when the selection is not a range, so that fallback alone would always resolve to
- *  the first track, silently overwriting it. */
-export function pasteAtPlayhead(trackId: string): void {
+/** Pastes onto the track the copy came from when that track still exists, falling back to the
+ *  resolved current track otherwise. */
+export function pasteAtPlayhead(): void {
   const target =
     clipboard.sourceTrackId && state.project.tracks.some((t) => t.id === clipboard.sourceTrackId)
       ? clipboard.sourceTrackId
-      : trackId;
+      : currentTrackId();
   commit((p) => pasteClips(p, clipboard, target, state.playheadS));
 }
