@@ -169,3 +169,37 @@ export function envelopeMaskPolygon(
   }
   return `polygon(${pts.join(", ")})`;
 }
+
+/** Timeline scale limits, shared by the wheel handler and the pinch gesture. */
+export const MIN_PX_PER_S = 2;
+export const MAX_PX_PER_S = 2000;
+
+export interface PinchStart {
+  pxPerSecond: number;
+  scrollS: number;
+  /** Midpoint between the two pointers, in viewport-local pixels, at gesture start. */
+  centerPx: number;
+  /** Distance between the two pointers at gesture start. */
+  spreadPx: number;
+}
+
+/**
+ * New scale and scroll for a two-finger gesture.
+ *
+ * Pinch and pan are the SAME gesture: the spread ratio sets the scale, the centre sets what time
+ * sits under the fingers. Handling them separately would need a mode switch and a threshold to
+ * decide which one the user meant — this way a gesture that both spreads and slides just works.
+ *
+ * Everything is computed from the values captured at gesture START, never from the previous
+ * frame, for the same reason `clip-drag` computes from `base`: applying successive deltas to a
+ * moving target compounds, and the timeline would drift out from under the fingers.
+ */
+export function pinchUpdate(
+  start: PinchStart,
+  now: { centerPx: number; spreadPx: number },
+): { pxPerSecond: number; scrollS: number } {
+  const anchorS = start.scrollS + start.centerPx / start.pxPerSecond;
+  const ratio = start.spreadPx > 0 ? now.spreadPx / start.spreadPx : 1;
+  const pxPerSecond = Math.min(MAX_PX_PER_S, Math.max(MIN_PX_PER_S, start.pxPerSecond * ratio));
+  return { pxPerSecond, scrollS: Math.max(0, anchorS - now.centerPx / pxPerSecond) };
+}

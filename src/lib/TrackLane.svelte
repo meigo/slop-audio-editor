@@ -33,7 +33,7 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
   data-track-id={track.id}
-  class="relative border-b border-neutral-800 bg-neutral-900"
+  class="relative touch-none border-b border-neutral-800 bg-neutral-900"
   style="height: {appState.trackHeightPx}px"
   onpointerdown={(e) => startRangeDrag(e, track.id)}
 >

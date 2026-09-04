@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   dbToGain, dbToPosition, envelopeMaskPolygon, fadeMaskPolygon, formatDb, formatTime, gainToDb,
-  METER_FLOOR_DB, meterFillPct, positionToDb, pxToTime, rulerTicks, snapTime, timeToPx,
+  METER_FLOOR_DB, meterFillPct, pinchUpdate, positionToDb, pxToTime, rulerTicks, snapTime, timeToPx,
 } from "./geometry";
 import { fadeInCurve, fadeOutCurve } from "../audio/fades";
 
@@ -244,5 +244,51 @@ describe("envelopeMaskPolygon", () => {
   it("extends the last value to the end of the clip", () => {
     const poly = envelopeMaskPolygon([{ t: 0, gain: 0.25 }], 10);
     expect(yAt(poly, 100)).toBeCloseTo(75, 6);
+  });
+});
+
+describe("pinchUpdate", () => {
+  // 100 px/s, scrolled to t=10 s. Two fingers 200 px apart centred at 400 px, so the time under
+  // the centre is 10 + 400/100 = 14 s. Started away from t=0 on purpose: the scrollS >= 0 clamp
+  // legitimately breaks the pin near the timeline start, and that is tested separately below.
+  const start = { pxPerSecond: 100, scrollS: 10, centerPx: 400, spreadPx: 200 };
+
+  it("keeps the time under the pinch centre pinned while zooming in", () => {
+    const r = pinchUpdate(start, { centerPx: 400, spreadPx: 400 });
+    expect(r.pxPerSecond).toBeCloseTo(200, 6);
+    // t = 4 s must still sit at 400 px: scrollS + 400/200 === 4
+    expect(r.scrollS + 400 / r.pxPerSecond).toBeCloseTo(14, 6);
+  });
+
+  it("keeps it pinned while zooming out too", () => {
+    const r = pinchUpdate(start, { centerPx: 400, spreadPx: 100 });
+    expect(r.pxPerSecond).toBeCloseTo(50, 6);
+    expect(r.scrollS + 400 / r.pxPerSecond).toBeCloseTo(14, 6);
+  });
+
+  // Two fingers moving together without spreading is a pan: the same gesture handler covers both,
+  // so this must fall out of the same maths rather than needing a separate mode.
+  it("pans when the fingers move together without changing spread", () => {
+    const r = pinchUpdate(start, { centerPx: 500, spreadPx: 200 });
+    expect(r.pxPerSecond).toBeCloseTo(100, 6);
+    expect(r.scrollS).toBeCloseTo(9, 6); // fingers moved right -> timeline scrolls back 1 s
+  });
+
+  // Near t=0 the pin CANNOT hold, because scrollS is clamped at zero. That is the correct
+  // trade: the alternative is showing negative time.
+  it("never scrolls before zero, even though that breaks the pin", () => {
+    const atStart = { pxPerSecond: 100, scrollS: 0, centerPx: 400, spreadPx: 200 };
+    expect(pinchUpdate(atStart, { centerPx: 900, spreadPx: 200 }).scrollS).toBe(0);
+  });
+
+  it("clamps the scale to the viewport's limits", () => {
+    expect(pinchUpdate(start, { centerPx: 400, spreadPx: 1e6 }).pxPerSecond).toBe(2000);
+    expect(pinchUpdate(start, { centerPx: 400, spreadPx: 0.001 }).pxPerSecond).toBe(2);
+  });
+
+  it("ignores a degenerate starting spread rather than dividing by zero", () => {
+    const r = pinchUpdate({ ...start, spreadPx: 0 }, { centerPx: 400, spreadPx: 300 });
+    expect(Number.isFinite(r.pxPerSecond)).toBe(true);
+    expect(r.pxPerSecond).toBe(100); // scale unchanged
   });
 });

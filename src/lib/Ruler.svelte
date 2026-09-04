@@ -33,7 +33,8 @@
   function onPointerDown(e: PointerEvent) {
     const rect = el!.getBoundingClientRect();
     const { inPx, outPx } = markerPx();
-    const zone = hitTestRuler(e.clientX - rect.left, inPx, outPx);
+    // A fingertip needs a wider grab band than a cursor for the in/out handles.
+    const zone = hitTestRuler(e.clientX - rect.left, inPx, outPx, e.pointerType === "touch" ? 22 : undefined);
     el!.setPointerCapture(e.pointerId);
 
     function apply(clientX: number) {
@@ -63,7 +64,7 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
   bind:this={el}
-  class="relative h-7 shrink-0 cursor-text select-none border-b border-neutral-700 bg-neutral-800"
+  class="relative h-7 shrink-0 cursor-text touch-none select-none border-b border-neutral-700 bg-neutral-800"
   onpointerdown={onPointerDown}
 >
   {#if appState.playRange}

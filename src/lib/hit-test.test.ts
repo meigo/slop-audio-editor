@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hitTestClip, hitTestRuler } from "./hit-test";
+import { MOUSE_ZONES, TOUCH_ZONES, hitTestClip, hitTestRuler } from "./hit-test";
 
 const W = 200;
 const H = 80;
@@ -61,5 +61,24 @@ describe("hitTestRuler", () => {
   it("hits exactly at the threshold boundary, misses just past it", () => {
     expect(hitTestRuler(106, 100, null, 6)).toBe("in");
     expect(hitTestRuler(107, 100, null, 6)).toBe("seek");
+  });
+});
+
+describe("hitTestClip with touch-sized zones", () => {
+  it("widens the trim edges for a finger", () => {
+    expect(hitTestClip(10, 40, 400, 60, MOUSE_ZONES)).toBe("body");
+    expect(hitTestClip(10, 40, 400, 60, TOUCH_ZONES)).toBe("trimStart");
+  });
+
+  it("still leaves a body to grab on a narrow clip", () => {
+    // 30 px wide with 18 px touch edges would be trim-only from both sides; the width/3 cap keeps
+    // the middle grabbable, so a short clip can still be MOVED on a touchscreen.
+    expect(hitTestClip(15, 40, 30, 60, TOUCH_ZONES)).toBe("body");
+  });
+
+  it("leaves mouse behaviour exactly as it was", () => {
+    expect(hitTestClip(3, 40, 400, 60)).toBe("trimStart");
+    expect(hitTestClip(10, 40, 400, 60)).toBe("body");
+    expect(hitTestClip(397, 40, 400, 60)).toBe("trimEnd");
   });
 });

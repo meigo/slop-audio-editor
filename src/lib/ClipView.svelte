@@ -8,7 +8,7 @@
   import {
     envelopeMaskPolygon, FADE_MASK_POINTS, fadeMaskPolygon, formatTime, timeToPx,
   } from "./geometry";
-  import { hitTestClip, type ClipZone } from "./hit-test";
+  import { hitTestClip, MOUSE_ZONES, TOUCH_ZONES, type ClipZone } from "./hit-test";
   import Waveform from "./Waveform.svelte";
 
   const {
@@ -34,7 +34,10 @@
 
   function zoneAt(e: PointerEvent): ClipZone {
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    return hitTestClip(e.clientX - r.left, e.clientY - r.top, r.width, r.height);
+    return hitTestClip(
+      e.clientX - r.left, e.clientY - r.top, r.width, r.height,
+      e.pointerType === "touch" ? TOUCH_ZONES : MOUSE_ZONES,
+    );
   }
 
   const CURSORS: Record<ClipZone, string> = {
@@ -75,7 +78,7 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
   data-clip-id={clip.id}
-  class="absolute top-1 overflow-hidden rounded border bg-sky-800/70"
+  class="absolute top-1 touch-none overflow-hidden rounded border bg-sky-800/70"
   class:border-sky-300={selected}
   class:border-sky-900={!selected}
   title="{name} — {formatTime(clip.durS)}"

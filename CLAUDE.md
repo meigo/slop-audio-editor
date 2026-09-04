@@ -367,6 +367,29 @@ src/
     (which modifier keys apply) that would make a hover tooltip unwieldy. Never restate the title
     in it.
 
+22. **Touch: two fingers navigate, one finger is left alone — and every drag surface needs
+    `touch-action: none`.** `TimelineViewport` tracks only `pointerType === "touch"` pointers; two
+    of them drive `pinchUpdate` (`src/lib/geometry.ts`), which treats pinch and pan as ONE gesture
+    (spread ratio sets the scale, midpoint sets what time sits under the fingers) so no mode
+    switch or threshold has to guess which the user meant. Like `clip-drag`, it computes from the
+    values captured at gesture START, never the previous frame, or the timeline drifts out from
+    under the fingers. A single finger is deliberately ignored there so it still reaches the clip
+    and lane handlers underneath — otherwise dragging a clip would be hijacked into a scroll.
+    `touch-action: none` (the `touch-none` class) is on the viewport, lanes, clips and ruler.
+    Without it the browser claims a drag as page scroll or pinch-zoom and CANCELS the pointer
+    stream mid-gesture, so a clip drag dies partway with no error.
+    Hit zones are input-dependent: `hitTestClip` takes `MOUSE_ZONES` (6 px edges) or `TOUCH_ZONES`
+    (18 px), chosen per event from `e.pointerType`, so widening for fingers costs the mouse
+    nothing. Touch edges are capped at `widthPx / 3` — 18 px bands on a narrow clip would meet and
+    leave no body, making the clip impossible to MOVE, which is the more common gesture.
+    NOT verified, and not verifiable from this harness: single-finger clip dragging on a real
+    touchscreen. Synthetic PointerEvents cannot satisfy `setPointerCapture`, which throws
+    `NotFoundError` without a genuine active pointer — the drag path needs a real device. Also
+    unaddressed for iPad: every keyboard shortcut and every modifier-based action (⌘/Shift-click
+    multi-select, ⌘A), hover-only affordances (tooltips and the status-bar hint are inert on
+    touch), iOS IndexedDB eviction after ~7 days, and the memory ceiling from holding every source
+    decoded (~11.5 MB per minute of 48 kHz stereo float).
+
 ## Testing
 
 Vitest, `node` environment, no DOM (`src/**/*.test.ts`, see `vite.config.ts`). Pure logic

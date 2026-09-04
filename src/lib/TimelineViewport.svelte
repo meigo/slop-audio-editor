@@ -1,13 +1,54 @@
 <script lang="ts">
   import { state as appState } from "../state/appState.svelte";
-  import { pxToTime } from "./geometry";
+  import { MAX_PX_PER_S, MIN_PX_PER_S, pinchUpdate, pxToTime, type PinchStart } from "./geometry";
 
   const { children }: { children: import("svelte").Snippet } = $props();
 
   let el = $state<HTMLDivElement | null>(null);
 
-  const MIN_PX_PER_S = 2;
-  const MAX_PX_PER_S = 2000;
+  /** Live touch points, by pointerId. Only touch is tracked: a mouse has the wheel, and a stylus
+   *  drags clips. Two entries means a pinch/pan gesture is in progress. */
+  const touches = new Map<number, { x: number }>();
+  let pinch: PinchStart | null = null;
+
+  const centerAndSpread = (): { centerPx: number; spreadPx: number } => {
+    const [a, b] = [...touches.values()];
+    return { centerPx: (a.x + b.x) / 2, spreadPx: Math.abs(a.x - b.x) };
+  };
+
+  /** Two fingers on the timeline pan and zoom it. One finger is left alone so it still reaches
+   *  the clip and lane handlers underneath — dragging a clip must not be hijacked into a scroll. */
+  function onPointerDown(e: PointerEvent) {
+    if (e.pointerType !== "touch") return;
+    const rect = el!.getBoundingClientRect();
+    touches.set(e.pointerId, { x: e.clientX - rect.left });
+    if (touches.size === 2) {
+      pinch = {
+        pxPerSecond: appState.pxPerSecond,
+        scrollS: appState.scrollS,
+        ...centerAndSpread(),
+      };
+    }
+  }
+
+  function onPointerMove(e: PointerEvent) {
+    if (e.pointerType !== "touch" || !touches.has(e.pointerId)) return;
+    const rect = el!.getBoundingClientRect();
+    touches.set(e.pointerId, { x: e.clientX - rect.left });
+    if (touches.size !== 2 || !pinch) return;
+    e.preventDefault();
+    const next = pinchUpdate(pinch, centerAndSpread());
+    appState.pxPerSecond = next.pxPerSecond;
+    appState.scrollS = next.scrollS;
+  }
+
+  function onPointerUp(e: PointerEvent) {
+    if (e.pointerType !== "touch") return;
+    touches.delete(e.pointerId);
+    // Re-anchor rather than ending the gesture outright: lifting one finger of two should leave
+    // the timeline where it is, not snap it back or jump on the next move.
+    pinch = null;
+  }
 
   /** Ctrl/Cmd-wheel zooms about the pointer; plain wheel scrolls in time. */
   function onWheel(e: WheelEvent) {
@@ -29,6 +70,17 @@
   }
 </script>
 
-<div bind:this={el} class="relative flex-1 overflow-hidden" onwheel={onWheel}>
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<!-- `touch-action: none`: without it the browser claims a drag as page scroll or pinch-zoom and
+     cancels the pointer stream mid-gesture, so clip drags would die partway on a touchscreen. -->
+<div
+  bind:this={el}
+  class="relative flex-1 touch-none overflow-hidden"
+  onwheel={onWheel}
+  onpointerdown={onPointerDown}
+  onpointermove={onPointerMove}
+  onpointerup={onPointerUp}
+  onpointercancel={onPointerUp}
+>
   {@render children()}
 </div>
