@@ -28,12 +28,14 @@
       label="in"
       value={clip.startS}
       suffix="s"
+      title="Clip start on the timeline (seconds)"
       onCommit={(v) => commit((p) => trimClipStart(p, clip.id, v - clip.startS))}
     />
     <NumberField
       label="out"
       value={clip.startS + clip.durS}
       suffix="s"
+      title="Clip end on the timeline (seconds)"
       onCommit={(v) =>
         commit((p) => trimClipEnd(p, clip.id, v - (clip.startS + clip.durS), source?.durationS ?? Infinity))}
     />
@@ -42,24 +44,28 @@
       value={clip.gain <= 0 ? -60 : gainToDb(clip.gain)}
       min={-60}
       suffix="dB"
+      title="Clip volume in dB"
       onCommit={(v) => commit((p) => setClipGain(p, clip.id, v <= -60 ? 0 : dbToGain(v)))}
     />
     <NumberField
       label="fade in"
       value={clip.fadeInS}
       suffix="s"
+      title="Fade length in seconds"
       onCommit={(v) => commit((p) => setClipFade(p, clip.id, { fadeInS: v }))}
     />
     <NumberField
       label="fade out"
       value={clip.fadeOutS}
       suffix="s"
+      title="Fade length in seconds"
       onCommit={(v) => commit((p) => setClipFade(p, clip.id, { fadeOutS: v }))}
     />
 
     <select
       class="rounded bg-neutral-800 px-1 py-0.5 text-[11px]"
       value={clip.fadeShape}
+      title="Fade curve shape"
       onchange={(e) =>
         commit((p) => setClipFade(p, clip.id, { fadeShape: e.currentTarget.value as FadeShape }))}
     >

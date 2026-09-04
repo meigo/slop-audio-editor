@@ -2,8 +2,10 @@
   import { dbToGain, dbToPosition, formatDb, gainToDb, positionToDb } from "./geometry";
 
   const {
-    gain, onInput, onCommit,
-  }: { gain: number; onInput: (g: number) => void; onCommit: () => void } = $props();
+    gain, onInput, onCommit, label,
+  }: {
+    gain: number; onInput: (g: number) => void; onCommit: () => void; label: string;
+  } = $props();
 
   const MIN_DB = -60;
   const MAX_DB = 12;
@@ -22,6 +24,7 @@
   <input
     type="range"
     class="h-1 w-24 accent-sky-400"
+    title={label}
     min={0}
     max={1}
     step="0.001"

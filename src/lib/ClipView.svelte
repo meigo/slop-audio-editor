@@ -2,7 +2,7 @@
   import type { Clip } from "../doc/document";
   import { pool, state as appState } from "../state/appState.svelte";
   import { startClipDrag } from "./clip-drag.svelte";
-  import { timeToPx } from "./geometry";
+  import { formatTime, timeToPx } from "./geometry";
   import { hitTestClip, type ClipZone } from "./hit-test";
   import Waveform from "./Waveform.svelte";
 
@@ -55,6 +55,7 @@
   class="absolute top-1 overflow-hidden rounded border bg-sky-800/70"
   class:border-sky-300={selected}
   class:border-sky-900={!selected}
+  title="{name} — {formatTime(clip.durS)}"
   onpointerdown={onPointerDown}
   onpointermove={(e) => (zone = zoneAt(e))}
   style="left: {x}px; width: {w}px; height: {heightPx - 8}px; cursor: {CURSORS[zone]}"

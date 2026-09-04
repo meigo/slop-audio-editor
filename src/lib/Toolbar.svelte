@@ -186,6 +186,7 @@
       gain={appState.project.masterGain}
       onInput={onMasterGain}
       onCommit={() => { if (masterDragging) { masterDragging = false; endGesture(); } }}
+      label="Master volume (dB)"
     />
   </div>
 </div>

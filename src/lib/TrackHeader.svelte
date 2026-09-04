@@ -62,6 +62,7 @@
     {:else}
       <button
         class="flex-1 truncate text-left text-xs text-neutral-300"
+        title="Double-click to rename"
         ondblclick={() => (renaming = true)}
       >
         {track.name}
@@ -90,5 +91,5 @@
     </button>
   </div>
 
-  <Fader gain={track.gain} onInput={onGain} onCommit={onGainCommit} />
+  <Fader gain={track.gain} onInput={onGain} onCommit={onGainCommit} label="Track volume (dB)" />
 </div>

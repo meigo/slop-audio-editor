@@ -2,10 +2,10 @@
   import { untrack } from "svelte";
 
   const {
-    label, value, min = 0, suffix = "",
+    label, value, min = 0, suffix = "", title = undefined,
     onCommit,
   }: {
-    label: string; value: number; min?: number; suffix?: string;
+    label: string; value: number; min?: number; suffix?: string; title?: string;
     onCommit: (v: number) => void;
   } = $props();
 
@@ -33,7 +33,7 @@
   }
 </script>
 
-<label class="flex items-center gap-1 text-[11px] text-neutral-400">
+<label class="flex items-center gap-1 text-[11px] text-neutral-400" {title}>
   {label}
   <input
     class="w-16 rounded bg-neutral-800 px-1 py-0.5 text-right tabular-nums text-neutral-100"
