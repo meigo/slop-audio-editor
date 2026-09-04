@@ -81,7 +81,7 @@ function fakeProject(trackIds: string[]): Project {
     masterGain: 1,
     glue: false,
     duckDepthDb: -12,
-    tracks: trackIds.map((id) => ({ id, name: id, clips: [], gain: 1, muted: false, ducked: false })),
+    tracks: trackIds.map((id) => ({ id, name: id, clips: [], gain: 1, muted: false, ducked: false, eq: { lowDb: 0, midDb: 0, highDb: 0 } })),
   };
 }
 

@@ -1,4 +1,4 @@
-import { projectDurationS, type Project } from "../doc/document";
+import { projectDurationS, type Project, type TrackEq } from "../doc/document";
 import { getAudioContext } from "./context";
 import type { SourcePool } from "./pool";
 import { renderPlan, SCHEDULE_LEAD_S, type RenderedGraph } from "./render";
@@ -120,6 +120,17 @@ export class AudioEngine {
   setTrackGain(trackId: string, gain: number): void {
     const g = this.#graph?.trackGains.get(trackId);
     if (g) g.gain.value = gain;
+  }
+
+  /** Live EQ change — no rescheduling, so bands can be swept while listening. Silently does
+   *  nothing when the track's EQ was flat at schedule time: no filters were built, so there is
+   *  nothing to adjust and the caller's `commit` will rebuild the graph on the next play. */
+  setTrackEq(trackId: string, eq: TrackEq): void {
+    const nodes = this.#graph?.trackEqs.get(trackId);
+    if (!nodes) return;
+    nodes.low.gain.value = eq.lowDb;
+    nodes.mid.gain.value = eq.midDb;
+    nodes.high.gain.value = eq.highDb;
   }
 
   setMasterGain(gain: number): void {

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { __resetIds, createProject, findTrack } from "./document";
+import { EQ_MAX_DB, __resetIds, createProject, findTrack } from "./document";
 import {
-  addTrack, removeTrack, renameTrack, reorderTrack, setDuckDepth, setGlue, setMasterGain, setTrackGain, setTrackMuted,
+  addTrack, removeTrack, renameTrack, reorderTrack, setDuckDepth, setGlue, setMasterGain, setTrackEq, setTrackGain, setTrackMuted,
 } from "./edits";
 
 beforeEach(() => __resetIds());
@@ -98,5 +98,33 @@ describe("setDuckDepth", () => {
   it("returns the same project for a no-op, so no undo entry is created", () => {
     const p = createProject("p");
     expect(setDuckDepth(p, p.duckDepthDb)).toBe(p);
+  });
+});
+
+describe("setTrackEq", () => {
+  const track = (p: ReturnType<typeof createProject>) => p.tracks[0];
+
+  it("starts flat", () => {
+    expect(track(createProject("p")).eq).toEqual({ lowDb: 0, midDb: 0, highDb: 0 });
+  });
+
+  it("clamps each band to the allowed range", () => {
+    const base = createProject("p");
+    const id = base.tracks[0].id;
+    expect(track(setTrackEq(base, id, { lowDb: 99 })).eq.lowDb).toBe(EQ_MAX_DB);
+    expect(track(setTrackEq(base, id, { highDb: -99 })).eq.highDb).toBe(-EQ_MAX_DB);
+  });
+
+  it("keeps the untouched bands when patching one", () => {
+    const base = createProject("p");
+    const id = base.tracks[0].id;
+    const once = setTrackEq(base, id, { lowDb: 4 });
+    const twice = setTrackEq(once, id, { highDb: -2 });
+    expect(track(twice).eq).toEqual({ lowDb: 4, midDb: 0, highDb: -2 });
+  });
+
+  it("returns the same project for a no-op, so no undo entry is created", () => {
+    const base = createProject("p");
+    expect(setTrackEq(base, base.tracks[0].id, { lowDb: 0 })).toBe(base);
   });
 });

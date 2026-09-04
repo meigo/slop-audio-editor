@@ -1,4 +1,6 @@
-import type { Project } from "../doc/document";
+import {
+  EQ_HIGH_HZ, EQ_LOW_HZ, EQ_MID_HZ, EQ_MID_Q, isFlatEq, type Project, type TrackEq,
+} from "../doc/document";
 import { planDucking } from "./ducking";
 import { FADE_CURVE_POINTS, fadeInCurve, fadeOutCurve } from "./fades";
 import type { Source } from "./pool";
@@ -39,8 +41,18 @@ export function scaleCurve(curve: Float32Array, gain: number): Float32Array {
   return out;
 }
 
+/** The three biquads of one track's EQ, retained so the bands can be adjusted during playback
+ *  without rescheduling — the same reason `trackGains` is retained. */
+export interface TrackEqNodes {
+  low: BiquadFilterNode;
+  mid: BiquadFilterNode;
+  high: BiquadFilterNode;
+}
+
 export interface RenderedGraph {
   trackGains: Map<string, GainNode>;
+  /** Only tracks whose EQ is NOT flat appear here. */
+  trackEqs: Map<string, TrackEqNodes>;
   masterGain: GainNode;
   sources: AudioBufferSourceNode[];
   /** Last node before the destination — `masterGain`, or Glue's trim when Glue is on. Metering
@@ -116,7 +128,34 @@ export function renderPlan(
   }
 
   const trackGains = new Map<string, GainNode>();
+  const trackEqs = new Map<string, TrackEqNodes>();
+  const eqNodes: BiquadFilterNode[] = [];
   const duckGains: GainNode[] = [];
+
+  /** Build a track's EQ chain and return its tail, or the input untouched when the EQ is flat.
+   *  A flat EQ builds NOTHING: three biquads at 0 dB are not quite transparent (each still runs
+   *  its difference equation, and shelves at 0 dB are only nominally unity), and more to the
+   *  point, a project that never touches EQ should render exactly the graph it always did. */
+  function withEq(input: AudioNode, trackId: string, eq: TrackEq): AudioNode {
+    if (isFlatEq(eq)) return input;
+    const band = (type: BiquadFilterType, hz: number, db: number, q?: number): BiquadFilterNode => {
+      const n = ctx.createBiquadFilter();
+      n.type = type;
+      n.frequency.value = hz;
+      n.gain.value = db;
+      if (q !== undefined) n.Q.value = q;
+      eqNodes.push(n);
+      return n;
+    };
+    const low = band("lowshelf", EQ_LOW_HZ, eq.lowDb);
+    const mid = band("peaking", EQ_MID_HZ, eq.midDb, EQ_MID_Q);
+    const high = band("highshelf", EQ_HIGH_HZ, eq.highDb);
+    input.connect(low);
+    low.connect(mid);
+    mid.connect(high);
+    trackEqs.set(trackId, { low, mid, high });
+    return high;
+  }
   const sources: AudioBufferSourceNode[] = [];
   const toStart: { node: AudioBufferSourceNode; when: number; offset: number; duration: number }[] = [];
 
@@ -128,7 +167,11 @@ export function renderPlan(
       let trackGain = trackGains.get(sc.trackId);
       if (!trackGain) {
         trackGain = ctx.createGain();
-        trackGain.gain.value = project.tracks.find((t) => t.id === sc.trackId)?.gain ?? 1;
+        const track = project.tracks.find((t) => t.id === sc.trackId);
+        trackGain.gain.value = track?.gain ?? 1;
+        // EQ sits AFTER the fader: the fader is only a level, so filtering before or after it is
+        // equivalent, and this way one chain per track covers every clip on it.
+        const tail = withEq(trackGain, sc.trackId, track?.eq ?? { lowDb: 0, midDb: 0, highDb: 0 });
         const points = duck.get(sc.trackId);
         if (points && points.length > 0) {
           // A SEPARATE node from the fader's. Writing the envelope onto `trackGain` itself would
@@ -139,11 +182,11 @@ export function renderPlan(
           for (let i = 1; i < points.length; i++) {
             duckGain.gain.linearRampToValueAtTime(points[i].gain, startAt + points[i].t);
           }
-          trackGain.connect(duckGain);
+          tail.connect(duckGain);
           duckGain.connect(masterGain);
           duckGains.push(duckGain);
         } else {
-          trackGain.connect(masterGain);
+          tail.connect(masterGain);
         }
         trackGains.set(sc.trackId, trackGain);
       }
@@ -177,6 +220,7 @@ export function renderPlan(
     masterGain.disconnect();
     for (const g of trackGains.values()) g.disconnect();
     for (const g of duckGains) g.disconnect();
+    for (const n of eqNodes) n.disconnect();
     for (const n of sources) n.disconnect();
     for (const g of glueNodes) g.disconnect();
     throw err;
@@ -184,5 +228,5 @@ export function renderPlan(
 
   for (const { node, when, offset, duration } of toStart) node.start(when, offset, duration);
 
-  return { trackGains, masterGain, sources, output };
+  return { trackGains, trackEqs, masterGain, sources, output };
 }

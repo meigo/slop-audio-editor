@@ -406,6 +406,25 @@ src/
     `setValueCurveAtTime` throws on. Because it is never written to the document it cannot be
     edited, undone, or saved, and it costs nothing in the file format.
 
+24. **Per-track EQ is three FIXED bands, and a flat EQ builds no filter nodes at all.**
+    `Track.eq` (`{ lowDb, midDb, highDb }`, clamped to ±`EQ_MAX_DB`) drives a low shelf at
+    `EQ_LOW_HZ` (150), a peaking band at `EQ_MID_HZ` (1200, Q `EQ_MID_Q` 0.8) and a high shelf at
+    `EQ_HIGH_HZ` (6000). Frequencies and Q are deliberately not adjustable — sweepable bands are
+    the "total overkill" this feature exists instead of.
+    `renderPlan`'s `withEq` returns its input untouched when `isFlatEq`, so a project that never
+    touches EQ renders exactly the graph it always did — the same guarantee Glue makes, and for
+    the same reason: three biquads at 0 dB are not bit-transparent. Verified by instrumenting
+    `createBiquadFilter`: 0 nodes when flat, 3 when shaped.
+    EQ is a MIX change, not a structural one. `Inspector.svelte` uses
+    `beginGesture("mix")`/`amend`/`endGesture` AND pushes the value to `engine.setTrackEq`, which
+    writes straight to the retained biquads — the same two-step idiom `TrackHeader`'s fader uses
+    (Gotcha 8), so a band can be swept while listening without a reschedule or a dropout.
+    It follows the CURRENT track (`currentTrackId()`), not the selection, because it is a track
+    property — the same rule the `M`/`⇧S` shortcuts follow (Gotcha 14). That is why it lives on
+    the right of the Inspector and stays visible when no clip is selected.
+    Measured through `mixdown`: mid −9 dB reads exactly −9.00 dB at 1200 Hz with the other bands
+    within 0.23 dB, and returning to flat restores 0.00 dB exactly.
+
 ## Testing
 
 Vitest, `node` environment, no DOM (`src/**/*.test.ts`, see `vite.config.ts`). Pure logic

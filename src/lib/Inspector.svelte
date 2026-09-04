@@ -1,7 +1,9 @@
 <script lang="ts">
-  import { findClip, type FadeShape } from "../doc/document";
-  import { setClipFade, setClipGain, trimClipEnd, trimClipStart } from "../doc/edits";
-  import { commit, pool, state as appState } from "../state/appState.svelte";
+  import { EQ_HIGH_HZ, EQ_LOW_HZ, EQ_MAX_DB, EQ_MID_HZ, findClip, findTrack, type FadeShape, type TrackEq } from "../doc/document";
+  import { setClipFade, setClipGain, setTrackEq, trimClipEnd, trimClipStart } from "../doc/edits";
+  import {
+    amend, beginGesture, commit, currentTrackId, endGesture, engine, pool, state as appState,
+  } from "../state/appState.svelte";
   import { dbToGain, gainToDb } from "./geometry";
   import NumberField from "./NumberField.svelte";
 
@@ -13,6 +15,21 @@
   );
   const clip = $derived(selected?.clip);
   const source = $derived(clip ? pool.get(clip.sourceId) : undefined);
+
+  /** EQ is per TRACK, not per clip, so it follows the current track (the one you last touched)
+   *  rather than the selection — the same rule the M / solo shortcuts use. */
+  const track = $derived(findTrack(appState.project, currentTrackId()));
+
+  /** A MIX change, exactly like the track fader: applied live on the retained biquads so a band
+   *  can be swept while listening, and committed as ONE history entry that does not reschedule. */
+  function onBand(patch: Partial<TrackEq>) {
+    const id = currentTrackId();
+    beginGesture("mix");
+    amend((p) => setTrackEq(p, id, patch));
+    const next = findTrack(appState.project, id)?.eq;
+    if (next) engine.setTrackEq(id, next);
+    endGesture();
+  }
 
   const SHAPES: FadeShape[] = ["linear", "equalPower", "exponential"];
   const SHAPE_LABELS: Record<FadeShape, string> = {
@@ -75,5 +92,40 @@
     </select>
   {:else}
     <span class="text-xs text-neutral-600">Select a clip to edit its exact values</span>
+  {/if}
+
+  {#if track}
+    <!-- Right-aligned and always present: EQ belongs to the current track, so unlike the clip
+         fields it has something to show even when nothing is selected. -->
+    <div
+      class="ml-auto flex items-center gap-2"
+      data-hint="Three-band tone control for the current track ({EQ_LOW_HZ} Hz, {EQ_MID_HZ} Hz, {EQ_HIGH_HZ} Hz). Click a track header to switch tracks."
+    >
+      <span class="max-w-24 truncate text-[11px] text-neutral-500">{track.name} EQ</span>
+      <NumberField
+        label="low"
+        value={track.eq.lowDb}
+        min={-EQ_MAX_DB}
+        suffix="dB"
+        title="Low shelf at {EQ_LOW_HZ} Hz — cut to tame boom, boost for weight"
+        onCommit={(v) => onBand({ lowDb: v })}
+      />
+      <NumberField
+        label="mid"
+        value={track.eq.midDb}
+        min={-EQ_MAX_DB}
+        suffix="dB"
+        title="Peaking band at {EQ_MID_HZ} Hz — cut to reduce boxiness, boost for presence"
+        onCommit={(v) => onBand({ midDb: v })}
+      />
+      <NumberField
+        label="high"
+        value={track.eq.highDb}
+        min={-EQ_MAX_DB}
+        suffix="dB"
+        title="High shelf at {EQ_HIGH_HZ} Hz — cut to soften sibilance, boost for air"
+        onCommit={(v) => onBand({ highDb: v })}
+      />
+    </div>
   {/if}
 </div>

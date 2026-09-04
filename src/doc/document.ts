@@ -9,6 +9,29 @@ export const PEAK_SAMPLES_PER_PAIR = 256;
  *  document module has no dependency on the audio layer. */
 export const DEFAULT_DUCK_DEPTH_DB = -12;
 
+/** Three fixed-frequency EQ bands per track. Frequencies and Q are NOT adjustable: the point is
+ *  to make mismatched sources sit together, which broad strokes do, and sweepable bands would be
+ *  the "total overkill" this feature deliberately avoids. Chosen for voice over a bed —
+ *  150 Hz catches proximity boom, 1.2 kHz the honk/presence region, 6 kHz air and sibilance. */
+export const EQ_LOW_HZ = 150;
+export const EQ_MID_HZ = 1200;
+export const EQ_MID_Q = 0.8;
+export const EQ_HIGH_HZ = 6000;
+/** Per band. Wide enough to rescue a bad source, narrow enough that it cannot be used as a fader. */
+export const EQ_MAX_DB = 12;
+
+export interface TrackEq {
+  lowDb: number;
+  midDb: number;
+  highDb: number;
+}
+
+export const FLAT_EQ: TrackEq = { lowDb: 0, midDb: 0, highDb: 0 };
+
+export function isFlatEq(eq: TrackEq): boolean {
+  return eq.lowDb === 0 && eq.midDb === 0 && eq.highDb === 0;
+}
+
 export type FadeShape = "linear" | "equalPower" | "exponential";
 
 export interface Clip {
@@ -39,6 +62,9 @@ export interface Track {
   /** "Background": this track dips while any other track is playing. Like `muted` and unlike
    *  solo, it is part of the document — it changes the mix, so it must reach the export. */
   ducked: boolean;
+  /** Three-band tone control. Flat by default, and when flat NO filter nodes are built at all —
+   *  the graph stays bit-identical to one without EQ, the same guarantee Glue makes. */
+  eq: TrackEq;
 }
 
 export interface Project {
@@ -80,7 +106,15 @@ export function adoptIds(ids: Iterable<string>): void {
 }
 
 export function createTrack(name: string): Track {
-  return { id: newId("track"), name, clips: [], gain: 1, muted: false, ducked: false };
+  return {
+    id: newId("track"),
+    name,
+    clips: [],
+    gain: 1,
+    muted: false,
+    ducked: false,
+    eq: { ...FLAT_EQ },
+  };
 }
 
 export function createProject(name = "Untitled"): Project {

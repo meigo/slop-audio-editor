@@ -1,7 +1,10 @@
 /** Every editing operation, as a pure function `(project, ...) => Project`.
  *  No DOM, no Web Audio, no $state. This module is the heart of the test suite. */
 
-import { MIN_CLIP_S, clipEndS, createTrack, findClip, newId, type Clip, type FadeShape, type Project, type Track } from "./document";
+import {
+  EQ_MAX_DB, MIN_CLIP_S, clipEndS, createTrack, findClip, newId,
+  type Clip, type FadeShape, type Project, type Track, type TrackEq,
+} from "./document";
 import { clampFades, insertClip, sliceClip } from "./overlap";
 
 /** Replace one track by id. Returns the SAME project object when the id is unknown or the
@@ -52,6 +55,21 @@ export function setTrackMuted(p: Project, trackId: string, muted: boolean): Proj
 }
 
 /** Mark a track as background: it dips while any other track is playing. See `planDucking`. */
+/** Patch one or more EQ bands on a track. Each band is clamped to +/-EQ_MAX_DB. */
+export function setTrackEq(p: Project, trackId: string, patch: Partial<TrackEq>): Project {
+  const clamp = (v: number): number => Math.max(-EQ_MAX_DB, Math.min(EQ_MAX_DB, v));
+  return mapTrack(p, trackId, (t) => {
+    const next: TrackEq = {
+      lowDb: clamp(patch.lowDb ?? t.eq.lowDb),
+      midDb: clamp(patch.midDb ?? t.eq.midDb),
+      highDb: clamp(patch.highDb ?? t.eq.highDb),
+    };
+    const same =
+      next.lowDb === t.eq.lowDb && next.midDb === t.eq.midDb && next.highDb === t.eq.highDb;
+    return same ? t : { ...t, eq: next };
+  });
+}
+
 export function setTrackDucked(p: Project, trackId: string, ducked: boolean): Project {
   return mapTrack(p, trackId, (t) => (t.ducked === ducked ? t : { ...t, ducked }));
 }

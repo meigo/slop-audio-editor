@@ -1,5 +1,5 @@
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
-import { DEFAULT_DUCK_DEPTH_DB, type Project } from "../doc/document";
+import { DEFAULT_DUCK_DEPTH_DB, type Project, type TrackEq } from "../doc/document";
 
 export const PROJECT_FILE_VERSION = 1;
 export const PROJECT_FILE_EXT = ".slopaudio";
@@ -88,6 +88,14 @@ export function unpackProject(zip: Uint8Array): { project: Project; sources: Sou
   // default, no version bump — and defaulting it here means `planDucking` never sees `undefined`.
   for (const t of project.tracks) {
     if (typeof t.ducked !== "boolean") t.ducked = false;
+    // Same reasoning as `glue` and `ducked`: optional field, well-defined default, no version
+    // bump — and defaulting it here means the render graph never sees a partial `eq`.
+    const eq = t.eq as Partial<TrackEq> | undefined;
+    t.eq = {
+      lowDb: typeof eq?.lowDb === "number" ? eq.lowDb : 0,
+      midDb: typeof eq?.midDb === "number" ? eq.midDb : 0,
+      highDb: typeof eq?.highDb === "number" ? eq.highDb : 0,
+    };
   }
   if (typeof project.duckDepthDb !== "number") project.duckDepthDb = DEFAULT_DUCK_DEPTH_DB;
 
