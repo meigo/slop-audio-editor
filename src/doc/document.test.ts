@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
-  __resetIds, clipEndS, createProject, createTrack, findClip, findTrack,
+  __resetIds, adoptIds, clipEndS, createProject, createTrack, findClip, findTrack,
   newId, projectDurationS, trackDurationS, type Clip,
 } from "./document";
+import { addClip, addTrack, makeClip } from "./edits";
 
 function clip(over: Partial<Clip> = {}): Clip {
   return {
@@ -66,6 +67,52 @@ describe("projectDurationS", () => {
 
   it("is 0 for a project with no clips", () => {
     expect(projectDurationS(createProject())).toBe(0);
+  });
+});
+
+describe("id collision after a simulated reload (regression)", () => {
+  it("newId mints ids that collide with a previously-restored project, unless adopted", () => {
+    // Session 1: build a project the way the app would.
+    let p = createProject();
+    p = addTrack(p, "Track 2");
+    p = addClip(p, p.tracks[0].id, makeClip("src-1", 0, 1));
+    p = addClip(p, p.tracks[1].id, makeClip("src-1", 2, 1));
+
+    const existingIds = new Set<string>([
+      ...p.tracks.map((t) => t.id),
+      ...p.tracks.flatMap((t) => t.clips.map((c) => c.id)),
+      "src-1",
+    ]);
+
+    // Simulate a page reload: the module-level id counter resets to 0, but the project
+    // restored from autosave/a project file still holds ids minted in the earlier session.
+    __resetIds();
+    adoptIds(existingIds);
+
+    // Import a new file the way the app would: mint a source id, then a clip id.
+    const newSrcId = newId("src");
+    const newClipId = newId("clip");
+
+    expect(existingIds.has(newSrcId)).toBe(false);
+    expect(existingIds.has(newClipId)).toBe(false);
+  });
+});
+
+describe("adoptIds", () => {
+  it("advances the counter past the highest numeric suffix seen", () => {
+    adoptIds(["clip-7", "track-2"]);
+    expect(newId("clip")).toBe("clip-8");
+  });
+
+  it("ignores ids with no numeric suffix", () => {
+    adoptIds(["source-file", "clip-"]);
+    expect(newId("clip")).toBe("clip-1");
+  });
+
+  it("never rewinds the counter for a lower number", () => {
+    adoptIds(["clip-10"]);
+    adoptIds(["clip-3"]);
+    expect(newId("clip")).toBe("clip-11");
   });
 });
 

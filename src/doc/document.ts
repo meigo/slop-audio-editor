@@ -54,6 +54,22 @@ export function __resetIds(): void {
   idCounter = 0;
 }
 
+/** Advance the id counter past every id in `ids`.
+ *
+ *  `idCounter` resets to 0 on every page load, but a document loaded from autosave or a project
+ *  file carries ids minted in an EARLIER session. Without this, the next import would mint
+ *  `src-1`/`clip-1` all over again: the pool's `Map.set` would REPLACE an existing source (so an
+ *  unrelated clip starts playing the newly imported audio), and two clips would share an id (so
+ *  selecting or moving one moves both). Both corruptions then persist into the saved file. */
+export function adoptIds(ids: Iterable<string>): void {
+  for (const id of ids) {
+    const match = /-(\d+)$/.exec(id);
+    if (!match) continue;
+    const n = Number(match[1]);
+    if (n > idCounter) idCounter = n;
+  }
+}
+
 export function createTrack(name: string): Track {
   return { id: newId("track"), name, clips: [], gain: 1, muted: false };
 }
