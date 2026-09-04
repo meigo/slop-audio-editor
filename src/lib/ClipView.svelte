@@ -65,6 +65,7 @@
     durS={clip.durS}
     widthPx={w}
     heightPx={heightPx - 8}
+    gain={clip.gain}
   />
 
   <!-- Fade overlays: triangles standing in for the gain ramp, drawn over the waveform. -->

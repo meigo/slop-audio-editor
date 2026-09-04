@@ -4,8 +4,10 @@
   import { pool } from "../state/appState.svelte";
 
   const {
-    sourceId, inS, durS, widthPx, heightPx,
-  }: { sourceId: string; inS: number; durS: number; widthPx: number; heightPx: number } = $props();
+    sourceId, inS, durS, widthPx, heightPx, gain,
+  }: {
+    sourceId: string; inS: number; durS: number; widthPx: number; heightPx: number; gain: number;
+  } = $props();
 
   let canvas = $state<HTMLCanvasElement | null>(null);
 
@@ -14,6 +16,7 @@
     const source = pool.get(sourceId);
     const w = Math.max(1, Math.round(widthPx));
     const h = Math.max(1, Math.round(heightPx));
+    const g = gain; // read in the tracked scope: redraw on Match loudness (or any gain edit)
     if (!el || !source) return;
 
     // The backing store is sized in DEVICE pixels and then scaled back down via setTransform, so
@@ -33,8 +36,10 @@
     const mid = h / 2;
     ctx.fillStyle = "rgba(255,255,255,0.55)";
     for (let col = 0; col < w; col++) {
-      const min = peaks[col * 2];
-      const max = peaks[col * 2 + 1];
+      // The waveform shows what you will HEAR, not the raw source: scale by the clip's gain, then
+      // clamp to +-1 so a boosted clip visibly hits the ceiling instead of drawing outside its box.
+      const min = Math.max(-1, Math.min(1, peaks[col * 2] * g));
+      const max = Math.max(-1, Math.min(1, peaks[col * 2 + 1] * g));
       const y0 = mid - max * mid;
       const y1 = mid - min * mid;
       ctx.fillRect(col, y0, 1, Math.max(1, y1 - y0));
