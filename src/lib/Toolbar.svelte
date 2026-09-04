@@ -79,7 +79,7 @@
   {/if}
 
   <button class={BTN} title="Import audio" onclick={() => fileInput?.click()}>
-    <Upload size={16} />
+    <Download size={16} />
   </button>
   <input
     bind:this={fileInput}
@@ -88,9 +88,14 @@
     multiple
     class="hidden"
     onchange={async (e) => {
-      const files = e.currentTarget.files;
-      e.currentTarget.value = ""; // reset first, so re-picking the same file works even on failure
-      if (!files?.length) return;
+      // Copy the File objects OUT before resetting. `e.currentTarget.files` is a LIVE FileList:
+      // setting `value = ""` empties that very object (same identity), so a captured reference
+      // would read as length 0 and the import would silently do nothing. Individual File objects
+      // are independent of the list and survive the reset — which is why the project-open handler
+      // below, which grabs `files?.[0]`, was never affected.
+      const files = Array.from(e.currentTarget.files ?? []);
+      e.currentTarget.value = ""; // reset after copying, so re-picking the same file still works
+      if (files.length === 0) return;
       try {
         await importFiles(files, appState.project.tracks[0].id, appState.playheadS);
       } catch (err) {
@@ -145,7 +150,7 @@
   </label>
 
   <button class={BTN} title="Export mix" onclick={() => (exporting = true)}>
-    <Download size={16} />
+    <Upload size={16} />
   </button>
 
   <div class="ml-auto flex items-center gap-2 text-xs">
