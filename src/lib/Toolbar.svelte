@@ -79,7 +79,7 @@
     <span class="text-xs text-red-400">{fileError}</span>
   {/if}
 
-  <button class={BTN} title="Import audio" onclick={() => fileInput?.click()}>
+  <button class={BTN} title="Import audio into the current track at the playhead — any format this browser can decode (MP3, WAV, M4A/AAC, FLAC, OGG, WebM)" onclick={() => fileInput?.click()}>
     <Download size={16} />
   </button>
   <input
@@ -112,7 +112,7 @@
     <button class={BTN} title="Play/pause (Space)" onclick={togglePlay}>
       {#if appState.playing}<Pause size={16} />{:else}<Play size={16} />{/if}
     </button>
-    <button class={BTN} title="Stop" onclick={() => { if (appState.playing) togglePlay(); seekTo(0); }}>
+    <button class={BTN} title="Stop and return the playhead to the start" onclick={() => { if (appState.playing) togglePlay(); seekTo(0); }}>
       <Square size={16} />
     </button>
     <button
@@ -155,7 +155,7 @@
     >
       <Scissors size={16} />
     </button>
-    <button class={BTN} title="Add track" onclick={() => commit((p) => addTrack(p))}>
+    <button class={BTN} title="Add an empty track below" onclick={() => commit((p) => addTrack(p))}>
       <Plus size={16} />
     </button>
   </div>
@@ -172,11 +172,11 @@
     /> Glue
   </label>
 
-  <button class={BTN} title="Match loudness" onclick={matchLoudness}>
+  <button class={BTN} title="Set every clip's gain so all clips play at the same loudness. Non-destructive: it only changes clip gain, and undo reverses it." onclick={matchLoudness}>
     <Scale size={16} />
   </button>
 
-  <button class={BTN} title="Export mix" onclick={() => (exporting = true)}>
+  <button class={BTN} title="Mix down to a file (WAV, MP3, M4A or WebM) — solo is ignored, mutes are honoured" onclick={() => (exporting = true)}>
     <Upload size={16} />
   </button>
 
