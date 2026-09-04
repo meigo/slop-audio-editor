@@ -5,8 +5,8 @@
   } from "../doc/edits";
   import { editPoints, nextEditPoint, prevEditPoint, NO_SELECTION } from "../doc/selection";
   import {
-    commit, copySelection, cutSelection, pasteAtPlayhead, redoEdit, seekTo, selectedTrackIds,
-    state as appState, toggleSolo, togglePlay, undoEdit,
+    clearPlayRange, commit, copySelection, cutSelection, pasteAtPlayhead, redoEdit, seekTo,
+    selectedTrackIds, setPlayIn, setPlayOut, state as appState, toggleSolo, togglePlay, undoEdit,
   } from "../state/appState.svelte";
   import { resolveShortcut } from "./shortcuts";
 
@@ -43,6 +43,12 @@
       }
       case "toggleSolo":
         return toggleSolo(firstTrackId());
+      case "setIn":
+        return setPlayIn();
+      case "setOut":
+        return setPlayOut();
+      case "clearPlayRange":
+        return clearPlayRange();
       case "delete": {
         if (appState.selection.kind === "clips") {
           const ids = appState.selection.clipIds;

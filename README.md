@@ -20,7 +20,7 @@ and mixdown are native Web Audio API. Non-WAV export encoding uses
 ```bash
 npm install
 npm run dev      # Vite dev server
-npm test         # Vitest — 273 tests across 27 files
+npm test         # Vitest — 297 tests across 28 files
 npm run build    # svelte-check && tsc --noEmit && vite build — 0 errors, 0 warnings
 npm run deploy   # build, then wrangler deploy
 ```
@@ -49,7 +49,11 @@ npm run deploy   # build, then wrangler deploy
   the compressor to cancel the below-threshold makeup gain the Web Audio spec builds into
   `DynamicsCompressorNode` (it is not a pure attenuator). It's a document setting, so it's saved
   with the project and applied on export, same as mute.
-- **Transport:** play, pause, seek, and loop over a selected time range.
+- **Transport:** play, pause, seek, and loop.
+- **In/out play-range markers** bound (and, with loop on, repeat) playback over part of the
+  project, independent of the clip/time-range selection. They are session-only: not part of the
+  document, never saved, never undoable, and never affect export — export continues to use the
+  time-range selection.
 - **Undo / redo**, capped at 100 entries.
 - **Waveform display**, zoom (wheel, `+`/`-`, fit-to-window), and edge/playhead snapping (hold
   Shift to disable while dragging).
@@ -76,6 +80,9 @@ npm run deploy   # build, then wrangler deploy
 | `m` | Toggle mute on the first selected (or first) track |
 | `⇧S` | Toggle solo on the first selected (or first) track |
 | `l` | Toggle loop |
+| `i` | Set the play-range IN marker at the playhead |
+| `o` | Set the play-range OUT marker at the playhead |
+| `⌘I` / `Ctrl+I` | Clear the play-range markers |
 
 Shortcuts are suppressed while typing into an input field.
 
@@ -133,6 +140,8 @@ a large amount of memory.
 - **Match loudness measures the whole decoded source, not the trimmed region a clip actually
   plays.** Two clips cut from different, differently-loud parts of the same imported file get the
   same correction, since loudness is measured once per source at import time.
+- **The in/out play-range markers are not saved with the project** (or by autosave) — they're
+  session state, cleared on reload, and never affect export.
 
 ## Design notes
 

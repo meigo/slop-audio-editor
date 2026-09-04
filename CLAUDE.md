@@ -8,7 +8,7 @@ full design rationale behind anything that seems surprising below.
 
 ```bash
 npm run dev      # Vite dev server
-npm test         # Vitest, node environment, no DOM — 273 tests across 27 files
+npm test         # Vitest, node environment, no DOM — 297 tests across 28 files
 npm run test:watch
 npm run build    # svelte-check && tsc --noEmit && vite build — bar is 0 errors, 0 warnings
 npm run check    # svelte-check only
@@ -42,6 +42,10 @@ src/
     edits.ts         every pure edit operation — the largest test surface in the project
     overlap.ts       non-overlap invariant helpers (drop-to-overwrite resolution)
     selection.ts     clip selection / time-range selection types + resolution
+    play-range.ts    setIn/setOut(range, atS, projectEndS) — in/out play-range marker math. The
+                     range this computes is session state (see `state/appState.svelte.ts`'s
+                     `playRange`), never part of `Project`: it is not saved and never affects
+                     export, which keeps using the time-range selection (`exportWindow`)
     clipboard.ts     copy/cut/paste, normalised to t = 0
     loudness-match.ts  matchLoudnessGains(entries) — per-clip linear gain correction toward the
                      median LUFS of a group, clamped to ±MAX_MATCH_DB; non-finite (silent) entries
@@ -208,13 +212,24 @@ src/
     or `ratio` changes the makeup gain the trim needs to cancel, so re-measure it (build the chain
     in an `OfflineAudioContext`, sweep input peak level, read the output) rather than guessing.
 
+13. **The in/out play-range (`state.playRange`) is session state, like solo — it is never part of
+    `Project` and `exportWindow` (`src/export/formats.ts`) never looks at it.** Setting IN or OUT
+    (the `i`/`o` shortcuts, or dragging a handle on the `Ruler`) only ever assigns
+    `state.playRange`, never goes through `commit`, and is lost on reload same as `soloed`. It
+    bounds playback (`playEndS()` in `appState.svelte.ts`) whether or not `loop` is on — loop only
+    decides whether playback restarts at `playRange.fromS` once it gets there. Why it matters: if
+    this ever migrated into `Project` or into `exportWindow`, a marker set for a quick preview loop
+    would silently start truncating exports — the same class of bug Gotcha 1 exists to prevent for
+    solo, and export must keep using the time-range selection instead.
+
 ## Testing
 
 Vitest, `node` environment, no DOM (`src/**/*.test.ts`, see `vite.config.ts`). Pure logic
-(`doc/edits.ts`, `doc/loudness-match.ts`, `audio/schedule.ts`, `audio/fades.ts`, `audio/peaks.ts`,
-`audio/loudness.ts`, `audio/pool.ts`'s `computeLoudnessChunked`/`computePeaksChunked`,
+(`doc/edits.ts`, `doc/loudness-match.ts`, `doc/play-range.ts`, `audio/schedule.ts`, `audio/fades.ts`,
+`audio/peaks.ts`, `audio/loudness.ts`, `audio/pool.ts`'s `computeLoudnessChunked`/`computePeaksChunked`,
 `export/wav.ts`, `persist/project-file.ts`, `persist/preferences.ts`, `lib/geometry.ts`,
-`lib/hit-test.ts`, `lib/shortcuts.ts`, `state/history.ts`) is unit-tested. Canvas rendering, drag interactions, real
+`lib/hit-test.ts` (including `hitTestRuler`), `lib/shortcuts.ts`, `state/history.ts`) is
+unit-tested. Canvas rendering, drag interactions (the `Ruler`'s in/out marker drag included), real
 playback timing, and WebCodecs export are not covered by automated tests and need a manual pass in
 a browser — see the acceptance-pass checklist in the task-29 brief/report for what that covers and
 what has and hasn't been run.

@@ -7,6 +7,7 @@ import {
 import { createProject, projectDurationS, type Project } from "../doc/document";
 import { addClip, makeClip, setClipGain } from "../doc/edits";
 import { matchLoudnessGains, type LoudnessEntry } from "../doc/loudness-match";
+import { setIn, setOut, type PlayRange } from "../doc/play-range";
 import { NO_SELECTION, type Selection } from "../doc/selection";
 import { putSource, scheduleDocumentSave } from "../persist/autosave";
 import { loadPreferences, savePreferences } from "../persist/preferences";
@@ -27,6 +28,9 @@ export const state = $state({
   playheadS: 0,
   playing: false,
   loop: false,
+  /** In/out play-range markers. Session state, like `soloed`: NOT in the document, NOT saved,
+   *  NOT undoable — this is what keeps it from ever reaching an export. */
+  playRange: null as PlayRange | null,
   pxPerSecond: prefs.pxPerSecond,
   scrollS: 0,
   trackHeightPx: prefs.trackHeightPx,
@@ -150,10 +154,10 @@ function restartIfPlaying(): void {
   engine.play(state.project, pool, at, playEndS(), state.soloed);
 }
 
+/** The play range bounds playback whether or not looping is on — loop only controls whether
+ *  playback restarts once it gets there. */
 function playEndS(): number {
-  return state.selection.kind === "range" && state.loop
-    ? state.selection.range.toS
-    : projectDurationS(state.project);
+  return state.playRange ? state.playRange.toS : projectDurationS(state.project);
 }
 
 export function togglePlay(): void {
@@ -163,12 +167,15 @@ export function togglePlay(): void {
     state.playheadS = engine.positionS();
     return;
   }
-  const from =
-    state.loop && state.selection.kind === "range" ? state.selection.range.fromS : state.playheadS;
+  const range = state.playRange;
+  const from = range
+    ? Math.max(range.fromS, Math.min(state.playheadS, range.toS))
+    : state.playheadS;
   engine.onEnded = () => {
     if (state.loop) {
-      state.playheadS = from;
-      engine.play(state.project, pool, from, playEndS(), state.soloed);
+      const restartAt = state.playRange ? state.playRange.fromS : from;
+      state.playheadS = restartAt;
+      engine.play(state.project, pool, restartAt, playEndS(), state.soloed);
       return;
     }
     state.playing = false;
@@ -176,6 +183,26 @@ export function togglePlay(): void {
   engine.play(state.project, pool, from, playEndS(), state.soloed);
   state.playheadS = from;
   state.playing = true;
+}
+
+/** Move (or create) the IN marker to `atS` (the playhead by default — the shortcut calls this
+ *  with no argument; `Ruler`'s drag passes the pointer position instead). Reschedules if playing,
+ *  so a marker moved mid-playback takes effect immediately rather than only on the next play. */
+export function setPlayIn(atS: number = state.playheadS): void {
+  state.playRange = setIn(state.playRange, atS, projectDurationS(state.project));
+  restartIfPlaying();
+}
+
+/** Move (or create) the OUT marker to `atS`. See `setPlayIn`. */
+export function setPlayOut(atS: number = state.playheadS): void {
+  state.playRange = setOut(state.playRange, atS, projectDurationS(state.project));
+  restartIfPlaying();
+}
+
+export function clearPlayRange(): void {
+  if (state.playRange === null) return;
+  state.playRange = null;
+  restartIfPlaying();
 }
 
 export function seekTo(s: number): void {
