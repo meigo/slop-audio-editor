@@ -34,7 +34,9 @@
 <div
   class="flex h-[22px] shrink-0 items-center gap-2 border-t border-neutral-700 px-3 text-[11px]"
 >
-  <span class="truncate {hovered ? 'text-neutral-300' : 'text-neutral-500'}">
-    {hovered ?? resting}
-  </span>
+  <!-- One brightness for both states. The text swaps completely between the resting summary and
+       the hovered control's help, so a colour change on top of that carries no extra information
+       and just flickers on every pointer move. `neutral-400` is this app's tier for secondary
+       informational text (ruler labels, field labels) — which is exactly what a status line is. -->
+  <span class="truncate text-neutral-400">{hovered ?? resting}</span>
 </div>
