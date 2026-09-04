@@ -1,15 +1,15 @@
 <script lang="ts">
   import {
-    Download, FilePlus2, FolderOpen, Pause, Play, Plus, Redo2, Repeat, Save, Scale, Scissors,
-    Square, Undo2, Upload,
+    ArrowLeftToLine, ArrowRightToLine, Download, Eraser, FilePlus2, FolderOpen, Pause, Play, Plus,
+    Redo2, Repeat, Save, Scale, Scissors, Square, Undo2, Upload,
   } from "@lucide/svelte";
   import { createProject } from "../doc/document";
   import { addTrack, setGlue, setMasterGain, splitAt } from "../doc/edits";
   import { openProjectFile, pruneUnreferencedSources, saveProjectFile } from "../persist/project-io.svelte";
   import {
-    amend, beginGesture, canRedoNow, canUndoNow, commit, currentTrackId, endGesture, engine,
-    importFiles, matchLoudness, pool, redoEdit, seekTo, selectedTrackIds, state as appState,
-    togglePlay, undoEdit,
+    amend, beginGesture, canRedoNow, canUndoNow, clearPlayRange, commit, currentTrackId,
+    endGesture, engine, importFiles, matchLoudness, pool, redoEdit, seekTo, selectedTrackIds,
+    setPlayIn, setPlayOut, state as appState, togglePlay, undoEdit,
   } from "../state/appState.svelte";
   import ExportDialog from "./ExportDialog.svelte";
   import Fader from "./Fader.svelte";
@@ -118,10 +118,24 @@
     <button
       class={BTN}
       class:text-sky-400={appState.loop}
-      title="Loop the selected range (L)"
+      title="Loop the in/out range, or the whole project (L)"
       onclick={() => (appState.loop = !appState.loop)}
     >
       <Repeat size={16} />
+    </button>
+    <button class={BTN} title="Set in point at playhead (I)" onclick={() => setPlayIn()}>
+      <ArrowLeftToLine size={16} />
+    </button>
+    <button class={BTN} title="Set out point at playhead (O)" onclick={() => setPlayOut()}>
+      <ArrowRightToLine size={16} />
+    </button>
+    <button
+      class={BTN}
+      disabled={appState.playRange === null}
+      title="Clear in/out range (⌘I)"
+      onclick={clearPlayRange}
+    >
+      <Eraser size={16} />
     </button>
   </div>
 
