@@ -1,4 +1,5 @@
 export type ClipZone = "fadeIn" | "fadeOut" | "trimStart" | "trimEnd" | "body";
+export type RulerZone = "in" | "out" | "seek";
 
 const EDGE_PX = 6;
 const FADE_CORNER_PX = 14;
@@ -25,4 +26,20 @@ export function hitTestClip(
   if (xPx <= EDGE_PX) return "trimStart";
   if (xPx >= widthPx - EDGE_PX) return "trimEnd";
   return "body";
+}
+
+const RULER_HANDLE_PX = 6;
+
+/** Which part of the ruler a pointer is over. A `null` position means that marker isn't set and
+ *  can never be hit. When both handles are within `thresholdPx`, the NEARER one wins. */
+export function hitTestRuler(
+  xPx: number,
+  inPx: number | null,
+  outPx: number | null,
+  thresholdPx = RULER_HANDLE_PX,
+): RulerZone {
+  const dIn = inPx === null ? Infinity : Math.abs(xPx - inPx);
+  const dOut = outPx === null ? Infinity : Math.abs(xPx - outPx);
+  if (dIn > thresholdPx && dOut > thresholdPx) return "seek";
+  return dIn <= dOut ? "in" : "out";
 }

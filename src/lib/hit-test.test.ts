@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hitTestClip } from "./hit-test";
+import { hitTestClip, hitTestRuler } from "./hit-test";
 
 const W = 200;
 const H = 80;
@@ -30,5 +30,36 @@ describe("hitTestClip", () => {
 
   it("never returns a zone for a zero-width clip", () => {
     expect(hitTestClip(0, 0, 0, H)).toBe("body");
+  });
+});
+
+describe("hitTestRuler", () => {
+  it("reports the in handle within threshold of its position", () => {
+    expect(hitTestRuler(100, 100, null)).toBe("in");
+    expect(hitTestRuler(103, 100, null)).toBe("in");
+  });
+
+  it("reports the out handle within threshold of its position", () => {
+    expect(hitTestRuler(200, null, 200)).toBe("out");
+    expect(hitTestRuler(197, null, 200)).toBe("out");
+  });
+
+  it("reports a seek for a miss", () => {
+    expect(hitTestRuler(150, 100, 200)).toBe("seek");
+  });
+
+  it("picks the NEARER handle when both are in range", () => {
+    expect(hitTestRuler(101, 100, 105)).toBe("in");
+    expect(hitTestRuler(104, 100, 105)).toBe("out");
+  });
+
+  it("never hits a null marker position", () => {
+    expect(hitTestRuler(100, null, null)).toBe("seek");
+    expect(hitTestRuler(100, null, 100)).toBe("out");
+  });
+
+  it("hits exactly at the threshold boundary, misses just past it", () => {
+    expect(hitTestRuler(106, 100, null, 6)).toBe("in");
+    expect(hitTestRuler(107, 100, null, 6)).toBe("seek");
   });
 });
