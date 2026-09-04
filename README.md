@@ -45,8 +45,10 @@ npm run deploy   # build, then wrangler deploy
   is the median across the project, corrections clamped to ±12 dB). Clips whose source is silent
   are left alone rather than boosted into noise.
 - **Glue**, a toolbar toggle that band-limits (100 Hz–7.5 kHz) and gently compresses the master bus
-  (3:1, −18 dB threshold, +3 dB makeup gain) to help audio from different sources cohere. It's a
-  document setting, so it's saved with the project and applied on export, same as mute.
+  (3:1, −18 dB threshold) to help audio from different sources cohere, with a fixed −6 dB trim after
+  the compressor to cancel the below-threshold makeup gain the Web Audio spec builds into
+  `DynamicsCompressorNode` (it is not a pure attenuator). It's a document setting, so it's saved
+  with the project and applied on export, same as mute.
 - **Transport:** play, pause, seek, and loop over a selected time range.
 - **Undo / redo**, capped at 100 entries.
 - **Waveform display**, zoom (wheel, `+`/`-`, fit-to-window), and edge/playhead snapping (hold

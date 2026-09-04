@@ -65,8 +65,10 @@ src/
     render.ts        renderPlan(ctx, plan, pool, project) — builds the actual node graph against
                      either an AudioContext (preview) or an OfflineAudioContext (export). When
                      `project.glue` is true, inserts a fixed highpass -> lowpass -> compressor ->
-                     makeup-gain chain between the master gain and the destination; when false, the
-                     graph is bit-identical to before Glue existed — those nodes are never built
+                     trim-gain chain between the master gain and the destination — the trim cancels
+                     the compressor's own below-threshold makeup gain (see gotcha 12), it does not
+                     add one; when false, the graph is bit-identical to before Glue existed — those
+                     nodes are never built
     engine.ts        transport: play/stop, schedules the whole remaining project up front,
                      playhead derived from ctx.currentTime, never a counter
 
@@ -190,6 +192,21 @@ src/
     the standard and break its own compliance test; leaving it out of `computeLoudnessChunked`
     would make "Match loudness" systematically over-boost every mono clip by ~3 dB in exactly the
     kind of mixed mono/stereo project the feature exists for.
+
+12. **`DynamicsCompressorNode` is not a pure attenuator — it has spec-defined internal makeup
+    gain, so Glue's post-compressor gain node TRIMS rather than adds.** The Web Audio spec derives
+    an internal makeup gain from `threshold`/`knee`/`ratio` (chosen so the loudest possible signal
+    still maps to 1.0), which shows up as a flat boost below the threshold, tapering to attenuation
+    as the input gets louder. Measured for Glue's settings (`-18` dB threshold, `6` dB knee, `3:1`
+    ratio): **+6.13 dB at -20 dBFS peak, +4.01 dB at -12, +0.12 dB at -6, -3.12 dB at -1.** An
+    earlier version of Glue added a further `+3 dB` on top of this on the theory that "the
+    compressor only reduces" — that theory was false, and the result was quiet material coming out
+    of Glue about +9.3 dB louder, exactly the "toggle behaves like a volume control" failure Glue
+    exists to avoid. `GLUE_TRIM_DB` in `render.ts` is `-6`, cancelling the below-threshold makeup so
+    switching Glue on is level-neutral for quiet material and only the loud end gets tamed. Why it
+    matters: this number is measured for THESE compressor settings — changing `threshold`, `knee`,
+    or `ratio` changes the makeup gain the trim needs to cancel, so re-measure it (build the chain
+    in an `OfflineAudioContext`, sweep input peak level, read the output) rather than guessing.
 
 ## Testing
 

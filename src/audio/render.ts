@@ -17,10 +17,17 @@ const GLUE_COMPRESSOR_KNEE_DB = 6;
 const GLUE_COMPRESSOR_RATIO = 3;
 const GLUE_COMPRESSOR_ATTACK_S = 0.02;
 const GLUE_COMPRESSOR_RELEASE_S = 0.25;
-/** The compressor only ever turns things down, so without a fixed makeup gain, Glue would just be
- *  a volume cut — the makeup is what makes it read as "character" rather than "quieter". */
-const GLUE_MAKEUP_DB = 3;
-const GLUE_MAKEUP_GAIN = 10 ** (GLUE_MAKEUP_DB / 20);
+/** The Web Audio compressor is NOT a pure attenuator: the spec gives it an internal makeup gain
+ *  derived from threshold/knee/ratio, so with these settings it adds a flat +6.1 dB below the
+ *  threshold, tapering to attenuation as the input gets loud (measured: +6.13 dB at -20 dBFS peak,
+ *  +4.01 at -12, +0.12 at -6, -3.12 at -1). That is exactly the levelling Glue wants — quiet
+ *  material up, loud material down — but it means an ADDED makeup would double the boost. This
+ *  trim cancels the below-threshold portion, so switching Glue on is level-neutral for quiet
+ *  material and progressively tames louder material, rather than acting as a volume control.
+ *
+ *  Measured for THESE compressor settings. If threshold, knee or ratio change, re-measure it. */
+const GLUE_TRIM_DB = -6;
+const GLUE_TRIM_GAIN = 10 ** (GLUE_TRIM_DB / 20);
 
 /** `setValueCurveAtTime` sets ABSOLUTE values, so a fade on a clip with non-unity gain has to be
  *  scaled — otherwise the fade would ramp to 1.0 and undo the clip's gain. */
@@ -83,15 +90,15 @@ export function renderPlan(
     compressor.attack.value = GLUE_COMPRESSOR_ATTACK_S;
     compressor.release.value = GLUE_COMPRESSOR_RELEASE_S;
 
-    const makeup = ctx.createGain();
-    makeup.gain.value = GLUE_MAKEUP_GAIN;
+    const trim = ctx.createGain();
+    trim.gain.value = GLUE_TRIM_GAIN;
 
     masterGain.connect(highpass);
     highpass.connect(lowpass);
     lowpass.connect(compressor);
-    compressor.connect(makeup);
-    makeup.connect(ctx.destination);
-    glueNodes.push(highpass, lowpass, compressor, makeup);
+    compressor.connect(trim);
+    trim.connect(ctx.destination);
+    glueNodes.push(highpass, lowpass, compressor, trim);
   } else {
     masterGain.connect(ctx.destination);
   }
