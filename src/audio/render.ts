@@ -42,6 +42,10 @@ export interface RenderedGraph {
   trackGains: Map<string, GainNode>;
   masterGain: GainNode;
   sources: AudioBufferSourceNode[];
+  /** Last node before the destination — `masterGain`, or Glue's trim when Glue is on. Metering
+   *  taps THIS, not `masterGain`: Glue's compressor and trim change the level, so a meter on
+   *  `masterGain` would show a number the listener never hears. */
+  output: AudioNode;
 }
 
 /**
@@ -70,6 +74,7 @@ export function renderPlan(
 ): RenderedGraph {
   const masterGain = ctx.createGain();
   masterGain.gain.value = project.masterGain;
+  let output: AudioNode = masterGain;
 
   // When Glue is off, this is the ENTIRE master chain — bit-identical to the graph before Glue
   // existed. The nodes below are only ever created when `project.glue` is true.
@@ -99,6 +104,7 @@ export function renderPlan(
     compressor.connect(trim);
     trim.connect(ctx.destination);
     glueNodes.push(highpass, lowpass, compressor, trim);
+    output = trim;
   } else {
     masterGain.connect(ctx.destination);
   }
@@ -155,5 +161,5 @@ export function renderPlan(
 
   for (const { node, when, offset, duration } of toStart) node.start(when, offset, duration);
 
-  return { trackGains, masterGain, sources };
+  return { trackGains, masterGain, sources, output };
 }

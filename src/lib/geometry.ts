@@ -133,3 +133,14 @@ export function fadeMaskPolygon(curve: Float32Array): string {
   }
   return `polygon(${pts.join(", ")})`;
 }
+
+/** Bottom of the master meter's scale, dBFS. A narrow range keeps the part where mixing decisions
+ *  actually happen — the top few dozen dB — from being squeezed into a sliver of the bar. */
+export const METER_FLOOR_DB = -48;
+
+/** Meter fill for a level in dBFS, as a percentage of the track. Silence (`-Infinity`) and
+ *  anything at or below the floor read empty; an over pegs at 100 rather than overflowing. */
+export function meterFillPct(db: number, floorDb: number = METER_FLOOR_DB): number {
+  if (db === -Infinity) return 0;
+  return Math.max(0, Math.min(1, (db - floorDb) / -floorDb)) * 100;
+}

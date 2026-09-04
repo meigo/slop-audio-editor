@@ -2,6 +2,7 @@ import { projectDurationS, type Project } from "../doc/document";
 import { getAudioContext } from "./context";
 import type { SourcePool } from "./pool";
 import { renderPlan, SCHEDULE_LEAD_S, type RenderedGraph } from "./render";
+import { peakAmplitude } from "./peak";
 import { planSchedule } from "./schedule";
 
 /**
@@ -15,6 +16,12 @@ export class AudioEngine {
   #startOffsetS = 0;
   #endS = 0;
   #stopTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Metering tap on the graph's terminal node. Playback-only by design: `planSchedule` and
+   *  `renderPlan` stay identical for preview and export (see the shared-planner rule), so the
+   *  analyser is attached HERE, in the caller, rather than inside the graph builder — an
+   *  AnalyserNode in an OfflineAudioContext render would measure nothing and mean nothing. */
+  #analyser: AnalyserNode | null = null;
+  #meterBuf: Float32Array<ArrayBuffer> | null = null;
 
   /** Fired when playback runs off the end of the scheduled window. */
   onEnded: (() => void) | null = null;
@@ -65,6 +72,12 @@ export class AudioEngine {
     const startAt = ctx.currentTime + SCHEDULE_LEAD_S;
 
     this.#graph = renderPlan(ctx, planSchedule(project, fromS, end, soloed), pool, project, startAt);
+    // fftSize samples (~43 ms at 48 kHz) is longer than a 60 fps frame, so consecutive reads
+    // overlap and no peak can slip between them.
+    this.#analyser = ctx.createAnalyser();
+    this.#analyser.fftSize = 2048;
+    this.#meterBuf = new Float32Array(this.#analyser.fftSize);
+    this.#graph.output.connect(this.#analyser);
     this.#startCtxTime = startAt;
     this.#startOffsetS = fromS;
     this.#endS = end;
@@ -96,6 +109,9 @@ export class AudioEngine {
       s.disconnect();
     }
     this.#graph.masterGain.disconnect();
+    this.#analyser?.disconnect();
+    this.#analyser = null;
+    this.#meterBuf = null;
     this.#graph = null;
   }
 
@@ -107,5 +123,13 @@ export class AudioEngine {
 
   setMasterGain(gain: number): void {
     if (this.#graph) this.#graph.masterGain.gain.value = gain;
+  }
+
+  /** Peak amplitude over the last analyser window, as heard: post-master, post-Glue. 0 when
+   *  stopped. Values above 1.0 are real overs and are reported as such. */
+  peakLevel(): number {
+    if (!this.#analyser || !this.#meterBuf) return 0;
+    this.#analyser.getFloatTimeDomainData(this.#meterBuf);
+    return peakAmplitude([this.#meterBuf]);
   }
 }

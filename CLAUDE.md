@@ -283,6 +283,27 @@ src/
     exponential changed what you heard and nothing you saw. Same failure as Gotcha 15: derive the
     picture from the audio's source of truth rather than maintaining a parallel guess.
 
+18. **The master meter taps `RenderedGraph.output`, not `masterGain`, and the tap lives in
+    `engine.ts` rather than `renderPlan`.** Two separate rules meeting in one feature.
+    `renderPlan` now returns `output`: the last node before the destination — `masterGain`, or
+    Glue's trim when Glue is on. A meter on `masterGain` would read a level nobody hears, since
+    Glue's compressor and trim sit after it (and per Gotcha 12 the compressor is not a pure
+    attenuator). The `AnalyserNode` itself is created in `AudioEngine.play`, NOT in `renderPlan`:
+    per Gotcha 3 the shared planner and graph builder carry no playback-only branches, and an
+    analyser in an `OfflineAudioContext` export would measure nothing.
+    The live meter and the export peak answer DIFFERENT questions and both exist on purpose. The
+    meter reads the playback graph, so it honours solo and only ever sees what you actually
+    played — it can never be the authority on whether a file clips (Gotcha 1 again). The export
+    dialog measures the rendered mixdown itself: solo-free, whole-window, and it stops before
+    writing a clipped file rather than reporting the problem afterwards. `ExportDialog` retains
+    that rendered buffer so acknowledging an over costs only the encode, and an `$effect` on
+    `appState.project` discards it on ANY document edit — modality does not make retention safe,
+    keyboard shortcuts still reach the document behind the overlay, and a stale buffer would
+    write audio for a mix that no longer exists.
+    `peakAmplitude`/`amplitudeToDbfs` (`src/audio/peak.ts`) are SAMPLE peak, not true peak: no
+    oversampling, so a mix reading exactly 0.0 dBFS can still overshoot a downstream converter by
+    a few tenths. Deliberate — do not relabel it "true peak" without adding the oversampling.
+
 ## Testing
 
 Vitest, `node` environment, no DOM (`src/**/*.test.ts`, see `vite.config.ts`). Pure logic
@@ -290,7 +311,9 @@ Vitest, `node` environment, no DOM (`src/**/*.test.ts`, see `vite.config.ts`). P
 `audio/peaks.ts`, `audio/loudness.ts`, `audio/pool.ts`'s `computeLoudnessChunked`/`computePeaksChunked`,
 `export/wav.ts`, `persist/project-file.ts`, `persist/preferences.ts`, `lib/geometry.ts`,
 `lib/hit-test.ts` (including `hitTestRuler`), `lib/shortcuts.ts`, `state/history.ts`) is
-unit-tested. Canvas rendering, drag interactions (the `Ruler`'s in/out marker drag included), real
+unit-tested. Canvas rendering, drag interactions (the `Ruler`'s in/out marker drag included), the master
+meter's animation (its scale mapping is `meterFillPct`, which IS tested; the `requestAnimationFrame`
+loop cannot run in a backgrounded tab, so the bar and peak-hold need a foreground eyeball), real
 playback timing, and WebCodecs export are not covered by automated tests and need a manual pass in
 a browser — see the acceptance-pass checklist in the task-29 brief/report for what that covers and
 what has and hasn't been run.

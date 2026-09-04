@@ -13,6 +13,7 @@
     setPlayIn, setPlayOut, state as appState, togglePlay, undoEdit,
   } from "../state/appState.svelte";
   import ExportDialog from "./ExportDialog.svelte";
+  import Meter from "./Meter.svelte";
   import Fader from "./Fader.svelte";
   import { formatTime } from "./geometry";
 
@@ -183,6 +184,7 @@
 
   <div class="ml-auto flex items-center gap-2 text-xs">
     <span class="text-neutral-500">Master</span>
+    <Meter />
     <Fader
       gain={appState.project.masterGain}
       onInput={onMasterGain}

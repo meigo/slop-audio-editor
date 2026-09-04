@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  dbToGain, dbToPosition, fadeMaskPolygon, formatDb, formatTime, gainToDb, positionToDb, pxToTime,
-  rulerTicks, snapTime, timeToPx,
+  dbToGain, dbToPosition, fadeMaskPolygon, formatDb, formatTime, gainToDb, METER_FLOOR_DB,
+  meterFillPct, positionToDb, pxToTime, rulerTicks, snapTime, timeToPx,
 } from "./geometry";
 import { fadeInCurve, fadeOutCurve } from "../audio/fades";
 
@@ -182,5 +182,30 @@ describe("fadeMaskPolygon", () => {
     const poly = fadeMaskPolygon(fadeOutCurve("linear", 5));
     expect(edgeAt(poly, 0)).toBeCloseTo(0, 4);
     expect(edgeAt(poly, 1)).toBeCloseTo(100, 4);
+  });
+});
+
+describe("meterFillPct", () => {
+  it("fills completely at 0 dBFS", () => {
+    expect(meterFillPct(0)).toBeCloseTo(100, 6);
+  });
+
+  it("is empty at and below the floor", () => {
+    expect(meterFillPct(METER_FLOOR_DB)).toBeCloseTo(0, 6);
+    expect(meterFillPct(METER_FLOOR_DB - 20)).toBe(0);
+  });
+
+  it("is empty for digital silence", () => {
+    expect(meterFillPct(-Infinity)).toBe(0);
+  });
+
+  it("puts the halfway mark at half the floor", () => {
+    expect(meterFillPct(METER_FLOOR_DB / 2)).toBeCloseTo(50, 6);
+  });
+
+  // An over must peg the bar rather than overflowing its track, the same way the waveform clamps
+  // to the clip box instead of painting over its neighbours.
+  it("clamps an over to 100 rather than exceeding the track", () => {
+    expect(meterFillPct(6)).toBe(100);
   });
 });

@@ -14,6 +14,14 @@ class FakeNode {
 class FakeGainNode extends FakeNode {
   gain = { value: 1, setValueCurveAtTime: (): void => {} };
 }
+/** The meter tap. `fillWith` lets a test put a known waveform in front of `peakLevel()`. */
+class FakeAnalyserNode extends FakeNode {
+  fftSize = 2048;
+  fillWith = 0;
+  getFloatTimeDomainData(out: Float32Array): void {
+    out.fill(this.fillWith);
+  }
+}
 class FakeBufferSourceNode extends FakeNode {
   buffer: unknown = null;
   start(): void {}
@@ -28,6 +36,11 @@ class FakeAudioContext {
   }
   createBufferSource(): FakeBufferSourceNode {
     return new FakeBufferSourceNode();
+  }
+  lastAnalyser: FakeAnalyserNode | null = null;
+  createAnalyser(): FakeAnalyserNode {
+    this.lastAnalyser = new FakeAnalyserNode();
+    return this.lastAnalyser;
   }
 }
 
@@ -98,5 +111,36 @@ describe("AudioEngine.positionS", () => {
     engine.play(createProject(), emptyPool(), 3, 10, new Set());
     fakeCtx.currentTime = SCHEDULE_LEAD_S + 2; // 2s of real playback since the lead-in ended
     expect(engine.positionS()).toBe(5);
+  });
+});
+
+describe("AudioEngine.peakLevel", () => {
+  it("is 0 while stopped, so a stale meter cannot linger after the transport stops", () => {
+    expect(new AudioEngine().peakLevel()).toBe(0);
+  });
+
+  it("reports the level on the graph's terminal node while playing", () => {
+    const engine = new AudioEngine();
+    engine.play(createProject(), emptyPool(), 0, 10, new Set());
+    fakeCtx.lastAnalyser!.fillWith = -0.75; // magnitude, so a trough must register
+    expect(engine.peakLevel()).toBeCloseTo(0.75, 6);
+    engine.stop();
+  });
+
+  it("returns to 0 once stopped, releasing the analyser", () => {
+    const engine = new AudioEngine();
+    engine.play(createProject(), emptyPool(), 0, 10, new Set());
+    fakeCtx.lastAnalyser!.fillWith = 0.9;
+    expect(engine.peakLevel()).toBeCloseTo(0.9, 6);
+    engine.stop();
+    expect(engine.peakLevel()).toBe(0);
+  });
+
+  it("reports an over above 1.0 rather than clamping to full scale", () => {
+    const engine = new AudioEngine();
+    engine.play(createProject(), emptyPool(), 0, 10, new Set());
+    fakeCtx.lastAnalyser!.fillWith = 1.4;
+    expect(engine.peakLevel()).toBeCloseTo(1.4, 6);
+    engine.stop();
   });
 });
