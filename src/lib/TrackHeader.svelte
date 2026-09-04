@@ -40,8 +40,11 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <!-- svelte-ignore a11y_click_events_have_key_events -->
+<!-- `select-none` on the header: the name and the M/S/D letters are controls, not text, and
+     double-clicking the name to rename it would otherwise highlight the word as it opens the
+     editor. The rename input takes `select-text` back, because there selecting IS the point. -->
 <div
-  class="flex flex-col justify-between border-b border-l-2 border-neutral-800 px-2 py-1"
+  class="flex select-none flex-col justify-between border-b border-l-2 border-neutral-800 px-2 py-1"
   class:border-l-transparent={!isCurrent}
   class:border-l-violet-400={isCurrent}
   style="height: {appState.trackHeightPx}px"
@@ -51,7 +54,7 @@
     {#if renaming}
       <input
         bind:this={nameInput}
-        class="w-full bg-neutral-800 px-1 text-xs"
+        class="w-full select-text bg-neutral-800 px-1 text-xs"
         value={track.name}
         onblur={(e) => {
           commit((p) => renameTrack(p, track.id, e.currentTarget.value.trim() || track.name));
