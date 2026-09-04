@@ -1,6 +1,6 @@
 import { findClip, projectDurationS, type Project } from "../doc/document";
 import { moveClips, setClipFade, trimClipEnd, trimClipStart } from "../doc/edits";
-import { editPoints, NO_SELECTION } from "../doc/selection";
+import { clipsInRange, editPoints, NO_SELECTION } from "../doc/selection";
 import {
   amend, beginGesture, endGesture, pool, setCurrentTrack, state as appState,
 } from "../state/appState.svelte";
@@ -31,6 +31,23 @@ function snapCandidates(p: Project, movingIds: readonly string[]): number[] {
  * move event so toggling Shift mid-drag takes effect immediately, rather than latching whatever
  * state held at pointer-down.
  */
+/** Which clips a drag on `clipId` moves.
+ *
+ *  A time-range selection counts as well as a clip selection: dragging a box across several clips
+ *  and then moving one of them should move all of them, or the gesture does not do what it looks
+ *  like it does. `clipsInRange` is overlap-based, so a clip the range only partly covers still
+ *  moves in full — a clip cannot be half-moved, and leaving it behind would silently break up a
+ *  group the user drew a box around. */
+function grabbedGroup(p: Project, clipId: string): string[] {
+  const sel = appState.selection;
+  if (sel.kind === "clips" && sel.clipIds.includes(clipId)) return sel.clipIds;
+  if (sel.kind === "range") {
+    const inRange = clipsInRange(p, sel.range);
+    if (inRange.includes(clipId)) return inRange;
+  }
+  return [clipId];
+}
+
 export function startClipDrag(e: PointerEvent, clipId: string, trackId: string, zone: ClipZone): void {
   const target = e.currentTarget as HTMLElement;
   target.setPointerCapture(e.pointerId);
@@ -44,10 +61,7 @@ export function startClipDrag(e: PointerEvent, clipId: string, trackId: string, 
   const original = found.clip;
   const sourceDurS = pool.get(original.sourceId)?.durationS ?? original.inS + original.durS;
 
-  const movingIds =
-    appState.selection.kind === "clips" && appState.selection.clipIds.includes(clipId)
-      ? appState.selection.clipIds
-      : [clipId];
+  const movingIds = grabbedGroup(base, clipId);
   const candidates = snapCandidates(base, movingIds);
 
   beginGesture();

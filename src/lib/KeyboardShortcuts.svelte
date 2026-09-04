@@ -40,6 +40,11 @@
       }
       case "toggleSolo":
         return toggleSolo(currentTrackId());
+      case "selectAll": {
+        const ids = appState.project.tracks.flatMap((t) => t.clips.map((c) => c.id));
+        appState.selection = ids.length > 0 ? { kind: "clips", clipIds: ids } : NO_SELECTION;
+        return;
+      }
       case "setIn":
         return setPlayIn();
       case "setOut":

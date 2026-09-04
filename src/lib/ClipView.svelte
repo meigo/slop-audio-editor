@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Clip } from "../doc/document";
+  import { clipsInRange } from "../doc/selection";
   import { pool, state as appState } from "../state/appState.svelte";
   import { startClipDrag } from "./clip-drag.svelte";
   import { fadeInCurve, fadeOutCurve } from "../audio/fades";
@@ -44,9 +45,19 @@
   function onPointerDown(e: PointerEvent) {
     e.stopPropagation(); // a clip click must not start a range drag on the lane behind it
     const z = zoneAt(e);
-    const additive = e.metaKey || e.ctrlKey;
-    const current =
-      appState.selection.kind === "clips" ? appState.selection.clipIds : [];
+    // Shift as well as the platform modifier: Shift is what most people reach for first, and
+    // nothing else on a clip uses it at pointer-down (Shift only suppresses snapping once a
+    // drag is under way).
+    const additive = e.metaKey || e.ctrlKey || e.shiftKey;
+    // A plain click INSIDE an existing time-range selection keeps that range, so the drag can
+    // move every clip the range covers. Overwriting it here would collapse the selection to this
+    // one clip before `startClipDrag` ever sees it, and the box you drew would move one clip.
+    const sel = appState.selection;
+    if (!additive && sel.kind === "range" && clipsInRange(appState.project, sel.range).includes(clip.id)) {
+      startClipDrag(e, clip.id, trackId, z);
+      return;
+    }
+    const current = sel.kind === "clips" ? sel.clipIds : [];
     appState.selection = {
       kind: "clips",
       clipIds: additive
@@ -68,6 +79,7 @@
   class:border-sky-300={selected}
   class:border-sky-900={!selected}
   title="{name} — {formatTime(clip.durS)}"
+  data-hint="Drag to move · ⌘-click or Shift-click to add to the selection · ⌘A selects every clip"
   onpointerdown={onPointerDown}
   onpointermove={(e) => (zone = zoneAt(e))}
   style="left: {x}px; width: {w}px; height: {heightPx - 8}px; cursor: {CURSORS[zone]}"

@@ -81,3 +81,17 @@ describe("resolveShortcut", () => {
     expect(resolveShortcut(key("i", { metaKey: true }))).toEqual({ kind: "clearPlayRange" });
   });
 });
+
+describe("select all", () => {
+  it("resolves Cmd+A to selectAll", () => {
+    expect(resolveShortcut(key("a", { metaKey: true }))).toEqual({ kind: "selectAll" });
+  });
+
+  it("resolves Ctrl+A too, for non-Mac keyboards", () => {
+    expect(resolveShortcut(key("a", { ctrlKey: true }))).toEqual({ kind: "selectAll" });
+  });
+
+  it("leaves a bare 'a' unbound, so typing is not hijacked", () => {
+    expect(resolveShortcut(key("a"))).toBeNull();
+  });
+});

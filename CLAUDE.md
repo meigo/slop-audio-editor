@@ -351,6 +351,22 @@ src/
     (`envelopeMaskPolygon`) in the same green as the header's `D` toggle — same principle as
     Gotchas 15 and 17: the picture shows what you will hear.
 
+21. **Multi-clip move already existed; what was missing was any way to find it — and a plain
+    click inside a range selection must NOT collapse that selection.** ⌘/Ctrl-click (and now
+    Shift-click) toggles a clip into `selection.clipIds`, and `startClipDrag`'s `grabbedGroup`
+    moves the whole group when you grab a member. `grabbedGroup` also accepts a **range**
+    selection, resolving it through `clipsInRange` (overlap-based, so a clip the range only partly
+    covers still moves in full — a clip cannot be half-moved).
+    The trap: `ClipView.onPointerDown` runs BEFORE `startClipDrag` and used to overwrite
+    `selection` unconditionally, so a range selection was already collapsed to the single clicked
+    clip by the time the drag read it — the box you drew moved one clip. A plain (non-additive)
+    click inside a covering range now leaves the selection alone and goes straight to the drag.
+    Discoverability is handled by `data-hint` on the clip, which `StatusBar` appends to the
+    element's `title`. That attribute is the deliberate exception to Gotcha 19's "mirror `title`,
+    never keep a second copy": it is ADDITIONAL text, shown only in the status bar, for guidance
+    (which modifier keys apply) that would make a hover tooltip unwieldy. Never restate the title
+    in it.
+
 ## Testing
 
 Vitest, `node` environment, no DOM (`src/**/*.test.ts`, see `vite.config.ts`). Pure logic

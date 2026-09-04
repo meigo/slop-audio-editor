@@ -18,7 +18,8 @@ export type Command =
   | { kind: "zoomFit" }
   | { kind: "setIn" }
   | { kind: "setOut" }
-  | { kind: "clearPlayRange" };
+  | { kind: "clearPlayRange" }
+  | { kind: "selectAll" };
 
 export interface KeyEventLike {
   key: string;
@@ -50,6 +51,8 @@ export function resolveShortcut(e: KeyEventLike): Command | null {
         return { kind: "paste" };
       case "d":
         return { kind: "duplicate" };
+      case "a":
+        return { kind: "selectAll" };
       case "s":
         return { kind: "save" };
       case "arrowright":

@@ -2,18 +2,23 @@
   import { state as appState } from "../state/appState.svelte";
   import { statusSummary } from "./status";
 
-  /** Text of whatever control the pointer is over, mirrored from its `title`.
+  /** Text of whatever control the pointer is over: its `title`, plus its `data-hint` if it has
+   *  one.
    *
-   *  Read from `title` by delegation rather than from a parallel `data-status` attribute on every
-   *  control: the tooltip and the status line then cannot disagree, and every tooltip added later
-   *  appears here for free. One listener on the document covers the whole app. */
+   *  The title is read by delegation rather than copied into a parallel attribute, so the tooltip
+   *  and the status line cannot disagree and every tooltip added later appears here for free.
+   *  `data-hint` is the deliberate exception: guidance that would make a hover tooltip unwieldy
+   *  (which modifier keys a clip responds to) but reads well on a full-width status line. It is
+   *  additional, never a second copy of the title. */
   let hovered = $state<string | null>(null);
 
   $effect(() => {
     const onOver = (e: PointerEvent): void => {
-      const el = (e.target as Element | null)?.closest?.("[title]");
-      const title = el?.getAttribute("title")?.trim();
-      hovered = title ? title : null;
+      const el = (e.target as Element | null)?.closest?.("[title], [data-hint]");
+      const parts = [el?.getAttribute("title"), el?.getAttribute("data-hint")]
+        .map((v) => v?.trim())
+        .filter((v): v is string => !!v);
+      hovered = parts.length > 0 ? parts.join(" · ") : null;
     };
     const onLeave = (): void => {
       hovered = null;
