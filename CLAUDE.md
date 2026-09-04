@@ -243,6 +243,15 @@ src/
     not conflate the two or "fix" Split to use the current track without asking; that was
     explicitly scoped out when this was added.
 
+15. **`Waveform.svelte` scales its drawn peaks by the clip's `gain` — the canvas does NOT show raw
+    source amplitude.** `ClipView.svelte` passes `clip.gain` in as a prop, and the `$effect` reads
+    it directly in its tracked scope (like `widthPx`) so the canvas redraws whenever gain changes,
+    Match loudness included. The scaled `[min, max]` pair is then clamped to `[-1, 1]` before being
+    mapped to pixels, so a boosted clip (e.g. +12 dB) visibly hits the ceiling of its own box
+    instead of painting over the clip above or below it. Why it matters: before this, running Match
+    loudness silently produced a correct-sounding but visually unchanged mix — the waveform is
+    meant to show what you'll hear, and reading peaks off `source.peaks` without gain broke that.
+
 ## Testing
 
 Vitest, `node` environment, no DOM (`src/**/*.test.ts`, see `vite.config.ts`). Pure logic

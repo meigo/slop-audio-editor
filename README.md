@@ -44,7 +44,9 @@ npm run deploy   # build, then wrangler deploy
   sync.
 - **Copy / cut / paste / duplicate** clips.
 - **Per-track and per-clip gain**, mute, and solo. Solo is monitoring only — it is never saved and
-  never affects an export.
+  never affects an export. Faders (−60 dB to +12 dB) are piecewise-linear in dB rather than
+  straight-line, so the middle of the fader's travel is −12 dB and unity sits at three-quarter
+  travel, not buried at the halfway/83% marks a straight dB scale would put them at.
 - **Per-clip fade in/out** with a selectable curve: linear, equal-power, or exponential.
 - **Match loudness**, a one-click button that sets every clip's gain so all clips sit at the same
   perceived loudness (ITU-R BS.1770 integrated LUFS, measured once per source at import time, target
