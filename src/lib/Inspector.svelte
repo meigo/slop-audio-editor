@@ -5,6 +5,7 @@
     amend, beginGesture, commit, currentTrackId, endGesture, engine, pool, state as appState,
   } from "../state/appState.svelte";
   import { dbToGain, gainToDb } from "./geometry";
+  import BandSlider from "./BandSlider.svelte";
   import NumberField from "./NumberField.svelte";
 
   /** The inspector edits ONE clip — it is for typing exact numbers, not for bulk operations. */
@@ -21,13 +22,24 @@
   const track = $derived(findTrack(appState.project, currentTrackId()));
 
   /** A MIX change, exactly like the track fader: applied live on the retained biquads so a band
-   *  can be swept while listening, and committed as ONE history entry that does not reschedule. */
+   *  can be swept while listening, and committed as ONE history entry on release that does not
+   *  reschedule. `dragging` is what collapses a whole sweep into one undo step. */
+  let dragging = false;
+
   function onBand(patch: Partial<TrackEq>) {
     const id = currentTrackId();
-    beginGesture("mix");
+    if (!dragging) {
+      dragging = true;
+      beginGesture("mix");
+    }
     amend((p) => setTrackEq(p, id, patch));
     const next = findTrack(appState.project, id)?.eq;
     if (next) engine.setTrackEq(id, next);
+  }
+
+  function onBandCommit() {
+    if (!dragging) return;
+    dragging = false;
     endGesture();
   }
 
@@ -102,29 +114,29 @@
       data-hint="Three-band tone control for the current track ({EQ_LOW_HZ} Hz, {EQ_MID_HZ} Hz, {EQ_HIGH_HZ} Hz). Click a track header to switch tracks."
     >
       <span class="max-w-24 truncate text-[11px] text-neutral-500">{track.name} EQ</span>
-      <NumberField
+      <BandSlider
         label="low"
-        value={track.eq.lowDb}
-        min={-EQ_MAX_DB}
-        suffix="dB"
+        db={track.eq.lowDb}
+        maxDb={EQ_MAX_DB}
         title="Low shelf at {EQ_LOW_HZ} Hz — cut to tame boom, boost for weight"
-        onCommit={(v) => onBand({ lowDb: v })}
+        onInput={(v) => onBand({ lowDb: v })}
+        onCommit={onBandCommit}
       />
-      <NumberField
+      <BandSlider
         label="mid"
-        value={track.eq.midDb}
-        min={-EQ_MAX_DB}
-        suffix="dB"
+        db={track.eq.midDb}
+        maxDb={EQ_MAX_DB}
         title="Peaking band at {EQ_MID_HZ} Hz — cut to reduce boxiness, boost for presence"
-        onCommit={(v) => onBand({ midDb: v })}
+        onInput={(v) => onBand({ midDb: v })}
+        onCommit={onBandCommit}
       />
-      <NumberField
+      <BandSlider
         label="high"
-        value={track.eq.highDb}
-        min={-EQ_MAX_DB}
-        suffix="dB"
+        db={track.eq.highDb}
+        maxDb={EQ_MAX_DB}
         title="High shelf at {EQ_HIGH_HZ} Hz — cut to soften sibilance, boost for air"
-        onCommit={(v) => onBand({ highDb: v })}
+        onInput={(v) => onBand({ highDb: v })}
+        onCommit={onBandCommit}
       />
     </div>
   {/if}

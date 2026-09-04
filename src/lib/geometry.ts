@@ -203,3 +203,20 @@ export function pinchUpdate(
   const pxPerSecond = Math.min(MAX_PX_PER_S, Math.max(MIN_PX_PER_S, start.pxPerSecond * ratio));
   return { pxPerSecond, scrollS: Math.max(0, anchorS - now.centerPx / pxPerSecond) };
 }
+
+/** How close to flat an EQ band must be before it snaps there. */
+export const BAND_DETENT_DB = 0.5;
+
+/** Snap an EQ band to exactly flat near the centre. Landing on 0.00 by hand is otherwise close to
+ *  impossible, and it matters here beyond tidiness: `renderPlan` builds NO filter nodes for a flat
+ *  EQ, so a band left at -0.07 dB silently keeps three biquads in the graph forever. */
+export function snapBandDb(db: number, detentDb: number = BAND_DETENT_DB): number {
+  return Math.abs(db) <= detentDb ? 0 : db;
+}
+
+/** A band's value for display: signed, one decimal, with a real minus sign (U+2212) to match the
+ *  rest of the app's dB readouts. */
+export function formatSignedDb(db: number): string {
+  if (db === 0) return "0.0 dB";
+  return `${db > 0 ? "+" : "−"}${Math.abs(db).toFixed(1)} dB`;
+}

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   dbToGain, dbToPosition, envelopeMaskPolygon, fadeMaskPolygon, formatDb, formatTime, gainToDb,
-  METER_FLOOR_DB, meterFillPct, pinchUpdate, positionToDb, pxToTime, rulerTicks, snapTime, timeToPx,
+  formatSignedDb, METER_FLOOR_DB, meterFillPct, pinchUpdate, positionToDb, pxToTime,
+  rulerTicks, snapBandDb, snapTime, timeToPx,
 } from "./geometry";
 import { fadeInCurve, fadeOutCurve } from "../audio/fades";
 
@@ -290,5 +291,38 @@ describe("pinchUpdate", () => {
     const r = pinchUpdate({ ...start, spreadPx: 0 }, { centerPx: 400, spreadPx: 300 });
     expect(Number.isFinite(r.pxPerSecond)).toBe(true);
     expect(r.pxPerSecond).toBe(100); // scale unchanged
+  });
+});
+
+describe("snapBandDb", () => {
+  it("snaps to exactly flat near the centre", () => {
+    // Without this, letting go of an EQ band almost never lands on 0.0 and a 'flat' track keeps
+    // building filter nodes it does not need.
+    expect(snapBandDb(0.3)).toBe(0);
+    expect(snapBandDb(-0.3)).toBe(0);
+  });
+
+  it("leaves a deliberate small move alone", () => {
+    expect(snapBandDb(1.2)).toBe(1.2);
+    expect(snapBandDb(-2)).toBe(-2);
+  });
+
+  it("snaps at the boundary but not beyond it", () => {
+    expect(snapBandDb(0.5)).toBe(0);
+    expect(snapBandDb(0.51)).toBe(0.51);
+  });
+});
+
+describe("formatSignedDb", () => {
+  it("shows a sign on a boost so cut and boost are distinguishable at a glance", () => {
+    expect(formatSignedDb(3)).toBe("+3.0 dB");
+  });
+
+  it("shows a real minus sign on a cut", () => {
+    expect(formatSignedDb(-4.5)).toBe("−4.5 dB");
+  });
+
+  it("shows flat without a sign", () => {
+    expect(formatSignedDb(0)).toBe("0.0 dB");
   });
 });

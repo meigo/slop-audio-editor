@@ -418,7 +418,13 @@ src/
     EQ is a MIX change, not a structural one. `Inspector.svelte` uses
     `beginGesture("mix")`/`amend`/`endGesture` AND pushes the value to `engine.setTrackEq`, which
     writes straight to the retained biquads — the same two-step idiom `TrackHeader`'s fader uses
-    (Gotcha 8), so a band can be swept while listening without a reschedule or a dropout.
+    (Gotcha 8), so a band can be swept while listening without a reschedule or a dropout. The
+    bands are `BandSlider`s, not `NumberField`s: a number field is a text input with no drag, so
+    tone shaping meant typing a value and listening afterwards. `BandSlider` is BIPOLAR — 0 dB
+    sits at the CENTRE of the travel, unlike the gain fader where unity sits at 3/4 — and
+    `snapBandDb` detents it to exactly flat within ±0.5 dB. That detent is not cosmetic: a band
+    left at −0.07 dB is not `isFlatEq`, so it would silently keep three biquads in the graph
+    forever. A whole sweep collapses to ONE undo entry via the `dragging` flag.
     It follows the CURRENT track (`currentTrackId()`), not the selection, because it is a track
     property — the same rule the `M`/`⇧S` shortcuts follow (Gotcha 14). That is why it lives on
     the right of the Inspector and stays visible when no clip is selected.
