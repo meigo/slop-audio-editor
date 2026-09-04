@@ -8,7 +8,8 @@
   import { openProjectFile, pruneUnreferencedSources, saveProjectFile } from "../persist/project-io.svelte";
   import {
     amend, beginGesture, canRedoNow, canUndoNow, clearPlayRange, commit, currentTrackId,
-    endGesture, engine, importFiles, matchLoudness, pool, redoEdit, seekTo, selectedTrackIds,
+    endGesture, engine, importFiles, matchLoudness, pool, reachableProjects, redoEdit, seekTo,
+    selectedTrackIds,
     setPlayIn, setPlayOut, state as appState, togglePlay, undoEdit,
   } from "../state/appState.svelte";
   import ExportDialog from "./ExportDialog.svelte";
@@ -44,9 +45,9 @@
       title="New project"
       onclick={() => {
         commit(() => createProject());
-        // A fresh project references no sources, so every source the pool still knows about is
-        // now an orphan — otherwise these accumulate in IndexedDB forever (see autosave.ts).
-        void pruneUnreferencedSources(appState.project, pool.records().map((s) => s.id));
+        // New project is an undoable commit, so the previous document is still reachable —
+        // prune only what NO reachable document references, or undo comes back to dead audio.
+        void pruneUnreferencedSources(reachableProjects(), pool.records().map((s) => s.id));
       }}
     >
       <FilePlus2 size={16} />

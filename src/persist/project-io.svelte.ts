@@ -1,6 +1,6 @@
 import { decodeSource, type Source } from "../audio/pool";
-import { adoptIds, type Project } from "../doc/document";
-import { pool, state as appState } from "../state/appState.svelte";
+import { adoptIds, referencedSourceIdsAcross, type Project } from "../doc/document";
+import { pool, resetHistory, state as appState } from "../state/appState.svelte";
 import { clearAutosave, deleteSource, putSource, readAutosave } from "./autosave";
 import {
   PROJECT_FILE_EXT, ProjectFileError, packProject, unpackProject, type SourceRecord,
@@ -66,6 +66,10 @@ async function loadInto(project: typeof appState.project, sources: SourceRecord[
   for (const d of decoded) pool.add(d);
   appState.project = project;
   appState.dirty = false;
+  // History belongs to one document. The pool has just been emptied and refilled with THIS
+  // project's sources, so every entry still on the stack refers to audio that is no longer
+  // loaded — undoing into one yields clips that resolve to nothing and export as silence.
+  resetHistory();
 }
 
 export async function openProjectFile(file: File): Promise<void> {
@@ -89,10 +93,13 @@ export function referencedSourceIds(project: Project): Set<string> {
  *  logged and skipped rather than surfaced, since the orphan it leaves behind is exactly the
  *  pre-existing (non-broken) state. */
 export async function pruneUnreferencedSources(
-  project: Project,
+  projects: Project | Project[],
   candidateIds: Iterable<string>,
 ): Promise<void> {
-  const referenced = referencedSourceIds(project);
+  // Every document the user can still reach, not merely the open one: New project is an undoable
+  // commit, so pruning against the empty document alone deletes the audio that undo would need
+  // to bring back — invisibly, because the in-memory pool still has it until the next reload.
+  const referenced = referencedSourceIdsAcross(Array.isArray(projects) ? projects : [projects]);
   for (const id of candidateIds) {
     if (referenced.has(id)) continue;
     try {

@@ -85,6 +85,24 @@ let gestureBase: Project | null = null;
 let gestureKind: GestureKind = "structural";
 let clipboard: ClipboardData = { entries: [], sourceTrackId: null };
 
+/** Every document reachable through undo or redo, plus the open one.
+ *
+ *  Orphan pruning consults this: a source is only an orphan when NO document the user can still
+ *  reach references it. See `pruneUnreferencedSources`. */
+export function reachableProjects(): Project[] {
+  return [state.project, ...history.past, ...history.future];
+}
+
+/** Drop all undo/redo history. Called when the open document is REPLACED wholesale — opening a
+ *  project file, restoring an autosave — never for an edit.
+ *
+ *  History belongs to one document. Without this, undo walks straight out of the project the user
+ *  just opened and into the previous one, whose sources the pool no longer holds: every clip
+ *  resolves to nothing, and an export of that state renders silence while reporting success. */
+export function resetHistory(): void {
+  history = createHistory<Project>();
+}
+
 export function canUndoNow(): boolean {
   return canUndo(history);
 }

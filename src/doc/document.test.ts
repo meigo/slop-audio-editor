@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   __resetIds, adoptIds, clipEndS, createProject, createTrack, findClip, findTrack,
-  newId, projectDurationS, resolveTrackId, trackDurationS, type Clip,
+  newId, projectDurationS, referencedSourceIdsAcross, resolveTrackId, trackDurationS,
+  type Clip, type Project,
 } from "./document";
 import { addClip, addTrack, makeClip, removeTrack } from "./edits";
 
@@ -152,5 +153,45 @@ describe("resolveTrackId", () => {
     const removedId = p.tracks[0].id;
     p = removeTrack(p, removedId);
     expect(resolveTrackId(p, removedId)).toBe(p.tracks[0].id);
+  });
+});
+
+describe("referencedSourceIdsAcross", () => {
+  const projWith = (...sourceIds: string[]): Project => {
+    let p = createProject("p");
+    for (const sid of sourceIds) {
+      p = {
+        ...p,
+        tracks: [
+          {
+            ...p.tracks[0],
+            clips: [
+              ...p.tracks[0].clips,
+              { id: newId("clip"), sourceId: sid, startS: 0, inS: 0, durS: 1,
+                gain: 1, fadeInS: 0, fadeOutS: 0, fadeShape: "linear" as const },
+            ],
+          },
+        ],
+      };
+    }
+    return p;
+  };
+
+  it("unions the sources of every project it is given", () => {
+    const ids = referencedSourceIdsAcross([projWith("a", "b"), projWith("b", "c")]);
+    expect([...ids].sort()).toEqual(["a", "b", "c"]);
+  });
+
+  it("is empty for no projects", () => {
+    expect(referencedSourceIdsAcross([]).size).toBe(0);
+  });
+
+  // The point of the whole function: a source only the undo history still references is NOT
+  // an orphan. Pruning it would leave undo able to restore a document whose audio is gone.
+  it("keeps a source that only a history snapshot references", () => {
+    const current = projWith("kept");
+    const historic = projWith("only-in-history");
+    const ids = referencedSourceIdsAcross([current, historic]);
+    expect(ids.has("only-in-history")).toBe(true);
   });
 });

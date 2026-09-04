@@ -252,6 +252,25 @@ src/
     loudness silently produced a correct-sounding but visually unchanged mix — the waveform is
     meant to show what you'll hear, and reading peaks off `source.peaks` without gain broke that.
 
+16. **Undo history belongs to ONE document — `loadInto` resets it, and orphan pruning must
+    consult every undo-reachable document.** Two halves of the same invariant, both verified in a
+    browser after being found by audit:
+    (a) `loadInto` (`src/persist/project-io.svelte.ts`) calls `resetHistory()` after swapping the
+    pool and project. Without it, undo walks straight out of the project you just opened into the
+    previous one — whose sources the pool no longer holds. The clips render as "missing audio",
+    but `planSchedule` still plans them and an export of that state renders **pure silence while
+    reporting success**, the same class of failure Gotcha 1 exists to prevent for solo.
+    (b) `pruneUnreferencedSources` takes `Project | Project[]` and resolves it through
+    `referencedSourceIdsAcross` (`src/doc/document.ts`); `Toolbar.svelte`'s New-project button
+    passes `reachableProjects()` (the open document plus every undo/redo snapshot). New project is
+    an undoable `commit`, so pruning against the empty document alone deletes the audio undo would
+    need to restore — invisibly, because the in-memory pool still has it until the next reload,
+    at which point the restored document references bytes that no longer exist in IndexedDB.
+    Why it matters: these two pull in opposite directions. Reset history too eagerly and undo
+    stops working; prune too eagerly and undo comes back to dead audio. The rule that satisfies
+    both: replacing the document clears history, and nothing reachable through history is ever an
+    orphan.
+
 ## Testing
 
 Vitest, `node` environment, no DOM (`src/**/*.test.ts`, see `vite.config.ts`). Pure logic

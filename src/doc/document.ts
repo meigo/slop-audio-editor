@@ -115,3 +115,14 @@ export function resolveTrackId(p: Project, preferredId: string | null): string {
   if (preferredId !== null && findTrack(p, preferredId)) return preferredId;
   return p.tracks[0].id;
 }
+
+/** Union of every source id referenced by any of `projects`.
+ *
+ *  Orphan detection must consider the undo history, not just the open document. A source the
+ *  current project no longer uses is still needed if any history snapshot references it —
+ *  deleting it would let undo restore a document whose audio no longer exists. */
+export function referencedSourceIdsAcross(projects: Iterable<Project>): Set<string> {
+  const ids = new Set<string>();
+  for (const p of projects) for (const t of p.tracks) for (const c of t.clips) ids.add(c.sourceId);
+  return ids;
+}
