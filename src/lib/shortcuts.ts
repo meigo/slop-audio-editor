@@ -15,7 +15,10 @@ export type Command =
   | { kind: "nudge"; deltaS: number }
   | { kind: "jumpEdit"; direction: 1 | -1 }
   | { kind: "zoom"; factor: number }
-  | { kind: "zoomFit" };
+  | { kind: "zoomFit" }
+  | { kind: "setIn" }
+  | { kind: "setOut" }
+  | { kind: "clearPlayRange" };
 
 export interface KeyEventLike {
   key: string;
@@ -53,6 +56,8 @@ export function resolveShortcut(e: KeyEventLike): Command | null {
         return { kind: "jumpEdit", direction: 1 };
       case "arrowleft":
         return { kind: "jumpEdit", direction: -1 };
+      case "i":
+        return { kind: "clearPlayRange" };
       default:
         return null;
     }
@@ -69,6 +74,10 @@ export function resolveShortcut(e: KeyEventLike): Command | null {
       return { kind: "toggleLoop" };
     case "m":
       return { kind: "toggleMute" };
+    case "i":
+      return { kind: "setIn" };
+    case "o":
+      return { kind: "setOut" };
     case "F":
       return { kind: "zoomFit" };
     case "Delete":

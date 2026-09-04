@@ -66,4 +66,18 @@ describe("resolveShortcut", () => {
   it("does not confuse ⌘S with the split key", () => {
     expect(resolveShortcut(key("s", { metaKey: true }))).toEqual({ kind: "save" });
   });
+
+  it("maps bare i/o to setIn/setOut", () => {
+    expect(resolveShortcut(key("i"))).toEqual({ kind: "setIn" });
+    expect(resolveShortcut(key("o"))).toEqual({ kind: "setOut" });
+  });
+
+  it("maps ⌘I/Ctrl+I to clearPlayRange", () => {
+    expect(resolveShortcut(key("i", { metaKey: true }))).toEqual({ kind: "clearPlayRange" });
+    expect(resolveShortcut(key("i", { ctrlKey: true }))).toEqual({ kind: "clearPlayRange" });
+  });
+
+  it("does not confuse ⌘I with the setIn key", () => {
+    expect(resolveShortcut(key("i", { metaKey: true }))).toEqual({ kind: "clearPlayRange" });
+  });
 });
