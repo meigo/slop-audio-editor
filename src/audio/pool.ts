@@ -1,6 +1,9 @@
-import { PEAK_SAMPLES_PER_PAIR, newId } from "../doc/document";
+import { PEAK_SAMPLES_PER_PAIR, PROJECT_SAMPLE_RATE, newId } from "../doc/document";
 import type { SourceRecord } from "../persist/project-file";
 import { getAudioContext } from "./context";
+import {
+  BLOCK_S, HOP_S, createKWeightFilter, gatedLoudnessFromBlockPowers, weightedBlockPower,
+} from "./loudness";
 import { computePeaks } from "./peaks";
 
 export interface Source {
@@ -12,6 +15,8 @@ export interface Source {
   buffer: AudioBuffer;
   peaks: Float32Array;
   durationS: number;
+  /** ITU-R BS.1770 integrated loudness of the decoded audio, LUFS. -Infinity for silence. */
+  loudnessLufs: number;
 }
 
 /** Session-scoped, append-only, NOT part of undo history. Cleared only when a project is opened. */
@@ -68,6 +73,53 @@ export async function computePeaksChunked(
   return out;
 }
 
+const LOUDNESS_CHUNK_SAMPLES = PEAK_CHUNK_PAIRS * PEAK_SAMPLES_PER_PAIR; // same order as the peak scan
+const BLOCKS_PER_CHUNK = 256;
+
+/**
+ * Integrated loudness (see `loudness.ts`) computed in chunks that yield to the event loop, the
+ * same reason `computePeaksChunked` exists: a long import must not freeze the UI. K-weighting
+ * runs first, chunk by chunk with the filter state carried across chunk boundaries (an IIR filter
+ * cannot be split any other way); block powers are then accumulated in chunks of blocks over the
+ * now fully-weighted channels.
+ */
+export async function computeLoudnessChunked(
+  channels: readonly Float32Array[],
+  sampleRate: number = PROJECT_SAMPLE_RATE,
+  onProgress?: (fraction: number) => void,
+): Promise<number> {
+  if (channels.length === 0) return -Infinity;
+  const n = channels[0].length;
+  const blockSize = Math.round(BLOCK_S * sampleRate);
+  const hop = Math.round(HOP_S * sampleRate);
+  if (n < blockSize) return -Infinity;
+
+  const weighted = channels.map(() => new Float32Array(n));
+  const filters = channels.map(() => createKWeightFilter());
+  for (let start = 0; start < n; start += LOUDNESS_CHUNK_SAMPLES) {
+    const end = Math.min(n, start + LOUDNESS_CHUNK_SAMPLES);
+    for (let c = 0; c < channels.length; c++) {
+      weighted[c].set(filters[c].process(channels[c].subarray(start, end)), start);
+    }
+    onProgress?.((end / n) * 0.5);
+    await new Promise((r) => setTimeout(r, 0));
+  }
+
+  const numBlocks = Math.floor((n - blockSize) / hop) + 1;
+  const blockPowers = new Array<number>(numBlocks);
+  for (let i = 0; i < numBlocks; i += BLOCKS_PER_CHUNK) {
+    const end = Math.min(numBlocks, i + BLOCKS_PER_CHUNK);
+    for (let b = i; b < end; b++) {
+      const s = b * hop;
+      blockPowers[b] = weightedBlockPower(weighted, s, s + blockSize);
+    }
+    onProgress?.(0.5 + (end / numBlocks) * 0.5);
+    await new Promise((r) => setTimeout(r, 0));
+  }
+
+  return gatedLoudnessFromBlockPowers(blockPowers);
+}
+
 export async function decodeSource(
   id: string,
   name: string,
@@ -80,8 +132,15 @@ export async function decodeSource(
   const buffer = await ctx.decodeAudioData(ab);
   const channels: Float32Array[] = [];
   for (let c = 0; c < buffer.numberOfChannels; c++) channels.push(buffer.getChannelData(c));
-  const peaks = await computePeaksChunked(channels, PEAK_SAMPLES_PER_PAIR, onProgress);
-  return { id, name, bytes, buffer, peaks, durationS: buffer.duration };
+  // Two chunked passes over the same decoded channels, each yielding to the event loop — one for
+  // waveform peaks, one for loudness — so a long import never blocks the UI thread. Progress is
+  // split across the two: the first half of the reported fraction is the peak scan, the second
+  // half is the loudness pass.
+  const peaks = await computePeaksChunked(channels, PEAK_SAMPLES_PER_PAIR, (f) => onProgress?.(f * 0.5));
+  const loudnessLufs = await computeLoudnessChunked(channels, PROJECT_SAMPLE_RATE, (f) =>
+    onProgress?.(0.5 + f * 0.5),
+  );
+  return { id, name, bytes, buffer, peaks, durationS: buffer.duration, loudnessLufs };
 }
 
 export async function sourceFromFile(

@@ -20,7 +20,7 @@ and mixdown are native Web Audio API. Non-WAV export encoding uses
 ```bash
 npm install
 npm run dev      # Vite dev server
-npm test         # Vitest — 234 tests across 23 files
+npm test         # Vitest — 273 tests across 27 files
 npm run build    # svelte-check && tsc --noEmit && vite build — 0 errors, 0 warnings
 npm run deploy   # build, then wrangler deploy
 ```
@@ -40,6 +40,13 @@ npm run deploy   # build, then wrangler deploy
 - **Per-track and per-clip gain**, mute, and solo. Solo is monitoring only — it is never saved and
   never affects an export.
 - **Per-clip fade in/out** with a selectable curve: linear, equal-power, or exponential.
+- **Match loudness**, a one-click button that sets every clip's gain so all clips sit at the same
+  perceived loudness (ITU-R BS.1770 integrated LUFS, measured once per source at import time, target
+  is the median across the project, corrections clamped to ±12 dB). Clips whose source is silent
+  are left alone rather than boosted into noise.
+- **Glue**, a toolbar toggle that band-limits (100 Hz–7.5 kHz) and gently compresses the master bus
+  (3:1, −18 dB threshold, +3 dB makeup gain) to help audio from different sources cohere. It's a
+  document setting, so it's saved with the project and applied on export, same as mute.
 - **Transport:** play, pause, seek, and loop over a selected time range.
 - **Undo / redo**, capped at 100 entries.
 - **Waveform display**, zoom (wheel, `+`/`-`, fit-to-window), and edge/playhead snapping (hold
@@ -121,6 +128,9 @@ a large amount of memory.
   browser's own encoder support and are hidden, not offered, where it's missing.
 - **Long files decode fully into RAM** rather than streaming — about 11.5 MB per minute of stereo
   48 kHz audio, so very long sessions can add up.
+- **Match loudness measures the whole decoded source, not the trimmed region a clip actually
+  plays.** Two clips cut from different, differently-loud parts of the same imported file get the
+  same correction, since loudness is measured once per source at import time.
 
 ## Design notes
 

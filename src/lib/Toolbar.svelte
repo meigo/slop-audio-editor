@@ -1,14 +1,14 @@
 <script lang="ts">
   import {
-    Download, FilePlus2, FolderOpen, Pause, Play, Plus, Redo2, Repeat, Save, Scissors, Square,
-    Undo2, Upload,
+    Download, FilePlus2, FolderOpen, Pause, Play, Plus, Redo2, Repeat, Save, Scale, Scissors,
+    Square, Undo2, Upload,
   } from "@lucide/svelte";
   import { createProject } from "../doc/document";
-  import { addTrack, setMasterGain, splitAt } from "../doc/edits";
+  import { addTrack, setGlue, setMasterGain, splitAt } from "../doc/edits";
   import { openProjectFile, pruneUnreferencedSources, saveProjectFile } from "../persist/project-io.svelte";
   import {
     amend, beginGesture, canRedoNow, canUndoNow, commit, endGesture, engine, importFiles,
-    pool, redoEdit, seekTo, selectedTrackIds, state as appState, togglePlay, undoEdit,
+    matchLoudness, pool, redoEdit, seekTo, selectedTrackIds, state as appState, togglePlay, undoEdit,
   } from "../state/appState.svelte";
   import ExportDialog from "./ExportDialog.svelte";
   import Fader from "./Fader.svelte";
@@ -148,6 +148,18 @@
   <label class="flex items-center gap-1 text-xs">
     <input type="checkbox" bind:checked={appState.snap} /> Snap
   </label>
+
+  <label class="flex items-center gap-1 text-xs">
+    <input
+      type="checkbox"
+      checked={appState.project.glue}
+      onchange={(e) => commit((p) => setGlue(p, e.currentTarget.checked))}
+    /> Glue
+  </label>
+
+  <button class={BTN} title="Match loudness" onclick={matchLoudness}>
+    <Scale size={16} />
+  </button>
 
   <button class={BTN} title="Export mix" onclick={() => (exporting = true)}>
     <Upload size={16} />

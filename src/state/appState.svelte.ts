@@ -5,7 +5,8 @@ import {
   copyClips, cutClips, pasteClips, type ClipboardData,
 } from "../doc/clipboard";
 import { createProject, projectDurationS, type Project } from "../doc/document";
-import { addClip, makeClip } from "../doc/edits";
+import { addClip, makeClip, setClipGain } from "../doc/edits";
+import { matchLoudnessGains, type LoudnessEntry } from "../doc/loudness-match";
 import { NO_SELECTION, type Selection } from "../doc/selection";
 import { putSource, scheduleDocumentSave } from "../persist/autosave";
 import { loadPreferences, savePreferences } from "../persist/preferences";
@@ -239,6 +240,22 @@ export function cutSelection(): void {
   clipboard = result.clipboard;
   commit(() => result.project);
   state.selection = NO_SELECTION;
+}
+
+/** Sets every clip's gain so all clips sit at the same perceived loudness (median of what's
+ *  measured), in one undo step. Loudness is measured once per SOURCE at import time (`pool`),
+ *  not per clip, so every clip sharing a source gets the same correction. Clips whose source is
+ *  missing (never decoded, or decode failed) are skipped rather than left ungained. */
+export function matchLoudness(): void {
+  const entries: LoudnessEntry[] = [];
+  for (const track of state.project.tracks) {
+    for (const clip of track.clips) {
+      const source = pool.get(clip.sourceId);
+      if (source) entries.push({ clipId: clip.id, lufs: source.loudnessLufs });
+    }
+  }
+  const gains = matchLoudnessGains(entries);
+  commit((p) => gains.reduce((proj, g) => setClipGain(proj, g.clipId, g.gain), p));
 }
 
 /** Pastes onto the track the copy came from when that track still exists, falling back to

@@ -81,5 +81,9 @@ export function unpackProject(zip: Uint8Array): { project: Project; sources: Sou
     return { id: s.id, name: s.name, bytes };
   });
 
+  // `glue` was added after the initial file format; a file saved before that has no such field.
+  // No version bump — it's an optional field with a well-defined default, not a shape change.
+  if (typeof project.glue !== "boolean") project.glue = false;
+
   return { project, sources };
 }

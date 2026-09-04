@@ -8,6 +8,20 @@ import type { ScheduledClip } from "./schedule";
  *  territory across engines; a 50 ms lead is inaudible and sidesteps it entirely. */
 export const SCHEDULE_LEAD_S = 0.05;
 
+/** "Glue": a gentle master-bus band-limit + compression to make disparate sources cohere. Master
+ *  level, not per-clip — it never appears in `planSchedule`. */
+const GLUE_HIGHPASS_HZ = 100;
+const GLUE_LOWPASS_HZ = 7500;
+const GLUE_COMPRESSOR_THRESHOLD_DB = -18;
+const GLUE_COMPRESSOR_KNEE_DB = 6;
+const GLUE_COMPRESSOR_RATIO = 3;
+const GLUE_COMPRESSOR_ATTACK_S = 0.02;
+const GLUE_COMPRESSOR_RELEASE_S = 0.25;
+/** The compressor only ever turns things down, so without a fixed makeup gain, Glue would just be
+ *  a volume cut — the makeup is what makes it read as "character" rather than "quieter". */
+const GLUE_MAKEUP_DB = 3;
+const GLUE_MAKEUP_GAIN = 10 ** (GLUE_MAKEUP_DB / 20);
+
 /** `setValueCurveAtTime` sets ABSOLUTE values, so a fade on a clip with non-unity gain has to be
  *  scaled — otherwise the fade would ramp to 1.0 and undo the clip's gain. */
 export function scaleCurve(curve: Float32Array, gain: number): Float32Array {
@@ -49,7 +63,38 @@ export function renderPlan(
 ): RenderedGraph {
   const masterGain = ctx.createGain();
   masterGain.gain.value = project.masterGain;
-  masterGain.connect(ctx.destination);
+
+  // When Glue is off, this is the ENTIRE master chain — bit-identical to the graph before Glue
+  // existed. The nodes below are only ever created when `project.glue` is true.
+  const glueNodes: AudioNode[] = [];
+  if (project.glue) {
+    const highpass = ctx.createBiquadFilter();
+    highpass.type = "highpass";
+    highpass.frequency.value = GLUE_HIGHPASS_HZ;
+
+    const lowpass = ctx.createBiquadFilter();
+    lowpass.type = "lowpass";
+    lowpass.frequency.value = GLUE_LOWPASS_HZ;
+
+    const compressor = ctx.createDynamicsCompressor();
+    compressor.threshold.value = GLUE_COMPRESSOR_THRESHOLD_DB;
+    compressor.knee.value = GLUE_COMPRESSOR_KNEE_DB;
+    compressor.ratio.value = GLUE_COMPRESSOR_RATIO;
+    compressor.attack.value = GLUE_COMPRESSOR_ATTACK_S;
+    compressor.release.value = GLUE_COMPRESSOR_RELEASE_S;
+
+    const makeup = ctx.createGain();
+    makeup.gain.value = GLUE_MAKEUP_GAIN;
+
+    masterGain.connect(highpass);
+    highpass.connect(lowpass);
+    lowpass.connect(compressor);
+    compressor.connect(makeup);
+    makeup.connect(ctx.destination);
+    glueNodes.push(highpass, lowpass, compressor, makeup);
+  } else {
+    masterGain.connect(ctx.destination);
+  }
 
   const trackGains = new Map<string, GainNode>();
   const sources: AudioBufferSourceNode[] = [];
@@ -97,6 +142,7 @@ export function renderPlan(
     masterGain.disconnect();
     for (const g of trackGains.values()) g.disconnect();
     for (const n of sources) n.disconnect();
+    for (const g of glueNodes) g.disconnect();
     throw err;
   }
 

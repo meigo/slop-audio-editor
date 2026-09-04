@@ -61,6 +61,16 @@ describe("round trip", () => {
     const src: SourceRecord = { id: "src-9", name: "recording", bytes: new Uint8Array([7]) };
     expect(unpackProject(packProject(createProject(), [src])).sources[0].name).toBe("recording");
   });
+
+  it("defaults glue to false for a file saved before glue existed", () => {
+    const { glue: _glue, ...oldProject } = createProject();
+    const bad = zipSync({
+      "project.json": strToU8(JSON.stringify({
+        version: PROJECT_FILE_VERSION, project: oldProject, sources: [],
+      })),
+    });
+    expect(unpackProject(bad).project.glue).toBe(false);
+  });
 });
 
 describe("errors", () => {

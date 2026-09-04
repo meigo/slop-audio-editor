@@ -56,6 +56,10 @@ export function setMasterGain(p: Project, gain: number): Project {
   return g === p.masterGain ? p : { ...p, masterGain: g };
 }
 
+export function setGlue(p: Project, glue: boolean): Project {
+  return glue === p.glue ? p : { ...p, glue };
+}
+
 export function makeClip(sourceId: string, startS: number, durS: number, inS = 0): Clip {
   return {
     id: newId("clip"), sourceId, startS, inS, durS,

@@ -8,7 +8,7 @@ full design rationale behind anything that seems surprising below.
 
 ```bash
 npm run dev      # Vite dev server
-npm test         # Vitest, node environment, no DOM — 234 tests across 23 files
+npm test         # Vitest, node environment, no DOM — 273 tests across 27 files
 npm run test:watch
 npm run build    # svelte-check && tsc --noEmit && vite build — bar is 0 errors, 0 warnings
 npm run check    # svelte-check only
@@ -43,16 +43,30 @@ src/
     overlap.ts       non-overlap invariant helpers (drop-to-overwrite resolution)
     selection.ts     clip selection / time-range selection types + resolution
     clipboard.ts     copy/cut/paste, normalised to t = 0
+    loudness-match.ts  matchLoudnessGains(entries) — per-clip linear gain correction toward the
+                     median LUFS of a group, clamped to ±MAX_MATCH_DB; non-finite (silent) entries
+                     are skipped, never boosted
 
   audio/
     context.ts       shared 48 kHz AudioContext, lazily constructed on first user gesture
-    pool.ts          SourcePool: id -> { bytes, buffer, peaks }; decode + peak build on import
+    pool.ts          SourcePool: id -> { bytes, buffer, peaks, loudnessLufs }; decode + peak build
+                     + loudness measurement on import
     peaks.ts         peak pyramid build + aggregation to a pixel width
+    loudness.ts      integratedLoudness(channels, sampleRate) — ITU-R BS.1770 LUFS. K-weighting
+                     coefficients are hardcoded for 48 kHz (PROJECT_SAMPLE_RATE) only. Also exports
+                     the pieces (`createKWeightFilter`, `weightedBlockPower`,
+                     `gatedLoudnessFromBlockPowers`) that `pool.ts`'s `computeLoudnessChunked` uses
+                     to spread the same computation across yielding chunks, the way
+                     `computePeaksChunked` does for peaks
     fades.ts         fadeCurve(shape, n) — linear / equalPower / exponential gain ramps
     schedule.ts      planSchedule(project, fromS, toS, soloed) — pure, the shared preview/export
-                     planner; resolves mute and solo into which clips even appear in the plan
+                     planner; resolves mute and solo into which clips even appear in the plan.
+                     Glue is master-level and does NOT go through here — see render.ts
     render.ts        renderPlan(ctx, plan, pool, project) — builds the actual node graph against
-                     either an AudioContext (preview) or an OfflineAudioContext (export)
+                     either an AudioContext (preview) or an OfflineAudioContext (export). When
+                     `project.glue` is true, inserts a fixed highpass -> lowpass -> compressor ->
+                     makeup-gain chain between the master gain and the destination; when false, the
+                     graph is bit-identical to before Glue existed — those nodes are never built
     engine.ts        transport: play/stop, schedules the whole remaining project up front,
                      playhead derived from ctx.currentTime, never a counter
 
@@ -163,9 +177,10 @@ src/
 ## Testing
 
 Vitest, `node` environment, no DOM (`src/**/*.test.ts`, see `vite.config.ts`). Pure logic
-(`doc/edits.ts`, `audio/schedule.ts`, `audio/fades.ts`, `audio/peaks.ts`, `export/wav.ts`,
-`persist/project-file.ts`, `persist/preferences.ts`, `lib/geometry.ts`, `lib/hit-test.ts`,
-`lib/shortcuts.ts`, `state/history.ts`) is unit-tested. Canvas rendering, drag interactions, real
+(`doc/edits.ts`, `doc/loudness-match.ts`, `audio/schedule.ts`, `audio/fades.ts`, `audio/peaks.ts`,
+`audio/loudness.ts`, `audio/pool.ts`'s `computeLoudnessChunked`/`computePeaksChunked`,
+`export/wav.ts`, `persist/project-file.ts`, `persist/preferences.ts`, `lib/geometry.ts`,
+`lib/hit-test.ts`, `lib/shortcuts.ts`, `state/history.ts`) is unit-tested. Canvas rendering, drag interactions, real
 playback timing, and WebCodecs export are not covered by automated tests and need a manual pass in
 a browser — see the acceptance-pass checklist in the task-29 brief/report for what that covers and
 what has and hasn't been run.

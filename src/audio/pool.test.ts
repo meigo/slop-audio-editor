@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
+import { PROJECT_SAMPLE_RATE } from "../doc/document";
+import { integratedLoudness } from "./loudness";
 import { computePeaks } from "./peaks";
-import { computePeaksChunked, SourcePool, type Source } from "./pool";
+import { computeLoudnessChunked, computePeaksChunked, SourcePool, type Source } from "./pool";
 
 function fakeSource(id: string, name: string): Source {
   return {
     id, name, bytes: new Uint8Array([1, 2]),
     buffer: null as unknown as AudioBuffer, // the pool never touches the buffer
-    peaks: new Float32Array([0, 0]), durationS: 1.5,
+    peaks: new Float32Array([0, 0]), durationS: 1.5, loudnessLufs: -20,
   };
 }
 
@@ -81,5 +83,34 @@ describe("computePeaksChunked", () => {
     const expected = computePeaks(channels, samplesPerPair);
     const actual = await computePeaksChunked(channels, samplesPerPair);
     expect(Array.from(actual)).toEqual(Array.from(expected));
+  });
+});
+
+describe("computeLoudnessChunked", () => {
+  function sine(freqHz: number, amplitude: number, seconds: number): Float32Array {
+    const n = Math.round(seconds * PROJECT_SAMPLE_RATE);
+    const out = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      out[i] = amplitude * Math.sin((2 * Math.PI * freqHz * i) / PROJECT_SAMPLE_RATE);
+    }
+    return out;
+  }
+
+  it("matches unchunked integratedLoudness exactly across multiple K-weight and block chunk boundaries", async () => {
+    // 45 s crosses the internal ~21.8 s K-weight chunk size twice and the 256-block chunk size
+    // (numBlocks ~= 447 at the 400 ms/100 ms block/hop) — this is what exercises carrying filter
+    // state across chunk boundaries, not just the single-chunk case.
+    const channels = [sine(997, 0.05, 45), sine(997, 0.03, 45)];
+    const expected = integratedLoudness(channels, PROJECT_SAMPLE_RATE);
+    const actual = await computeLoudnessChunked(channels, PROJECT_SAMPLE_RATE);
+    expect(actual).toBeCloseTo(expected, 6);
+  });
+
+  it("returns -Infinity for an empty channel list", async () => {
+    expect(await computeLoudnessChunked([], PROJECT_SAMPLE_RATE)).toBe(-Infinity);
+  });
+
+  it("returns -Infinity rather than throwing for input shorter than one 400 ms block", async () => {
+    expect(await computeLoudnessChunked([sine(997, 0.5, 0.1)], PROJECT_SAMPLE_RATE)).toBe(-Infinity);
   });
 });

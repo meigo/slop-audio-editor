@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { __resetIds, createProject, findTrack } from "./document";
 import {
   addTrack, removeTrack, renameTrack, reorderTrack,
-  setMasterGain, setTrackGain, setTrackMuted,
+  setGlue, setMasterGain, setTrackGain, setTrackMuted,
 } from "./edits";
 
 beforeEach(() => __resetIds());
@@ -72,6 +72,12 @@ describe("gain and mute", () => {
   it("sets master gain, clamped to >= 0", () => {
     expect(setMasterGain(createProject(), 2).masterGain).toBe(2);
     expect(setMasterGain(createProject(), -1).masterGain).toBe(0);
+  });
+
+  it("sets glue, and is a same-object no-op when the value doesn't change", () => {
+    const p = createProject();
+    expect(setGlue(p, true).glue).toBe(true);
+    expect(setGlue(p, false)).toBe(p);
   });
 });
 

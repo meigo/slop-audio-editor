@@ -77,6 +77,7 @@ function fakeProject(trackIds: string[]): Project {
   return {
     name: "p",
     masterGain: 1,
+    glue: false,
     tracks: trackIds.map((id) => ({ id, name: id, clips: [], gain: 1, muted: false })),
   };
 }
@@ -84,7 +85,7 @@ function fakeProject(trackIds: string[]): Project {
 function fakeSource(id: string): Source {
   return {
     id, name: id, bytes: new Uint8Array(),
-    buffer: {} as AudioBuffer, peaks: new Float32Array(), durationS: 10,
+    buffer: {} as AudioBuffer, peaks: new Float32Array(), durationS: 10, loudnessLufs: -20,
   };
 }
 

@@ -39,6 +39,8 @@ export interface Project {
   name: string;
   tracks: Track[];
   masterGain: number;
+  /** "Glue": band-limits and gently compresses the master to cohere sources — see render.ts. */
+  glue: boolean;
 }
 
 let idCounter = 0;
@@ -57,7 +59,7 @@ export function createTrack(name: string): Track {
 }
 
 export function createProject(name = "Untitled"): Project {
-  return { name, tracks: [createTrack("Track 1")], masterGain: 1 };
+  return { name, tracks: [createTrack("Track 1")], masterGain: 1, glue: false };
 }
 
 export function clipEndS(c: Clip): number {
