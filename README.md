@@ -20,7 +20,7 @@ and mixdown are native Web Audio API. Non-WAV export encoding uses
 ```bash
 npm install
 npm run dev      # Vite dev server
-npm test         # Vitest — 297 tests across 28 files
+npm test         # Vitest — 306 tests across 28 files
 npm run build    # svelte-check && tsc --noEmit && vite build — 0 errors, 0 warnings
 npm run deploy   # build, then wrangler deploy
 ```
@@ -28,9 +28,15 @@ npm run deploy   # build, then wrangler deploy
 ## Features
 
 - **Import** local audio files (anything the browser's `decodeAudioData` accepts — mp3, wav, flac,
-  m4a, ogg, …) onto tracks, via a file picker or drag-and-drop onto the window.
+  m4a, ogg, …) onto tracks, via a file picker or drag-and-drop onto the window. The file picker
+  and the toolbar import button target the **current track**; dropping files onto a lane targets
+  the track under the cursor instead, falling back to the current track when the drop lands
+  outside any lane.
 - **Multiple tracks, multiple clips per track.** Clips on a track never overlap; dropping one onto
-  occupied time trims or removes what it lands on.
+  occupied time trims or removes what it lands on. Clicking a track's header, a clip on it, or
+  starting a range-select drag on its lane makes it the **current track** (a thin accent stripe on
+  the header marks it) — the target for import and for the mute/solo keyboard shortcuts. It's
+  session state: not saved, not undoable.
 - **Move, trim, split.** Drag a clip's body to move it or its edges to trim; split every selected
   track at the playhead.
 - **Cut a time range**, with or without closing the gap (ripple). Ripple is scoped to the tracks the
@@ -77,8 +83,8 @@ npm run deploy   # build, then wrangler deploy
 | `⌘←` / `⌘→` | Jump to the previous / next edit point |
 | `+` / `-` | Zoom in / out |
 | `⇧F` | Zoom to fit |
-| `m` | Toggle mute on the first selected (or first) track |
-| `⇧S` | Toggle solo on the first selected (or first) track |
+| `m` | Toggle mute on the current track |
+| `⇧S` | Toggle solo on the current track |
 | `l` | Toggle loop |
 | `i` | Set the play-range IN marker at the playhead |
 | `o` | Set the play-range OUT marker at the playhead |

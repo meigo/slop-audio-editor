@@ -8,7 +8,7 @@ full design rationale behind anything that seems surprising below.
 
 ```bash
 npm run dev      # Vite dev server
-npm test         # Vitest, node environment, no DOM — 297 tests across 28 files
+npm test         # Vitest, node environment, no DOM — 306 tests across 28 files
 npm run test:watch
 npm run build    # svelte-check && tsc --noEmit && vite build — bar is 0 errors, 0 warnings
 npm run check    # svelte-check only
@@ -38,7 +38,10 @@ an unused import or a type-only import written as a value import fails the build
 src/
   doc/
     document.ts     Project / Track / Clip types + constants (PROJECT_SAMPLE_RATE = 48000,
-                     MIN_CLIP_S = 0.01, PEAK_SAMPLES_PER_PAIR = 256)
+                     MIN_CLIP_S = 0.01, PEAK_SAMPLES_PER_PAIR = 256). resolveTrackId(p,
+                     preferredId) resolves a preferred track id against the project, falling back
+                     to the first track when it's null or names a track that no longer exists — a
+                     project always has at least one track, so callers never null-check
     edits.ts         every pure edit operation — the largest test surface in the project
     overlap.ts       non-overlap invariant helpers (drop-to-overwrite resolution)
     selection.ts     clip selection / time-range selection types + resolution
@@ -78,8 +81,11 @@ src/
 
   state/
     appState.svelte.ts   the single $state store (document, pool handle, selection, transport,
-                          view state, soloed set) + all actions (commit/beginGesture/amend/
-                          endGesture, undo/redo, play/seek, toggleSolo)
+                          view state, soloed set, currentTrackId) + all actions
+                          (commit/beginGesture/amend/endGesture, undo/redo, play/seek, toggleSolo,
+                          setCurrentTrack). currentTrackId() is the read side — it resolves
+                          state.currentTrackId against the live project via resolveTrackId, so
+                          nothing else needs to null-check or handle a deleted track
     history.ts            undo/redo stack, cap 100, structuredClone snapshots
 
   export/
@@ -221,6 +227,21 @@ src/
     this ever migrated into `Project` or into `exportWindow`, a marker set for a quick preview loop
     would silently start truncating exports — the same class of bug Gotcha 1 exists to prevent for
     solo, and export must keep using the time-range selection instead.
+
+14. **`state.currentTrackId` (session state, like `soloed`/`playRange`) must always be read
+    through `currentTrackId()`, never compared or dereferenced directly.** The field alone can
+    hold `null` or the id of a track that was since deleted; `currentTrackId()` resolves it against
+    the live project via `resolveTrackId` (`src/doc/document.ts`) and always returns a real track
+    id. It's set by `setCurrentTrack(trackId)` wherever the user touches a track: clicking its
+    header (`TrackHeader.svelte`), pointer-down on one of its clips (`ClipView.svelte` /
+    `clip-drag.svelte.ts`'s `startClipDrag`), or starting a range drag on its lane
+    (`startRangeDrag`). Why it matters: before this existed, `KeyboardShortcuts.svelte`'s
+    `firstTrackId()` read `selectedTrackIds()[0]`, which returns **every** track when the
+    selection isn't a range — so it always resolved to track 1, and the `M`/`⇧S` shortcuts silently
+    acted on the wrong track whenever the user had more than one. `selectedTrackIds()` (range
+    selection, or every track) is a **different** concept and still drives Split deliberately — do
+    not conflate the two or "fix" Split to use the current track without asking; that was
+    explicitly scoped out when this was added.
 
 ## Testing
 
