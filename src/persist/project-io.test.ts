@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { __resetIds, createProject } from "../doc/document";
+import { __resetIds, adoptIds, createProject, newId } from "../doc/document";
 import { addClip, addTrack, makeClip } from "../doc/edits";
+import { packProject, unpackProject, type SourceRecord } from "./project-file";
 import { referencedSourceIds } from "./project-io.svelte";
 
 beforeEach(() => __resetIds());
@@ -71,5 +72,49 @@ describe("referencedSourceIds", () => {
     expect(ids.has("referenced-2")).toBe(true);
     expect(ids.has("unreferenced-source")).toBe(false);
     expect(ids.size).toBe(2);
+  });
+});
+
+describe("id adoption on load (regression)", () => {
+  // Reproduces the real bug: a project round-tripped through a .slopaudio file (or autosave, same
+  // shape) still holds ids minted in an earlier session, but the id counter resets to 0 on every
+  // page load. `loadInto` (project-io.svelte.ts) must adopt every id the loaded data contains
+  // before anything is installed — this test exercises that same id-collection logic against the
+  // actual shape `unpackProject` hands back, without needing a browser to decode audio.
+  //
+  // `idCounter` is a single counter shared across all prefixes, so after a reset the Nth newId()
+  // call — whatever its prefix — always mints number N. To deterministically prove this test would
+  // catch a regression (not just happen to pass), the loaded document's ids are pinned to "src-1"
+  // and "clip-2" — exactly the ids the two `newId` calls below mint on a bare reset, matching call
+  // order (src, then clip). Without adopting first, this is a guaranteed collision, not a lucky one.
+  it("adopting every track/clip/source id from a round-tripped project prevents the next mint from colliding", () => {
+    let p = createProject();
+    const srcA: SourceRecord = { id: "src-1", name: "a.wav", bytes: new Uint8Array([1]) };
+    const clipA = { ...makeClip(srcA.id, 0, 1), id: "clip-2" };
+    p = addClip(p, p.tracks[0].id, clipA);
+
+    const bytes = packProject(p, [srcA]);
+    const { project: loaded, sources: loadedSources } = unpackProject(bytes);
+
+    // Simulate a page reload: the counter resets, but the ids above were minted before that.
+    __resetIds();
+
+    // What `loadInto` does before installing the pool/project: adopt every id the loaded data
+    // contains — every track id, every clip id on every track, and every source id.
+    const loadedIds: string[] = [];
+    for (const t of loaded.tracks) {
+      loadedIds.push(t.id);
+      for (const c of t.clips) loadedIds.push(c.id);
+    }
+    for (const s of loadedSources) loadedIds.push(s.id);
+    adoptIds(loadedIds);
+
+    // A subsequent import mints a new source id, then a new clip id, the way the app does.
+    const newSrcId = newId("src");
+    const newClipId = newId("clip");
+
+    const existingIds = new Set(loadedIds);
+    expect(existingIds.has(newSrcId)).toBe(false);
+    expect(existingIds.has(newClipId)).toBe(false);
   });
 });

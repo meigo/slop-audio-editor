@@ -1,5 +1,5 @@
 import { decodeSource, type Source } from "../audio/pool";
-import type { Project } from "../doc/document";
+import { adoptIds, type Project } from "../doc/document";
 import { pool, state as appState } from "../state/appState.svelte";
 import { clearAutosave, deleteSource, putSource, readAutosave } from "./autosave";
 import {
@@ -51,6 +51,17 @@ async function loadInto(project: typeof appState.project, sources: SourceRecord[
     }
   }
   // Past this line nothing can fail, so the swap is effectively atomic.
+  // The id counter resets on every page load, but this project's ids were minted in an earlier
+  // session — adopt them all before installing anything, or the next newId() call could collide
+  // with one of them (see document.ts's adoptIds).
+  const ids: string[] = [];
+  for (const t of project.tracks) {
+    ids.push(t.id);
+    for (const c of t.clips) ids.push(c.id);
+  }
+  for (const d of decoded) ids.push(d.id);
+  adoptIds(ids);
+
   pool.clear();
   for (const d of decoded) pool.add(d);
   appState.project = project;
