@@ -76,9 +76,12 @@
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
+<!-- `select-none`: a clip is a drag target, not text. Without it Shift-click (which adds to the
+     selection) also extends the browser's TEXT selection, so clip names light up blue as you
+     multi-select, and dragging across labels selects them. -->
 <div
   data-clip-id={clip.id}
-  class="absolute top-1 touch-none overflow-hidden rounded border bg-sky-800/70"
+  class="absolute top-1 touch-none select-none overflow-hidden rounded border bg-sky-800/70"
   class:border-sky-300={selected}
   class:border-sky-900={!selected}
   title="{name} — {formatTime(clip.durS)}"
