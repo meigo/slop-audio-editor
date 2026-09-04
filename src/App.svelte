@@ -4,6 +4,7 @@
   import Playhead from "./lib/Playhead.svelte";
   import RangeOverlay from "./lib/RangeOverlay.svelte";
   import Ruler from "./lib/Ruler.svelte";
+  import StatusBar from "./lib/StatusBar.svelte";
   import TimelineViewport from "./lib/TimelineViewport.svelte";
   import Toolbar from "./lib/Toolbar.svelte";
   import TrackHeader from "./lib/TrackHeader.svelte";
@@ -100,4 +101,5 @@
   </div>
 
   <Inspector />
+  <StatusBar />
 </div>

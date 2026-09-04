@@ -304,13 +304,27 @@ src/
     oversampling, so a mix reading exactly 0.0 dBFS can still overshoot a downstream converter by
     a few tenths. Deliberate — do not relabel it "true peak" without adding the oversampling.
 
+19. **The status bar mirrors `title` attributes by delegation — it has no parallel copy of the
+    help text, and it is a SEPARATE row from the Inspector.** `StatusBar.svelte` puts one
+    `pointerover` listener on the document and reads `e.target.closest("[title]")`, so every
+    tooltip in the app appears there for free and the two can never disagree; a `data-status`
+    attribute per control would be a second copy to keep in sync, and it would drift. Hovering an
+    icon inside a button resolves to the button's own title via `closest`, and moving to anything
+    untitled falls back to `statusSummary` (`src/lib/status.ts`, unit-tested).
+    Why the separate row: the Inspector and the status line describe DIFFERENT things — the
+    Inspector the selected clip, the status line whatever the pointer is over — and they were
+    sharing one 40 px bar, so selecting a clip replaced the status text with the clip's fields and
+    the status line silently disappeared exactly when the user was busiest. `statusSummary` also
+    labels the in/out play range as `in/out` and keeps it separate from the selection, because
+    they look alike but only the selection reaches an export (Gotcha 13).
+
 ## Testing
 
 Vitest, `node` environment, no DOM (`src/**/*.test.ts`, see `vite.config.ts`). Pure logic
 (`doc/edits.ts`, `doc/loudness-match.ts`, `doc/play-range.ts`, `audio/schedule.ts`, `audio/fades.ts`,
 `audio/peaks.ts`, `audio/loudness.ts`, `audio/pool.ts`'s `computeLoudnessChunked`/`computePeaksChunked`,
 `export/wav.ts`, `persist/project-file.ts`, `persist/preferences.ts`, `lib/geometry.ts`,
-`lib/hit-test.ts` (including `hitTestRuler`), `lib/shortcuts.ts`, `state/history.ts`) is
+`lib/hit-test.ts` (including `hitTestRuler`), `lib/shortcuts.ts`, `lib/status.ts`, `state/history.ts`) is
 unit-tested. Canvas rendering, drag interactions (the `Ruler`'s in/out marker drag included), the master
 meter's animation (its scale mapping is `meterFillPct`, which IS tested; the `requestAnimationFrame`
 loop cannot run in a backgrounded tab, so the bar and peak-hold need a foreground eyeball), real
