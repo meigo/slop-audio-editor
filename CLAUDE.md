@@ -390,6 +390,22 @@ src/
     touch), iOS IndexedDB eviction after ~7 days, and the memory ceiling from holding every source
     decoded (~11.5 MB per minute of 48 kHz stereo float).
 
+23. **Every clip edge without a fade gets a 5 ms declick ramp, added in `planSchedule` — it is
+    NOT in the document.** Clips can never overlap (`overlap.ts` enforces drop-to-overwrite), so
+    butting two together is a hard cut: the source starts and stops at whatever sample value it
+    happens to be at, and that step discontinuity ticks. Measured on a splice engineered to land
+    on a peak, the sample-to-sample jump was **1.599** without the declick and **0.031** with it —
+    the latter being exactly the waveform's own natural step, i.e. no discontinuity at all.
+    `DECLICK_S` lives in `schedule.ts` because it must apply to preview and export identically;
+    per Gotcha 3 that is precisely what belongs in the shared planner, and it is not a
+    playback-only branch. A clip's OWN fade always wins — the declick only fills an edge that
+    `fadeSpec` returned null for, which also covers the case of a window opening mid-clip (seeking
+    into the middle of audio is the same discontinuity). `declickSpec` caps the ramp at half the
+    audible span, because a clip may be as short as `MIN_CLIP_S` (10 ms) — only two declicks long
+    — and the existing one-sample-gap guard then keeps the two spans from touching, which
+    `setValueCurveAtTime` throws on. Because it is never written to the document it cannot be
+    edited, undone, or saved, and it costs nothing in the file format.
+
 ## Testing
 
 Vitest, `node` environment, no DOM (`src/**/*.test.ts`, see `vite.config.ts`). Pure logic

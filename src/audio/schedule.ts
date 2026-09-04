@@ -3,6 +3,18 @@ import { clipEndS, PROJECT_SAMPLE_RATE, type Clip, type FadeShape, type Project 
 /** The minimum gap enforced between a fade-in's end and a fade-out's start (see `scheduleClip`). */
 const MIN_FADE_GAP_S = 1 / PROJECT_SAMPLE_RATE;
 
+/**
+ * Length of the automatic ramp applied to any clip edge that has no fade of its own.
+ *
+ * Clips never overlap (see `overlap.ts`), so butting two of them together is a hard cut: the
+ * source starts and stops at whatever sample value it happens to be at, and that step
+ * discontinuity ticks. 5 ms is far too short to hear as a fade — it reads as a clean edit — but
+ * long enough to turn the step into a ramp. It is applied HERE, in the shared planner, so preview
+ * and export declick identically; it is never written into the document, so it cannot be edited,
+ * undone, or saved, and a clip's own fades always win over it.
+ */
+export const DECLICK_S = 0.005;
+
 export interface FadeSpec {
   /** Seconds from the START OF THE RENDER WINDOW — feed straight to `setValueCurveAtTime`. */
   atS: number;
@@ -53,14 +65,32 @@ function fadeSpec(
   };
 }
 
+/** A declick ramp at one end of the audible span `[s, e)`. Capped at half the span so the two
+ *  ends can never claim more than the clip has — a clip may be as short as `MIN_CLIP_S` (10 ms),
+ *  which is only two declicks long. */
+function declickSpec(s: number, e: number, windowFromS: number, atStart: boolean): FadeSpec | null {
+  const durS = Math.min(DECLICK_S, (e - s) / 2);
+  if (!(durS > 0)) return null;
+  return {
+    atS: (atStart ? s : e - durS) - windowFromS,
+    durS,
+    shape: "linear",
+    fromT: 0,
+    toT: 1,
+  };
+}
+
 function scheduleClip(c: Clip, trackId: string, fromS: number, toS: number): ScheduledClip | null {
   const start = c.startS;
   const end = clipEndS(c);
   const s = Math.max(start, fromS);
   const e = Math.min(end, toS);
   if (!(e > s)) return null;
-  let fadeIn = fadeSpec(start, c.fadeInS, c.fadeShape, s, e, fromS);
-  const fadeOut = fadeSpec(end - c.fadeOutS, c.fadeOutS, c.fadeShape, s, e, fromS);
+  // A clip's own fade always wins; the declick only fills an edge that would otherwise be a step.
+  let fadeIn = fadeSpec(start, c.fadeInS, c.fadeShape, s, e, fromS) ?? declickSpec(s, e, fromS, true);
+  const fadeOut =
+    fadeSpec(end - c.fadeOutS, c.fadeOutS, c.fadeShape, s, e, fromS) ??
+    declickSpec(s, e, fromS, false);
   // clampFades scales a colliding fade-in/fade-out pair to fill the clip EXACTLY, so the spans
   // built above can end up overlapping by a float ulp or abutting exactly. setValueCurveAtTime
   // throws on the former and is implementation-defined (observed to throw in Chromium) on the

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { __resetIds, createProject, type Project } from "../doc/document";
 import { addClip, addTrack, makeClip, setClipFade, setClipGain, setTrackMuted } from "../doc/edits";
-import { planSchedule } from "./schedule";
+import { DECLICK_S, planSchedule } from "./schedule";
 
 const NO_SOLO: ReadonlySet<string> = new Set();
 
@@ -82,10 +82,24 @@ describe("planSchedule gain, mute and solo", () => {
 });
 
 describe("planSchedule fades", () => {
-  it("emits no fade specs when the clip has none", () => {
+  it("declicks a clip that has no fades of its own", () => {
+    // A bare cut starts and stops the source at whatever sample value it happens to be at, which
+    // is a step discontinuity and ticks. Both edges get a short linear ramp instead.
     const plan = planSchedule(oneClip(), 0, 100, NO_SOLO);
-    expect(plan[0].fadeIn).toBeNull();
-    expect(plan[0].fadeOut).toBeNull();
+    expect(plan[0].fadeIn).toMatchObject({ atS: 5, durS: DECLICK_S, shape: "linear" });
+    expect(plan[0].fadeOut).toMatchObject({ atS: 15 - DECLICK_S, durS: DECLICK_S, shape: "linear" });
+  });
+
+  it("declicks the point where a window opens mid-clip, not the clip's own start", () => {
+    // Seeking into the middle of a clip is just as much a discontinuity as an edit is.
+    expect(planSchedule(oneClip(), 8, 100, NO_SOLO)[0].fadeIn).toMatchObject({
+      atS: 0, durS: DECLICK_S,
+    });
+  });
+
+  it("is short enough to be inaudible as a fade", () => {
+    expect(DECLICK_S).toBeLessThanOrEqual(0.01);
+    expect(DECLICK_S).toBeGreaterThan(0);
   });
 
   it("emits a whole fade in at the clip's start", () => {
@@ -118,10 +132,30 @@ describe("planSchedule fades", () => {
     expect(fade).toMatchObject({ atS: 11, durS: 2, fromT: 0, toT: 0.5 });
   });
 
-  it("drops a fade the window missed entirely", () => {
+  it("drops a fade the window missed entirely, leaving only the declick", () => {
     let p = oneClip();
     p = setClipFade(p, p.tracks[0].clips[0].id, { fadeInS: 2 });
-    expect(planSchedule(p, 8, 100, NO_SOLO)[0].fadeIn).toBeNull();
+    // The real 2 s fade ended before the window opened, so what is left is the declick at the
+    // window edge — NOT a resumed fragment of the fade.
+    expect(planSchedule(p, 8, 100, NO_SOLO)[0].fadeIn).toMatchObject({ atS: 0, durS: DECLICK_S });
+  });
+
+  it("never replaces a real fade with a declick", () => {
+    let p = oneClip();
+    p = setClipFade(p, p.tracks[0].clips[0].id, { fadeInS: 2, fadeOutS: 3 });
+    const sc = planSchedule(p, 0, 100, NO_SOLO)[0];
+    expect(sc.fadeIn).toMatchObject({ durS: 2 });
+    expect(sc.fadeOut).toMatchObject({ durS: 3 });
+  });
+
+  it("keeps the declick inside a very short clip, and the spans still do not overlap", () => {
+    const base = createProject();
+    const p = addClip(base, base.tracks[0].id, makeClip("s", 0, 0.01)); // MIN_CLIP_S
+    const sc = planSchedule(p, 0, 100, NO_SOLO)[0];
+    const inEnd = sc.fadeIn!.atS + sc.fadeIn!.durS;
+    expect(sc.fadeIn!.durS).toBeGreaterThan(0);
+    expect(inEnd).toBeLessThan(sc.fadeOut!.atS);
+    expect(sc.fadeOut!.atS + sc.fadeOut!.durS).toBeLessThanOrEqual(0.01 + 1e-9);
   });
 
   it("never emits overlapping fade spans", () => {
