@@ -84,6 +84,11 @@ export function unpackProject(zip: Uint8Array): { project: Project; sources: Sou
   // `glue` was added after the initial file format; a file saved before that has no such field.
   // No version bump — it's an optional field with a well-defined default, not a shape change.
   if (typeof project.glue !== "boolean") project.glue = false;
+  // Likewise `ducked`, added with background ducking. Same reasoning: optional field, well-defined
+  // default, no version bump — and defaulting it here means `planDucking` never sees `undefined`.
+  for (const t of project.tracks) {
+    if (typeof t.ducked !== "boolean") t.ducked = false;
+  }
 
   return { project, sources };
 }

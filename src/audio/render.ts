@@ -1,4 +1,5 @@
 import type { Project } from "../doc/document";
+import { planDucking } from "./ducking";
 import { FADE_CURVE_POINTS, fadeInCurve, fadeOutCurve } from "./fades";
 import type { Source } from "./pool";
 import type { ScheduledClip } from "./schedule";
@@ -71,7 +72,12 @@ export function renderPlan(
   pool: { get(id: string): Source | undefined },
   project: Project,
   startAt: number,
+  window: { fromS: number; toS: number },
 ): RenderedGraph {
+  // Computed here rather than passed in, so no caller can build a graph WITHOUT ducking and
+  // silently produce a mix that differs from every other path. Ducking changes the mix, so unlike
+  // the analyser tap it belongs on the shared preview/export path, not in the caller.
+  const duck = planDucking(project, window.fromS, window.toS);
   const masterGain = ctx.createGain();
   masterGain.gain.value = project.masterGain;
   let output: AudioNode = masterGain;
@@ -110,6 +116,7 @@ export function renderPlan(
   }
 
   const trackGains = new Map<string, GainNode>();
+  const duckGains: GainNode[] = [];
   const sources: AudioBufferSourceNode[] = [];
   const toStart: { node: AudioBufferSourceNode; when: number; offset: number; duration: number }[] = [];
 
@@ -122,7 +129,22 @@ export function renderPlan(
       if (!trackGain) {
         trackGain = ctx.createGain();
         trackGain.gain.value = project.tracks.find((t) => t.id === sc.trackId)?.gain ?? 1;
-        trackGain.connect(masterGain);
+        const points = duck.get(sc.trackId);
+        if (points && points.length > 0) {
+          // A SEPARATE node from the fader's. Writing the envelope onto `trackGain` itself would
+          // fight `setTrackGain`, so riding the fader mid-playback (the "mix" gesture) would
+          // cancel the ducking or be cancelled by it.
+          const duckGain = ctx.createGain();
+          duckGain.gain.setValueAtTime(points[0].gain, startAt + points[0].t);
+          for (let i = 1; i < points.length; i++) {
+            duckGain.gain.linearRampToValueAtTime(points[i].gain, startAt + points[i].t);
+          }
+          trackGain.connect(duckGain);
+          duckGain.connect(masterGain);
+          duckGains.push(duckGain);
+        } else {
+          trackGain.connect(masterGain);
+        }
         trackGains.set(sc.trackId, trackGain);
       }
 
@@ -154,6 +176,7 @@ export function renderPlan(
   } catch (err) {
     masterGain.disconnect();
     for (const g of trackGains.values()) g.disconnect();
+    for (const g of duckGains) g.disconnect();
     for (const n of sources) n.disconnect();
     for (const g of glueNodes) g.disconnect();
     throw err;

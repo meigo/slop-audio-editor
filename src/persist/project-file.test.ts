@@ -135,3 +135,15 @@ describe("errors", () => {
     expect(() => unpackProject(bad)).toThrow(ProjectFileError);
   });
 });
+
+it("defaults `ducked` to false on a project saved before background ducking existed", () => {
+  // A v1 file written before the field existed: tracks carry no `ducked` at all.
+  const legacy = createProject("old");
+  const stripped = {
+    ...legacy,
+    tracks: legacy.tracks.map(({ ducked: _ducked, ...rest }) => rest),
+  };
+  const bytes = packProject(stripped as typeof legacy, []);
+  const { project } = unpackProject(bytes);
+  expect(project.tracks.every((t) => t.ducked === false)).toBe(true);
+});

@@ -65,6 +65,10 @@ src/
                      `gatedLoudnessFromBlockPowers`) that `pool.ts`'s `computeLoudnessChunked` uses
                      to spread the same computation across yielding chunks, the way
                      `computePeaksChunked` does for peaks
+    ducking.ts       planDucking(project, fromS, toS) — pure. Gain envelopes for every track
+                     marked `ducked`, dipping DUCK_DEPTH_DB (-12) while any unmuted, non-ducked
+                     track has a clip. Derived from clip POSITIONS, not audio content, which is
+                     what lets preview and export compute it identically
     fades.ts         fadeCurve(shape, n) — linear / equalPower / exponential gain ramps
     schedule.ts      planSchedule(project, fromS, toS, soloed) — pure, the shared preview/export
                      planner; resolves mute and solo into which clips even appear in the plan.
@@ -318,10 +322,32 @@ src/
     labels the in/out play range as `in/out` and keeps it separate from the selection, because
     they look alike but only the selection reaches an export (Gotcha 13).
 
+20. **Ducking is computed inside `renderPlan` from a required `window` argument — not passed in
+    by callers — and it deliberately ignores solo.** `planDucking` (`src/audio/ducking.ts`) is
+    pure and derives the envelope from clip POSITIONS, so no sidechain and no AudioWorklet are
+    involved (Web Audio has no sidechain input; a real one would need a worklet). `renderPlan`
+    calls it itself, which is why it takes `window: { fromS, toS }` as a REQUIRED parameter: a
+    caller that could omit the envelope could silently render a mix that disagrees with every
+    other path, and the compiler now refuses that. Contrast the metering analyser, which IS
+    playback-only and therefore lives in `engine.ts` (Gotcha 18) — ducking changes the mix, so it
+    belongs on the shared preview/export path.
+    Solo is not a parameter of `planDucking` at all. Muted tracks are excluded (mute is in the
+    document and reaches the export); solo is not, so a soloed background track still ducks. If
+    solo suppressed it, auditioning the music alone would give a different mix than the export —
+    the Gotcha 1 trap.
+    The envelope is applied to a SEPARATE `duckGain` node, never to the track's own gain node:
+    writing it onto `trackGain` would fight `setTrackGain`, so riding the fader mid-playback (the
+    "mix" gesture, Gotcha 8) would cancel the ducking or be cancelled by it.
+    Foreground spans closer together than attack + release are merged, so the bed does not pump
+    back up during a breath between two sentences. And the duck is drawn on the ducked clips
+    (`envelopeMaskPolygon`) in the same green as the header's `D` toggle — same principle as
+    Gotchas 15 and 17: the picture shows what you will hear.
+
 ## Testing
 
 Vitest, `node` environment, no DOM (`src/**/*.test.ts`, see `vite.config.ts`). Pure logic
-(`doc/edits.ts`, `doc/loudness-match.ts`, `doc/play-range.ts`, `audio/schedule.ts`, `audio/fades.ts`,
+(`doc/edits.ts`, `doc/loudness-match.ts`, `doc/play-range.ts`, `audio/schedule.ts`, `audio/ducking.ts`,
+`audio/fades.ts`,
 `audio/peaks.ts`, `audio/loudness.ts`, `audio/pool.ts`'s `computeLoudnessChunked`/`computePeaksChunked`,
 `export/wav.ts`, `persist/project-file.ts`, `persist/preferences.ts`, `lib/geometry.ts`,
 `lib/hit-test.ts` (including `hitTestRuler`), `lib/shortcuts.ts`, `lib/status.ts`, `state/history.ts`) is

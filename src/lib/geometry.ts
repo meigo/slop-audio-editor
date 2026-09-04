@@ -144,3 +144,28 @@ export function meterFillPct(db: number, floorDb: number = METER_FLOOR_DB): numb
   if (db === -Infinity) return 0;
   return Math.max(0, Math.min(1, (db - floorDb) / -floorDb)) * 100;
 }
+
+/** CSS `polygon()` shading how much an arbitrary gain envelope takes away across a clip, given
+ *  breakpoints in seconds from the clip's start. Same convention as `fadeMaskPolygon` — the
+ *  shaded region is the area under `1 - gain` — but for irregularly spaced points rather than an
+ *  evenly sampled curve. Returns "" when there is nothing to draw. */
+export function envelopeMaskPolygon(
+  points: readonly { t: number; gain: number }[],
+  durS: number,
+): string {
+  if (points.length === 0 || !(durS > 0)) return "";
+  const xy = points.map((p) => ({
+    x: Math.max(0, Math.min(100, (p.t / durS) * 100)),
+    y: (1 - p.gain) * 100,
+  }));
+  // The envelope holds its final value to the end of the clip; without this the shading would
+  // stop partway and read as the level coming back up when it does not.
+  const last = xy[xy.length - 1];
+  if (last.x < 100) xy.push({ x: 100, y: last.y });
+
+  const pts = ["0% 0%", "100% 0%"];
+  for (let i = xy.length - 1; i >= 0; i--) {
+    pts.push(`${xy[i].x.toFixed(2)}% ${xy[i].y.toFixed(2)}%`);
+  }
+  return `polygon(${pts.join(", ")})`;
+}

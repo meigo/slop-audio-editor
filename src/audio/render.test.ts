@@ -4,6 +4,8 @@ import type { Source } from "./pool";
 import { renderPlan, scaleCurve } from "./render";
 import type { ScheduledClip } from "./schedule";
 
+const WINDOW = { fromS: 0, toS: 60 };
+
 describe("scaleCurve", () => {
   it("multiplies every point by the clip gain", () => {
     expect([...scaleCurve(new Float32Array([0, 0.5, 1]), 0.5)]).toEqual([0, 0.25, 0.5]);
@@ -78,7 +80,7 @@ function fakeProject(trackIds: string[]): Project {
     name: "p",
     masterGain: 1,
     glue: false,
-    tracks: trackIds.map((id) => ({ id, name: id, clips: [], gain: 1, muted: false })),
+    tracks: trackIds.map((id) => ({ id, name: id, clips: [], gain: 1, muted: false, ducked: false })),
   };
 }
 
@@ -108,7 +110,7 @@ describe("renderPlan", () => {
       fakeScheduledClip({ fadeIn: { atS: 0, durS: 1, shape: "linear", fromT: 0, toT: 1 } }),
       fakeScheduledClip({ when: 2 }),
     ];
-    renderPlan(ctx, plan, NO_SOLO_POOL, fakeProject(["t1"]), 0);
+    renderPlan(ctx, plan, NO_SOLO_POOL, fakeProject(["t1"]), 0, WINDOW);
     expect(bufferSources).toHaveLength(2);
     expect(bufferSources.every((s) => s.startCalls.length === 1)).toBe(true);
   });
@@ -121,7 +123,7 @@ describe("renderPlan", () => {
       fakeScheduledClip({ fadeIn: { atS: 0, durS: 1, shape: "linear", fromT: 0, toT: 1 } }),
       fakeScheduledClip({ when: 2, fadeIn: { atS: 2, durS: 1, shape: "linear", fromT: 0, toT: 1 } }),
     ];
-    expect(() => renderPlan(ctx, plan, NO_SOLO_POOL, fakeProject(["t1"]), 0)).toThrow();
+    expect(() => renderPlan(ctx, plan, NO_SOLO_POOL, fakeProject(["t1"]), 0, WINDOW)).toThrow();
     // Nothing was started — including the FIRST clip's already-built node — because starting is
     // deferred until the whole graph has been built without error.
     expect(bufferSources.every((s) => s.startCalls.length === 0)).toBe(true);
@@ -130,14 +132,14 @@ describe("renderPlan", () => {
   it("disconnects the graph built so far before rethrowing", () => {
     const { ctx, destination } = makeFakeCtx(1);
     const plan = [fakeScheduledClip({ fadeIn: { atS: 0, durS: 1, shape: "linear", fromT: 0, toT: 1 } })];
-    expect(() => renderPlan(ctx, plan, NO_SOLO_POOL, fakeProject(["t1"]), 0)).toThrow();
+    expect(() => renderPlan(ctx, plan, NO_SOLO_POOL, fakeProject(["t1"]), 0, WINDOW)).toThrow();
     expect(destination.disconnectCalls).toBe(0); // destination itself is never touched
   });
 
   it("skips a clip whose source never loaded, without throwing", () => {
     const { ctx, bufferSources } = makeFakeCtx();
     const plan = [fakeScheduledClip({ sourceId: "missing" })];
-    const graph = renderPlan(ctx, plan, NO_SOLO_POOL, fakeProject(["t1"]), 0);
+    const graph = renderPlan(ctx, plan, NO_SOLO_POOL, fakeProject(["t1"]), 0, WINDOW);
     expect(bufferSources).toHaveLength(0);
     expect(graph.sources).toHaveLength(0);
   });

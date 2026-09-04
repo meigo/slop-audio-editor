@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Track } from "../doc/document";
-  import { renameTrack, setTrackGain, setTrackMuted } from "../doc/edits";
+  import { renameTrack, setTrackDucked, setTrackGain, setTrackMuted } from "../doc/edits";
   import {
     amend, beginGesture, commit, currentTrackId, endGesture, engine, setCurrentTrack,
     state as appState, toggleSolo,
@@ -88,6 +88,16 @@
       onclick={() => toggleSolo(track.id)}
     >
       S
+    </button>
+    <button
+      class="rounded px-1 text-[10px] font-bold"
+      class:bg-emerald-500={track.ducked}
+      class:text-black={track.ducked}
+      class:text-neutral-500={!track.ducked}
+      title="Background: dip this track while any other track is playing (music under voice)"
+      onclick={() => commit((p) => setTrackDucked(p, track.id, !track.ducked))}
+    >
+      D
     </button>
   </div>
 

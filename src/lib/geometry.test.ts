@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  dbToGain, dbToPosition, fadeMaskPolygon, formatDb, formatTime, gainToDb, METER_FLOOR_DB,
-  meterFillPct, positionToDb, pxToTime, rulerTicks, snapTime, timeToPx,
+  dbToGain, dbToPosition, envelopeMaskPolygon, fadeMaskPolygon, formatDb, formatTime, gainToDb,
+  METER_FLOOR_DB, meterFillPct, positionToDb, pxToTime, rulerTicks, snapTime, timeToPx,
 } from "./geometry";
 import { fadeInCurve, fadeOutCurve } from "../audio/fades";
 
@@ -207,5 +207,42 @@ describe("meterFillPct", () => {
   // to the clip box instead of painting over its neighbours.
   it("clamps an over to 100 rather than exceeding the track", () => {
     expect(meterFillPct(6)).toBe(100);
+  });
+});
+
+describe("envelopeMaskPolygon", () => {
+  const yAt = (poly: string, xPct: number): number => {
+    const pts = poly
+      .slice("polygon(".length, -1)
+      .split(", ")
+      .slice(2) // skip the two anchors forming the y = 0 base
+      .map((p) => p.split(" ").map((v) => parseFloat(v)) as [number, number]);
+    const hit = pts.find(([x]) => Math.abs(x - xPct) < 0.01);
+    if (!hit) throw new Error(`no point at x=${xPct}% in ${poly}`);
+    return hit[1];
+  };
+
+  it("is empty for no points, so no overlay is drawn", () => {
+    expect(envelopeMaskPolygon([], 10)).toBe("");
+  });
+
+  it("shades nothing where the envelope is at unity", () => {
+    expect(yAt(envelopeMaskPolygon([{ t: 0, gain: 1 }], 10), 0)).toBeCloseTo(0, 6);
+  });
+
+  it("shades the attenuated depth: gain 0.25 leaves 75% covered", () => {
+    expect(yAt(envelopeMaskPolygon([{ t: 5, gain: 0.25 }], 10), 50)).toBeCloseTo(75, 6);
+  });
+
+  it("maps time to x as a fraction of the clip's duration", () => {
+    const poly = envelopeMaskPolygon([{ t: 0, gain: 1 }, { t: 2, gain: 0.5 }], 8);
+    expect(yAt(poly, 25)).toBeCloseTo(50, 6); // t=2 of 8 s -> 25%
+  });
+
+  // The envelope holds its last value to the end of the clip; without this the shading would stop
+  // partway and the clip would look like it comes back up when it does not.
+  it("extends the last value to the end of the clip", () => {
+    const poly = envelopeMaskPolygon([{ t: 0, gain: 0.25 }], 10);
+    expect(yAt(poly, 100)).toBeCloseTo(75, 6);
   });
 });

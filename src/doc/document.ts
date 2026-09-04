@@ -33,6 +33,9 @@ export interface Track {
   gain: number;
   /** Affects EXPORT. Solo does not live here — it is view state (see the spec, §3). */
   muted: boolean;
+  /** "Background": this track dips while any other track is playing. Like `muted` and unlike
+   *  solo, it is part of the document — it changes the mix, so it must reach the export. */
+  ducked: boolean;
 }
 
 export interface Project {
@@ -71,7 +74,7 @@ export function adoptIds(ids: Iterable<string>): void {
 }
 
 export function createTrack(name: string): Track {
-  return { id: newId("track"), name, clips: [], gain: 1, muted: false };
+  return { id: newId("track"), name, clips: [], gain: 1, muted: false, ducked: false };
 }
 
 export function createProject(name = "Untitled"): Project {

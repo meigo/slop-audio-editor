@@ -51,6 +51,11 @@ export function setTrackMuted(p: Project, trackId: string, muted: boolean): Proj
   return mapTrack(p, trackId, (t) => (t.muted === muted ? t : { ...t, muted }));
 }
 
+/** Mark a track as background: it dips while any other track is playing. See `planDucking`. */
+export function setTrackDucked(p: Project, trackId: string, ducked: boolean): Project {
+  return mapTrack(p, trackId, (t) => (t.ducked === ducked ? t : { ...t, ducked }));
+}
+
 export function setMasterGain(p: Project, gain: number): Project {
   const g = Math.max(0, gain);
   return g === p.masterGain ? p : { ...p, masterGain: g };

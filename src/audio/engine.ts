@@ -71,7 +71,8 @@ export class AudioEngine {
     void ctx.resume();
     const startAt = ctx.currentTime + SCHEDULE_LEAD_S;
 
-    this.#graph = renderPlan(ctx, planSchedule(project, fromS, end, soloed), pool, project, startAt);
+    this.#graph = renderPlan(ctx, planSchedule(project, fromS, end, soloed), pool, project, startAt,
+      { fromS, toS: end });
     // fftSize samples (~43 ms at 48 kHz) is longer than a 60 fps frame, so consecutive reads
     // overlap and no peak can slip between them.
     this.#analyser = ctx.createAnalyser();

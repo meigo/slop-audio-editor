@@ -3,11 +3,18 @@
   import { pool, state as appState } from "../state/appState.svelte";
   import { startClipDrag } from "./clip-drag.svelte";
   import { fadeInCurve, fadeOutCurve } from "../audio/fades";
-  import { FADE_MASK_POINTS, fadeMaskPolygon, formatTime, timeToPx } from "./geometry";
+  import type { DuckPoint } from "../audio/ducking";
+  import {
+    envelopeMaskPolygon, FADE_MASK_POINTS, fadeMaskPolygon, formatTime, timeToPx,
+  } from "./geometry";
   import { hitTestClip, type ClipZone } from "./hit-test";
   import Waveform from "./Waveform.svelte";
 
-  const { clip, trackId, heightPx }: { clip: Clip; trackId: string; heightPx: number } = $props();
+  const {
+    clip, trackId, heightPx, duck,
+  }: { clip: Clip; trackId: string; heightPx: number; duck: DuckPoint[] } = $props();
+
+  const duckMask = $derived(envelopeMaskPolygon(duck, clip.durS));
 
   // Sampled from the engine's own fade curves, so the overlay shows the shape that will play.
   const fadeInMask = $derived(fadeMaskPolygon(fadeInCurve(clip.fadeShape, FADE_MASK_POINTS)));
@@ -73,6 +80,15 @@
     heightPx={heightPx - 8}
     gain={clip.gain}
   />
+
+  <!-- Ducking: how far this background track is pushed down by the foreground. Drawn in the same
+       green as the header's D toggle, so the cause and the effect are visibly the same thing. -->
+  {#if duckMask}
+    <div
+      class="pointer-events-none absolute inset-0 bg-emerald-900/55"
+      style="clip-path: {duckMask}"
+    ></div>
+  {/if}
 
   <!-- Fade overlays: the shaded area is what the fade takes away, traced from the real gain
        curve — linear stays a triangle, equal-power bows, exponential sags. -->

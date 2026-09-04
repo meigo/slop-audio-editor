@@ -26,6 +26,6 @@ export async function mixdown(
     Math.max(1, Math.ceil(lengthS * PROJECT_SAMPLE_RATE)),
     PROJECT_SAMPLE_RATE,
   );
-  renderPlan(ctx, planSchedule(project, fromS, toS, NO_SOLO), pool, project, 0);
+  renderPlan(ctx, planSchedule(project, fromS, toS, NO_SOLO), pool, project, 0, { fromS, toS });
   return ctx.startRendering();
 }
