@@ -271,6 +271,18 @@ src/
     both: replacing the document clears history, and nothing reachable through history is ever an
     orphan.
 
+17. **The fade overlays in `ClipView.svelte` are traced from the engine's own fade curves, not
+    drawn as triangles.** `fadeMaskPolygon(curve)` (`src/lib/geometry.ts`) turns a gain curve into
+    a CSS `polygon()` shading the region under `1 - gain`; `ClipView` feeds it
+    `fadeInCurve`/`fadeOutCurve` (`src/audio/fades.ts`) — the same functions `renderPlan` hands to
+    `setValueCurveAtTime` — sampled at `FADE_MASK_POINTS` (24, vs the audio's 128). A linear fade
+    reduces to the plain triangle this replaced, so that case is unchanged by construction.
+    Why it matters: before this, the overlays were hardcoded `polygon(0 0, 100% 0, 0 100%)`
+    triangles and `clip.fadeShape` was read in exactly ONE place in the whole UI — the Inspector's
+    `<select>`, which only SETS it. All three shapes drew identically, so switching a fade to
+    exponential changed what you heard and nothing you saw. Same failure as Gotcha 15: derive the
+    picture from the audio's source of truth rather than maintaining a parallel guess.
+
 ## Testing
 
 Vitest, `node` environment, no DOM (`src/**/*.test.ts`, see `vite.config.ts`). Pure logic

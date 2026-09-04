@@ -2,11 +2,16 @@
   import type { Clip } from "../doc/document";
   import { pool, state as appState } from "../state/appState.svelte";
   import { startClipDrag } from "./clip-drag.svelte";
-  import { formatTime, timeToPx } from "./geometry";
+  import { fadeInCurve, fadeOutCurve } from "../audio/fades";
+  import { FADE_MASK_POINTS, fadeMaskPolygon, formatTime, timeToPx } from "./geometry";
   import { hitTestClip, type ClipZone } from "./hit-test";
   import Waveform from "./Waveform.svelte";
 
   const { clip, trackId, heightPx }: { clip: Clip; trackId: string; heightPx: number } = $props();
+
+  // Sampled from the engine's own fade curves, so the overlay shows the shape that will play.
+  const fadeInMask = $derived(fadeMaskPolygon(fadeInCurve(clip.fadeShape, FADE_MASK_POINTS)));
+  const fadeOutMask = $derived(fadeMaskPolygon(fadeOutCurve(clip.fadeShape, FADE_MASK_POINTS)));
 
   const x = $derived(timeToPx(clip.startS, appState.scrollS, appState.pxPerSecond));
   const w = $derived(clip.durS * appState.pxPerSecond);
@@ -69,19 +74,20 @@
     gain={clip.gain}
   />
 
-  <!-- Fade overlays: triangles standing in for the gain ramp, drawn over the waveform. -->
+  <!-- Fade overlays: the shaded area is what the fade takes away, traced from the real gain
+       curve — linear stays a triangle, equal-power bows, exponential sags. -->
   {#if clip.fadeInS > 0}
     <div
       class="pointer-events-none absolute inset-y-0 left-0 bg-neutral-900/60"
       style="width: {clip.fadeInS * appState.pxPerSecond}px;
-             clip-path: polygon(0 0, 100% 0, 0 100%)"
+             clip-path: {fadeInMask}"
     ></div>
   {/if}
   {#if clip.fadeOutS > 0}
     <div
       class="pointer-events-none absolute inset-y-0 right-0 bg-neutral-900/60"
       style="width: {clip.fadeOutS * appState.pxPerSecond}px;
-             clip-path: polygon(100% 0, 100% 100%, 0 0)"
+             clip-path: {fadeOutMask}"
     ></div>
   {/if}
 

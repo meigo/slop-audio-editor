@@ -113,3 +113,23 @@ export function rulerTicks(
   }
   return out;
 }
+
+/** Points sampled into a fade's `clip-path`. Enough that equal-power's bow reads as a curve, few
+ *  enough that the inline style stays small — the audio curve uses `FADE_CURVE_POINTS` (128). */
+export const FADE_MASK_POINTS = 24;
+
+/** CSS `polygon()` shading the part of a clip a fade attenuates: the region under `1 - gain`.
+ *
+ *  Takes the gain curve rather than a shape name so the overlay is sampled from the SAME function
+ *  the engine hands to `setValueCurveAtTime` — the picture cannot drift from the audio, the way
+ *  preview and export cannot drift because both run `planSchedule`. A linear fade reduces to the
+ *  plain triangle this replaced, so that case is unchanged by construction. */
+export function fadeMaskPolygon(curve: Float32Array): string {
+  const n = curve.length;
+  const pts = ["0% 0%", "100% 0%"];
+  for (let i = n - 1; i >= 0; i--) {
+    const x = n === 1 ? 0 : (i / (n - 1)) * 100;
+    pts.push(`${x.toFixed(2)}% ${((1 - curve[i]) * 100).toFixed(2)}%`);
+  }
+  return `polygon(${pts.join(", ")})`;
+}

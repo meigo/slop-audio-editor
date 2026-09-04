@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
-  dbToGain, dbToPosition, formatDb, formatTime, gainToDb, positionToDb, pxToTime, rulerTicks,
-  snapTime, timeToPx,
+  dbToGain, dbToPosition, fadeMaskPolygon, formatDb, formatTime, gainToDb, positionToDb, pxToTime,
+  rulerTicks, snapTime, timeToPx,
 } from "./geometry";
+import { fadeInCurve, fadeOutCurve } from "../audio/fades";
 
 describe("timeToPx / pxToTime", () => {
   it("converts with scroll and zoom applied", () => {
@@ -134,5 +135,52 @@ describe("rulerTicks", () => {
 
   it("returns nothing for an inverted window", () => {
     expect(rulerTicks(10, 5, 60)).toEqual([]);
+  });
+});
+
+describe("fadeMaskPolygon", () => {
+  /** The y of the mask edge at normalised x, parsed back out of the polygon string. */
+  const edgeAt = (poly: string, x: number): number => {
+    const pts = poly
+      .slice("polygon(".length, -1)
+      .split(", ")
+      .map((p) => p.split(" ").map((v) => parseFloat(v)) as [number, number]);
+    // Skip the two anchor points that form the y = 0 base; the traced curve edge follows them,
+    // and shares x values with them at both ends.
+    const hit = pts.slice(2).find(([px]) => Math.abs(px - x * 100) < 0.01);
+    if (!hit) throw new Error(`no point at x=${x * 100}% in ${poly}`);
+    return hit[1];
+  };
+
+  it("reduces to today's straight triangle for a linear fade in", () => {
+    // Every sampled point must sit on the diagonal y = 100 - x.
+    const poly = fadeMaskPolygon(fadeInCurve("linear", 5));
+    for (const x of [0, 0.25, 0.5, 0.75, 1]) {
+      expect(edgeAt(poly, x)).toBeCloseTo(100 - x * 100, 4);
+    }
+  });
+
+  it("bows away from the diagonal for equal power", () => {
+    // gain = sin(pi/4) = 0.7071 at the midpoint, so the mask edge sits at 29.29%, not 50%.
+    expect(edgeAt(fadeMaskPolygon(fadeInCurve("equalPower", 5)), 0.5)).toBeCloseTo(29.29, 1);
+  });
+
+  it("sags below the diagonal for exponential", () => {
+    // gain = 0.5^2 = 0.25 at the midpoint, so the mask edge sits at 75%.
+    expect(edgeAt(fadeMaskPolygon(fadeInCurve("exponential", 5)), 0.5)).toBeCloseTo(75, 1);
+  });
+
+  it("gives the three shapes visibly different midpoints", () => {
+    const mid = (sh: "linear" | "equalPower" | "exponential") =>
+      edgeAt(fadeMaskPolygon(fadeInCurve(sh, 5)), 0.5);
+    const [lin, eq, exp] = [mid("linear"), mid("equalPower"), mid("exponential")];
+    expect(eq).toBeLessThan(lin);
+    expect(exp).toBeGreaterThan(lin);
+  });
+
+  it("mirrors for a fade out: full attenuation at the clip's end", () => {
+    const poly = fadeMaskPolygon(fadeOutCurve("linear", 5));
+    expect(edgeAt(poly, 0)).toBeCloseTo(0, 4);
+    expect(edgeAt(poly, 1)).toBeCloseTo(100, 4);
   });
 });
