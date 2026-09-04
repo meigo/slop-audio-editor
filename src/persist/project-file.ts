@@ -1,5 +1,5 @@
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
-import type { Project } from "../doc/document";
+import { DEFAULT_DUCK_DEPTH_DB, type Project } from "../doc/document";
 
 export const PROJECT_FILE_VERSION = 1;
 export const PROJECT_FILE_EXT = ".slopaudio";
@@ -89,6 +89,7 @@ export function unpackProject(zip: Uint8Array): { project: Project; sources: Sou
   for (const t of project.tracks) {
     if (typeof t.ducked !== "boolean") t.ducked = false;
   }
+  if (typeof project.duckDepthDb !== "number") project.duckDepthDb = DEFAULT_DUCK_DEPTH_DB;
 
   return { project, sources };
 }

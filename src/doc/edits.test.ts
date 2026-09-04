@@ -1,8 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { __resetIds, createProject, findTrack } from "./document";
 import {
-  addTrack, removeTrack, renameTrack, reorderTrack,
-  setGlue, setMasterGain, setTrackGain, setTrackMuted,
+  addTrack, removeTrack, renameTrack, reorderTrack, setDuckDepth, setGlue, setMasterGain, setTrackGain, setTrackMuted,
 } from "./edits";
 
 beforeEach(() => __resetIds());
@@ -87,5 +86,17 @@ describe("unknown ids", () => {
     expect(renameTrack(p, "nope", "x")).toBe(p);
     expect(setTrackGain(p, "nope", 0.5)).toBe(p);
     expect(reorderTrack(p, "nope", 0)).toBe(p);
+  });
+});
+
+describe("setDuckDepth", () => {
+  it("clamps to a sane range so the control cannot mute the bed or boost it", () => {
+    expect(setDuckDepth(createProject("p"), -100).duckDepthDb).toBe(-40);
+    expect(setDuckDepth(createProject("p"), 12).duckDepthDb).toBe(0);
+  });
+
+  it("returns the same project for a no-op, so no undo entry is created", () => {
+    const p = createProject("p");
+    expect(setDuckDepth(p, p.duckDepthDb)).toBe(p);
   });
 });

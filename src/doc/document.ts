@@ -5,6 +5,9 @@ export const PROJECT_SAMPLE_RATE = 48000;
 /** A clip may never be trimmed shorter than this. Zero would be an invisible draggable edge. */
 export const MIN_CLIP_S = 0.01;
 export const PEAK_SAMPLES_PER_PAIR = 256;
+/** Default depth for background ducking, dB. Mirrors `audio/ducking.ts` — kept here so the
+ *  document module has no dependency on the audio layer. */
+export const DEFAULT_DUCK_DEPTH_DB = -12;
 
 export type FadeShape = "linear" | "equalPower" | "exponential";
 
@@ -44,6 +47,9 @@ export interface Project {
   masterGain: number;
   /** "Glue": band-limits and gently compresses the master to cohere sources — see render.ts. */
   glue: boolean;
+  /** How far tracks marked `ducked` dip, in dB. One value for the whole project: the feature is
+   *  meant to stay a single toggle plus a single strength, not a per-track mixer. 0 disables it. */
+  duckDepthDb: number;
 }
 
 let idCounter = 0;
@@ -78,7 +84,13 @@ export function createTrack(name: string): Track {
 }
 
 export function createProject(name = "Untitled"): Project {
-  return { name, tracks: [createTrack("Track 1")], masterGain: 1, glue: false };
+  return {
+    name,
+    tracks: [createTrack("Track 1")],
+    masterGain: 1,
+    glue: false,
+    duckDepthDb: DEFAULT_DUCK_DEPTH_DB,
+  };
 }
 
 export function clipEndS(c: Clip): number {

@@ -4,7 +4,7 @@
     Redo2, Repeat, Save, Scale, Scissors, Square, Undo2, Upload,
   } from "@lucide/svelte";
   import { createProject } from "../doc/document";
-  import { addTrack, setGlue, setMasterGain, splitAt } from "../doc/edits";
+  import { addTrack, setDuckDepth, setGlue, setMasterGain, splitAt } from "../doc/edits";
   import { openProjectFile, pruneUnreferencedSources, saveProjectFile } from "../persist/project-io.svelte";
   import {
     amend, beginGesture, canRedoNow, canUndoNow, clearPlayRange, commit, currentTrackId,
@@ -13,6 +13,7 @@
     setPlayIn, setPlayOut, state as appState, togglePlay, undoEdit,
   } from "../state/appState.svelte";
   import ExportDialog from "./ExportDialog.svelte";
+  import NumberField from "./NumberField.svelte";
   import Meter from "./Meter.svelte";
   import Fader from "./Fader.svelte";
   import { formatTime } from "./geometry";
@@ -173,6 +174,22 @@
       onchange={(e) => commit((p) => setGlue(p, e.currentTarget.checked))}
     /> Glue
   </label>
+
+  <!-- Only while a track is actually marked D: an always-visible control for a feature nobody in
+       this project is using is just clutter, and its appearance next to the toggle teaches what
+       the toggle does. -->
+  {#if appState.project.tracks.some((t) => t.ducked)}
+    <div class="flex items-center gap-1 text-xs">
+      <NumberField
+        label="duck"
+        value={appState.project.duckDepthDb}
+        min={-40}
+        suffix="dB"
+        title="How far background (D) tracks dip while another track plays. 0 dB turns ducking off."
+        onCommit={(v) => commit((p) => setDuckDepth(p, v))}
+      />
+    </div>
+  {/if}
 
   <button class={BTN} title="Set every clip's gain so all clips play at the same loudness. Non-destructive: it only changes clip gain, and undo reverses it." onclick={matchLoudness}>
     <Scale size={16} />

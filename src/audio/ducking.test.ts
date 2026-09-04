@@ -60,11 +60,38 @@ describe("planDucking", () => {
     const pts = planDucking(p, 0, 20).get(p.tracks[0].id)!;
     expect(pts).toEqual([
       { t: 0, gain: 1 },
-      { t: 2, gain: 1 },
-      { t: 2 + DUCK_ATTACK_S, gain: DUCK_GAIN },
+      { t: 2 - DUCK_ATTACK_S, gain: 1 },
+      { t: 2, gain: DUCK_GAIN },
       { t: 5, gain: DUCK_GAIN },
       { t: 5 + DUCK_RELEASE_S, gain: 1 },
     ]);
+  });
+
+  // The attack RAMP happens before the voice, so the bed is already down at the voice's first
+  // sample. A real-time sidechain cannot do this without lookahead latency; computing the
+  // envelope from clip positions can, for free.
+  it("is already at full depth when the foreground starts, not still ramping into it", () => {
+    const p = project([[2, 3]]);
+    const pts = planDucking(p, 0, 20).get(p.tracks[0].id)!;
+    const atVoiceStart = pts.find((pt) => pt.t === 2)!;
+    expect(atVoiceStart.gain).toBeCloseTo(DUCK_GAIN, 10);
+  });
+
+  it("clamps the pre-roll at the timeline start rather than emitting a negative time", () => {
+    const p = project([[0.02, 3]]); // less than one attack from t = 0
+    const pts = planDucking(p, 0, 20).get(p.tracks[0].id)!;
+    expect(pts.every((pt) => pt.t >= 0)).toBe(true);
+  });
+
+  it("uses the project's duck depth", () => {
+    const p = { ...project([[2, 3]]), duckDepthDb: -6 };
+    const pts = planDucking(p, 0, 20).get(p.tracks[0].id)!;
+    expect(Math.min(...pts.map((x) => x.gain))).toBeCloseTo(10 ** (-6 / 20), 10);
+  });
+
+  it("emits no envelope at all when the depth is 0 dB — nothing to do", () => {
+    const p = { ...project([[2, 3]]), duckDepthDb: 0 };
+    expect(planDucking(p, 0, 20).size).toBe(0);
   });
 
   it("never emits an envelope for a muted ducked track", () => {

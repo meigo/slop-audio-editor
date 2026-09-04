@@ -1,10 +1,12 @@
-import { clipEndS, type Project } from "../doc/document";
+import { clipEndS, DEFAULT_DUCK_DEPTH_DB, type Project } from "../doc/document";
 
 /** How far a background track dips while something else is playing. Fixed, like Glue's settings:
  *  the feature is a single toggle, and -12 dB is the common broadcast starting point — clearly
  *  audible ducking without the bed vanishing. */
-export const DUCK_DEPTH_DB = -12;
-export const DUCK_GAIN = 10 ** (DUCK_DEPTH_DB / 20);
+/** The depth is adjustable, but the TIMING is not: attack and release are the part that has a
+ *  right answer, and exposing them would be four knobs for a feature that earns its keep by
+ *  being one toggle. */
+export const DUCK_GAIN = 10 ** (DEFAULT_DUCK_DEPTH_DB / 20);
 export const DUCK_ATTACK_S = 0.08;
 export const DUCK_RELEASE_S = 0.4;
 
@@ -50,12 +52,16 @@ export function foregroundSpans(p: Project): Span[] {
 
 /** Absolute-time breakpoints of the envelope produced by `spans`. Because spans are merged when
  *  closer than attack + release, these are always strictly increasing in time. */
-function breakpoints(spans: readonly Span[]): DuckPoint[] {
+function breakpoints(spans: readonly Span[], duckGain: number): DuckPoint[] {
   const pts: DuckPoint[] = [];
   for (const s of spans) {
-    pts.push({ t: s.fromS, gain: 1 });
-    pts.push({ t: s.fromS + DUCK_ATTACK_S, gain: DUCK_GAIN });
-    pts.push({ t: s.toS, gain: DUCK_GAIN });
+    // The attack ramp sits BEFORE the span, so full depth is reached at the foreground's first
+    // sample rather than 80 ms into it — the consonant that carries the word would otherwise land
+    // over an undipped bed. A real-time sidechain would need a lookahead buffer (and the latency
+    // that costs) to do this; reading clip positions from the document gets it for nothing.
+    pts.push({ t: Math.max(0, s.fromS - DUCK_ATTACK_S), gain: 1 });
+    pts.push({ t: s.fromS, gain: duckGain });
+    pts.push({ t: s.toS, gain: duckGain });
     pts.push({ t: s.toS + DUCK_RELEASE_S, gain: 1 });
   }
   return pts;
@@ -91,7 +97,10 @@ export function planDucking(p: Project, fromS: number, toS: number): Map<string,
   const ducked = p.tracks.filter((t) => t.ducked && !t.muted);
   if (ducked.length === 0) return out;
 
-  const pts = breakpoints(foregroundSpans(p));
+  const depthDb = p.duckDepthDb ?? DEFAULT_DUCK_DEPTH_DB;
+  if (depthDb >= 0) return out; // 0 dB means "no ducking" — build nothing rather than a flat line
+
+  const pts = breakpoints(foregroundSpans(p), 10 ** (depthDb / 20));
   if (pts.length === 0) return out;
 
   // A window opening mid-duck starts already down, rather than ramping from unity — otherwise

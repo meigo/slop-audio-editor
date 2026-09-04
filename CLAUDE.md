@@ -338,6 +338,14 @@ src/
     The envelope is applied to a SEPARATE `duckGain` node, never to the track's own gain node:
     writing it onto `trackGain` would fight `setTrackGain`, so riding the fader mid-playback (the
     "mix" gesture, Gotcha 8) would cancel the ducking or be cancelled by it.
+    The attack ramp sits BEFORE each foreground span, so the bed is at full depth on the voice's
+    first sample rather than still ramping 80 ms into it — the consonant that carries the word
+    would otherwise land over an undipped bed. A real-time sidechain needs a lookahead buffer (and
+    its latency) to do this; reading clip positions from the document gets it free. Attack and
+    release stay asymmetric on purpose (80 ms down, 400 ms up): symmetric ramps sound mechanical.
+    The DEPTH is `project.duckDepthDb` (default -12, clamped to [-40, 0], 0 meaning off) and is
+    the only exposed parameter — the timing is the part with a right answer. Its control appears
+    in the toolbar only while some track is marked D.
     Foreground spans closer together than attack + release are merged, so the bed does not pump
     back up during a breath between two sentences. And the duck is drawn on the ducked clips
     (`envelopeMaskPolygon`) in the same green as the header's `D` toggle — same principle as

@@ -61,6 +61,12 @@ export function setMasterGain(p: Project, gain: number): Project {
   return g === p.masterGain ? p : { ...p, masterGain: g };
 }
 
+/** Project-wide ducking depth in dB; 0 turns ducking off without clearing any track's D flag. */
+export function setDuckDepth(p: Project, db: number): Project {
+  const d = Math.max(-40, Math.min(0, db));
+  return p.duckDepthDb === d ? p : { ...p, duckDepthDb: d };
+}
+
 export function setGlue(p: Project, glue: boolean): Project {
   return glue === p.glue ? p : { ...p, glue };
 }
