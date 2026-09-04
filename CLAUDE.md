@@ -174,6 +174,23 @@ src/
     is raised just above it — high enough to silence that specific unactionable warning, low enough
     that a real regression (the *entry* chunk ballooning past 700 kB) still gets caught.
 
+11. **`integratedLoudness` (`src/audio/loudness.ts`) is a faithful, uncorrected BS.1770 meter; the
+    mono/stereo playback correction lives one layer up, in `pool.ts`'s `computeLoudnessChunked`.**
+    BS.1770 sums per-channel power at G=1.0, so it genuinely (and correctly) measures a stereo
+    signal with identical L/R content as 10·log10(2) ≈ 3.01 dB louder than the same content in
+    mono — this is pinned by a test in `loudness.test.ts` and must stay that way, since it's what
+    the −20 LUFS compliance test in the same file is proving faithful to. But Web Audio upmixes a
+    mono buffer to stereo by **duplication, not attenuation** (the default "speakers" channel
+    interpretation), and this app always renders stereo (`AudioContext`'s default destination,
+    `OfflineAudioContext(2, …)` for export) — so a mono file and its dual-mono equivalent sound
+    **identical** through this app despite that 3.01 dB measurement gap. `computeLoudnessChunked`
+    corrects for this by measuring a mono channel as dual-mono (see its own test asserting
+    `computeLoudnessChunked([ch])` ≈ `computeLoudnessChunked([ch, ch])`). Why it matters: moving
+    that correction into `integratedLoudness` itself would make it a non-faithful implementation of
+    the standard and break its own compliance test; leaving it out of `computeLoudnessChunked`
+    would make "Match loudness" systematically over-boost every mono clip by ~3 dB in exactly the
+    kind of mixed mono/stereo project the feature exists for.
+
 ## Testing
 
 Vitest, `node` environment, no DOM (`src/**/*.test.ts`, see `vite.config.ts`). Pure logic

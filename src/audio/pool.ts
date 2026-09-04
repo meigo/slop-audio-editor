@@ -105,13 +105,25 @@ export async function computeLoudnessChunked(
     await new Promise((r) => setTimeout(r, 0));
   }
 
+  // Web Audio upmixes a mono buffer to stereo by DUPLICATION (L = R = input) under the default
+  // "speakers" channel interpretation, and this app always renders stereo (AudioContext's default
+  // destination, OfflineAudioContext(2, …) for export) — so a mono file and its dual-mono stereo
+  // equivalent sound IDENTICAL here, even though `integratedLoudness` (a faithful, uncorrected
+  // BS.1770 meter — see its own tests) measures them 3.01 dB apart, since the standard SUMS
+  // per-channel power at G=1.0 rather than averaging. Measuring the raw mono channel alone would
+  // under-report what will actually be heard, so "Match loudness" would over-boost every mono clip
+  // by ~3 dB in a project that mixes mono and stereo sources — precisely the situation this feature
+  // exists for. `weighted[0]` is referenced twice below, never duplicated, so this costs no extra
+  // memory even on a long file.
+  const measured = weighted.length === 1 ? [weighted[0], weighted[0]] : weighted;
+
   const numBlocks = Math.floor((n - blockSize) / hop) + 1;
   const blockPowers = new Array<number>(numBlocks);
   for (let i = 0; i < numBlocks; i += BLOCKS_PER_CHUNK) {
     const end = Math.min(numBlocks, i + BLOCKS_PER_CHUNK);
     for (let b = i; b < end; b++) {
       const s = b * hop;
-      blockPowers[b] = weightedBlockPower(weighted, s, s + blockSize);
+      blockPowers[b] = weightedBlockPower(measured, s, s + blockSize);
     }
     onProgress?.(0.5 + (end / numBlocks) * 0.5);
     await new Promise((r) => setTimeout(r, 0));

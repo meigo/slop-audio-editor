@@ -113,4 +113,13 @@ describe("computeLoudnessChunked", () => {
   it("returns -Infinity rather than throwing for input shorter than one 400 ms block", async () => {
     expect(await computeLoudnessChunked([sine(997, 0.5, 0.1)], PROJECT_SAMPLE_RATE)).toBe(-Infinity);
   });
+
+  it("upmixes mono to dual-mono before measuring, matching Web Audio's own mono->stereo playback upmix (duplication, not attenuation) — removing that upmix would reopen the naked BS.1770 gap and make a mono measurement read 10*log10(2) (~3.01 dB) quieter than its dual-mono equivalent", async () => {
+    // Long enough (45 s) to span multiple K-weight and block chunk boundaries, so the upmix has to
+    // survive chunking, not just work on a single-chunk input.
+    const ch = sine(997, 0.05, 45);
+    const mono = await computeLoudnessChunked([ch], PROJECT_SAMPLE_RATE);
+    const dualMono = await computeLoudnessChunked([ch, ch], PROJECT_SAMPLE_RATE);
+    expect(mono).toBeCloseTo(dualMono, 2); // within 0.01 dB
+  });
 });

@@ -34,12 +34,20 @@ describe("integratedLoudness", () => {
     expect(integratedLoudness([short], SAMPLE_RATE)).toBe(-Infinity);
   });
 
-  it("sums per-channel power rather than averaging: identical-channel stereo reads 10*log10(2) louder than mono", () => {
+  it("PINNED BS.1770 behavior — sums per-channel power rather than averaging: identical-channel stereo reads 10*log10(2) louder than mono. This gap is real and intentional AT THIS LAYER; pool.ts's computeLoudnessChunked corrects for it one layer up (see its dual-mono upmix), it must not be papered over here", () => {
     // BS.1770 weights L and R at G=1.0 each and SUMS the weighted power across channels, so a
     // stereo signal with the same content in both channels is genuinely louder (not just as loud)
     // as a single mono channel of that content — this is a deliberate, well-documented property of
     // the standard, not an artifact. An implementation that mistakenly averages channels instead of
     // summing them would report the stereo case as equal to the mono case; this test catches that.
+    //
+    // `integratedLoudness` stays a FAITHFUL, uncorrected BS.1770 meter — that's what its -20 LUFS
+    // compliance test above proves. Web Audio's own mono->stereo upmix (duplication, not
+    // attenuation) is a playback-context fact this module has no business knowing about; the
+    // correction for it lives at the call site that does know, `computeLoudnessChunked` in
+    // `pool.ts` (see its "matches its own dual-mono upmix" test). Moving the correction in here
+    // would make THIS test wrongly expect equality and would break the -20 LUFS compliance test's
+    // claim to be a faithful implementation of the standard.
     const ch = sine(997, 0.1 * Math.sqrt(2), 4);
     const mono = integratedLoudness([ch], SAMPLE_RATE);
     const stereo = integratedLoudness([ch, ch], SAMPLE_RATE);
