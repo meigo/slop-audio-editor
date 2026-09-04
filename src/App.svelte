@@ -10,7 +10,9 @@
   import TrackLane from "./lib/TrackLane.svelte";
   import { PROJECT_FILE_EXT } from "./persist/project-file";
   import { openProjectFile, restoreAutosave, saveProjectFile } from "./persist/project-io.svelte";
-  import { importFiles, markRestoreSettled, state as appState } from "./state/appState.svelte";
+  import {
+    currentTrackId, importFiles, markRestoreSettled, state as appState,
+  } from "./state/appState.svelte";
 
   /** Left column holding track headers. Fixed so the ruler and lanes share one x origin. */
   const HEADER_W = 176;
@@ -32,6 +34,14 @@
       .finally(() => markRestoreSettled());
   });
 
+  /** Drop targets the track under the cursor — pointing at a track IS the instruction — falling
+   *  back to the resolved current track when the drop lands outside any lane (e.g. on the ruler
+   *  or the header column). */
+  function dropTargetTrackId(e: DragEvent): string {
+    const el = document.elementFromPoint(e.clientX, e.clientY)?.closest("[data-track-id]");
+    return (el as HTMLElement | null)?.dataset.trackId ?? currentTrackId();
+  }
+
   async function onDrop(e: DragEvent) {
     e.preventDefault();
     const files = Array.from(e.dataTransfer?.files ?? []);
@@ -39,7 +49,7 @@
     const projectFile = files.find((f) => f.name.endsWith(PROJECT_FILE_EXT));
     try {
       if (projectFile) await openProjectFile(projectFile);
-      else await importFiles(files, appState.project.tracks[0].id, appState.playheadS);
+      else await importFiles(files, dropTargetTrackId(e), appState.playheadS);
     } catch (err) {
       loadError = err instanceof Error ? err.message : String(err);
     }

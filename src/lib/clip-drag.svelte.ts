@@ -2,7 +2,7 @@ import { findClip, projectDurationS, type Project } from "../doc/document";
 import { moveClips, setClipFade, trimClipEnd, trimClipStart } from "../doc/edits";
 import { editPoints, NO_SELECTION } from "../doc/selection";
 import {
-  amend, beginGesture, endGesture, pool, state as appState,
+  amend, beginGesture, endGesture, pool, setCurrentTrack, state as appState,
 } from "../state/appState.svelte";
 import { pxToTime, snapTime } from "./geometry";
 import type { ClipZone } from "./hit-test";
@@ -31,9 +31,10 @@ function snapCandidates(p: Project, movingIds: readonly string[]): number[] {
  * move event so toggling Shift mid-drag takes effect immediately, rather than latching whatever
  * state held at pointer-down.
  */
-export function startClipDrag(e: PointerEvent, clipId: string, zone: ClipZone): void {
+export function startClipDrag(e: PointerEvent, clipId: string, trackId: string, zone: ClipZone): void {
   const target = e.currentTarget as HTMLElement;
   target.setPointerCapture(e.pointerId);
+  setCurrentTrack(trackId);
 
   const startX = e.clientX;
   const startY = e.clientY;
@@ -112,6 +113,7 @@ export function startRangeDrag(e: PointerEvent, trackId: string): void {
   const startY = e.clientY;
   const anchorS = pxToTime(e.clientX - rect.left, appState.scrollS, appState.pxPerSecond);
   const anchorIndex = appState.project.tracks.findIndex((t) => t.id === trackId);
+  setCurrentTrack(trackId);
   appState.selection = NO_SELECTION;
   target.setPointerCapture(e.pointerId);
 

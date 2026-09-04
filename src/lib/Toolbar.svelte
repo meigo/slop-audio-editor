@@ -7,8 +7,9 @@
   import { addTrack, setGlue, setMasterGain, splitAt } from "../doc/edits";
   import { openProjectFile, pruneUnreferencedSources, saveProjectFile } from "../persist/project-io.svelte";
   import {
-    amend, beginGesture, canRedoNow, canUndoNow, commit, endGesture, engine, importFiles,
-    matchLoudness, pool, redoEdit, seekTo, selectedTrackIds, state as appState, togglePlay, undoEdit,
+    amend, beginGesture, canRedoNow, canUndoNow, commit, currentTrackId, endGesture, engine,
+    importFiles, matchLoudness, pool, redoEdit, seekTo, selectedTrackIds, state as appState,
+    togglePlay, undoEdit,
   } from "../state/appState.svelte";
   import ExportDialog from "./ExportDialog.svelte";
   import Fader from "./Fader.svelte";
@@ -97,7 +98,7 @@
       e.currentTarget.value = ""; // reset after copying, so re-picking the same file still works
       if (files.length === 0) return;
       try {
-        await importFiles(files, appState.project.tracks[0].id, appState.playheadS);
+        await importFiles(files, currentTrackId(), appState.playheadS);
       } catch (err) {
         // A decode or autosave-write failure must be visible here, not console-only: this is the
         // main way audio enters the app, and the user needs to know if what they just imported

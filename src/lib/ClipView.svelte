@@ -6,7 +6,7 @@
   import { hitTestClip, type ClipZone } from "./hit-test";
   import Waveform from "./Waveform.svelte";
 
-  const { clip, heightPx }: { clip: Clip; heightPx: number } = $props();
+  const { clip, trackId, heightPx }: { clip: Clip; trackId: string; heightPx: number } = $props();
 
   const x = $derived(timeToPx(clip.startS, appState.scrollS, appState.pxPerSecond));
   const w = $derived(clip.durS * appState.pxPerSecond);
@@ -45,7 +45,7 @@
           ? current
           : [clip.id],
     };
-    startClipDrag(e, clip.id, z);
+    startClipDrag(e, clip.id, trackId, z);
   }
 </script>
 

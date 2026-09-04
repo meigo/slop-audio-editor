@@ -5,8 +5,9 @@
   } from "../doc/edits";
   import { editPoints, nextEditPoint, prevEditPoint, NO_SELECTION } from "../doc/selection";
   import {
-    clearPlayRange, commit, copySelection, cutSelection, pasteAtPlayhead, redoEdit, seekTo,
-    selectedTrackIds, setPlayIn, setPlayOut, state as appState, toggleSolo, togglePlay, undoEdit,
+    clearPlayRange, commit, copySelection, currentTrackId, cutSelection, pasteAtPlayhead,
+    redoEdit, seekTo, selectedTrackIds, setPlayIn, setPlayOut, state as appState, toggleSolo,
+    togglePlay, undoEdit,
   } from "../state/appState.svelte";
   import { resolveShortcut } from "./shortcuts";
 
@@ -16,10 +17,6 @@
   function isTextTarget(t: EventTarget | null): boolean {
     const el = t as HTMLElement | null;
     return !!el && (el.tagName === "INPUT" || el.tagName === "SELECT" || el.isContentEditable);
-  }
-
-  function firstTrackId(): string {
-    return selectedTrackIds()[0] ?? appState.project.tracks[0].id;
   }
 
   function onKeyDown(e: KeyboardEvent) {
@@ -37,12 +34,12 @@
         appState.loop = !appState.loop;
         return;
       case "toggleMute": {
-        const id = firstTrackId();
+        const id = currentTrackId();
         const muted = appState.project.tracks.find((t) => t.id === id)?.muted ?? false;
         return commit((p) => setTrackMuted(p, id, !muted));
       }
       case "toggleSolo":
-        return toggleSolo(firstTrackId());
+        return toggleSolo(currentTrackId());
       case "setIn":
         return setPlayIn();
       case "setOut":
@@ -66,10 +63,10 @@
       case "cut":
         return cutSelection();
       case "paste":
-        return pasteAtPlayhead(firstTrackId());
+        return pasteAtPlayhead();
       case "duplicate":
         copySelection();
-        return pasteAtPlayhead(firstTrackId());
+        return pasteAtPlayhead();
       case "undo":
         return undoEdit();
       case "redo":

@@ -2,11 +2,14 @@
   import type { Track } from "../doc/document";
   import { renameTrack, setTrackGain, setTrackMuted } from "../doc/edits";
   import {
-    amend, beginGesture, commit, endGesture, engine, state as appState, toggleSolo,
+    amend, beginGesture, commit, currentTrackId, endGesture, engine, setCurrentTrack,
+    state as appState, toggleSolo,
   } from "../state/appState.svelte";
   import Fader from "./Fader.svelte";
 
   const { track }: { track: Track } = $props();
+
+  const isCurrent = $derived(currentTrackId() === track.id);
 
   let renaming = $state(false);
   let nameInput = $state<HTMLInputElement | null>(null);
@@ -35,9 +38,14 @@
   }
 </script>
 
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<!-- svelte-ignore a11y_click_events_have_key_events -->
 <div
-  class="flex flex-col justify-between border-b border-neutral-800 px-2 py-1"
+  class="flex flex-col justify-between border-b border-l-2 border-neutral-800 px-2 py-1"
+  class:border-l-transparent={!isCurrent}
+  class:border-l-violet-400={isCurrent}
   style="height: {appState.trackHeightPx}px"
+  onclick={() => setCurrentTrack(track.id)}
 >
   <div class="flex items-center gap-1">
     {#if renaming}

@@ -15,6 +15,6 @@
   onpointerdown={(e) => startRangeDrag(e, track.id)}
 >
   {#each track.clips as clip (clip.id)}
-    <ClipView {clip} heightPx={appState.trackHeightPx} />
+    <ClipView {clip} trackId={track.id} heightPx={appState.trackHeightPx} />
   {/each}
 </div>
