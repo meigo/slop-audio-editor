@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  dbToGain, formatDb, formatTime, gainToDb, pxToTime, rulerTicks, snapTime, timeToPx,
+  dbToGain, dbToPosition, formatDb, formatTime, gainToDb, positionToDb, pxToTime, rulerTicks,
+  snapTime, timeToPx,
 } from "./geometry";
 
 describe("timeToPx / pxToTime", () => {
@@ -72,6 +73,46 @@ describe("gain and dB", () => {
     expect(formatDb(1)).toBe("0.0 dB");
     expect(formatDb(0.5)).toBe("−6.0 dB");
     expect(formatDb(2)).toBe("+6.0 dB");
+  });
+});
+
+describe("positionToDb / dbToPosition (fader taper)", () => {
+  it("maps each breakpoint exactly", () => {
+    expect(positionToDb(0)).toBe(-Infinity);
+    expect(positionToDb(0.25)).toBe(-30);
+    expect(positionToDb(0.5)).toBe(-12);
+    expect(positionToDb(0.75)).toBe(0);
+    expect(positionToDb(1)).toBe(12);
+
+    expect(dbToPosition(-30)).toBeCloseTo(0.25, 9);
+    expect(dbToPosition(-12)).toBeCloseTo(0.5, 9);
+    expect(dbToPosition(0)).toBeCloseTo(0.75, 9);
+    expect(dbToPosition(12)).toBeCloseTo(1, 9);
+  });
+
+  it("position 0 is exactly silence, -Infinity dB", () => {
+    expect(positionToDb(0)).toBe(-Infinity);
+  });
+
+  it("is monotonically increasing across the range", () => {
+    let prev = -Infinity;
+    for (let p = 0; p <= 1; p += 0.01) {
+      const db = positionToDb(p);
+      expect(db).toBeGreaterThanOrEqual(prev);
+      prev = db;
+    }
+  });
+
+  it("round-trips position -> dB -> position within 1e-9", () => {
+    for (let p = 0; p <= 1; p += 0.03) {
+      expect(dbToPosition(positionToDb(p))).toBeCloseTo(p, 9);
+    }
+  });
+
+  it("clamps dB beyond the ends to position 0 and 1", () => {
+    expect(dbToPosition(-1000)).toBe(0);
+    expect(dbToPosition(-Infinity)).toBe(0);
+    expect(dbToPosition(1000)).toBe(1);
   });
 });
 

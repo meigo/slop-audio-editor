@@ -42,6 +42,50 @@ export function dbToGain(db: number): number {
   return Math.pow(10, db / 20);
 }
 
+/** Fader taper breakpoints — piecewise-linear in dB, so the useful range near unity gets most of
+ *  the travel instead of a straight dB-per-pixel line burying it in the bottom half. `position`
+ *  0 is a special case (handled outside this table): exact silence, -Infinity dB. The `db: -60`
+ *  entry here is the limit the curve approaches as position -> 0 from above, not the value AT 0. */
+const FADER_BREAKPOINTS: readonly { position: number; db: number }[] = [
+  { position: 0, db: -60 },
+  { position: 0.25, db: -30 },
+  { position: 0.5, db: -12 },
+  { position: 0.75, db: 0 },
+  { position: 1, db: 12 },
+];
+
+/** Fader position (0..1) to dB. Piecewise-linear in dB so the useful range gets most of the
+ *  travel. Position 0 is exact silence, -Infinity dB. */
+export function positionToDb(position: number): number {
+  if (position <= 0) return -Infinity;
+  const p = Math.min(1, position);
+  for (let i = 1; i < FADER_BREAKPOINTS.length; i++) {
+    const a = FADER_BREAKPOINTS[i - 1];
+    const b = FADER_BREAKPOINTS[i];
+    if (p <= b.position) {
+      const t = (p - a.position) / (b.position - a.position);
+      return a.db + t * (b.db - a.db);
+    }
+  }
+  return FADER_BREAKPOINTS[FADER_BREAKPOINTS.length - 1].db;
+}
+
+export function dbToPosition(db: number): number {
+  const lo = FADER_BREAKPOINTS[0];
+  const hi = FADER_BREAKPOINTS[FADER_BREAKPOINTS.length - 1];
+  if (db <= lo.db) return lo.position;
+  if (db >= hi.db) return hi.position;
+  for (let i = 1; i < FADER_BREAKPOINTS.length; i++) {
+    const a = FADER_BREAKPOINTS[i - 1];
+    const b = FADER_BREAKPOINTS[i];
+    if (db <= b.db) {
+      const t = (db - a.db) / (b.db - a.db);
+      return a.position + t * (b.position - a.position);
+    }
+  }
+  return hi.position;
+}
+
 export function formatDb(gain: number): string {
   const db = gainToDb(gain);
   if (!Number.isFinite(db)) return "−∞ dB";
