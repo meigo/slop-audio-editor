@@ -460,7 +460,10 @@ src/
     and competes with the media. `hitTestRuler`'s grab threshold is independent of how wide the
     marker is drawn, so the target stayed easy to hit when the line got thinner.
     `:root` also sets `color-scheme: dark` and `accent-color`: checkboxes, range thumbs and
-    scrollbars are drawn by the browser and would otherwise keep the OS light palette.
+    scrollbars are drawn by the browser and would otherwise keep the OS light palette. The FOCUS
+    RING needs its own rule — `accent-color` does not reach it — so a global `:focus-visible`
+    restates it in `--color-accent`; without it Chrome draws a pale OS blue that reads as a
+    foreign colour on every button.
 
 26. **Every piece of id-keyed session state must be resolved against the live project at the
     point of USE.** `currentTrackId()` does it via `resolveTrackId` (Gotcha 14); `soloed` did not,

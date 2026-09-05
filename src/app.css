@@ -56,6 +56,16 @@
   accent-color: var(--color-accent);
 }
 
+/* The browser draws its own focus ring in a light blue taken from the OS palette, which reads as
+   a foreign colour against this one. `accent-color` does not govern it — that only reaches
+   checkboxes, radios and range thumbs — so the ring has to be restated. Applied globally rather
+   than per control, since the default appears on anything focusable and a per-component rule
+   would be a list to keep in sync. */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
 html, body, #app { height: 100%; margin: 0; }
 body { overscroll-behavior: none; }
 
@@ -123,7 +133,3 @@ input[type="range"].slider::-moz-range-thumb {
   border: none;
 }
 
-input[type="range"].slider:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 2px;
-}
