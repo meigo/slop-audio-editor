@@ -21,10 +21,13 @@
      the neutral chrome rather than a lighter patch of it.
      Named media-clip, NOT clip: `bg-clip-*` is Tailwind's own background-clip namespace, so a
      `--color-clip-border` token would collide with the real `bg-clip-border` utility.
-     slop-animator carries the same warning in its theme, and it is easy to walk into anyway. */
-  --color-media-clip: #475569; /* slate-600 — 2.6:1 against ground, so a clip reads as an
-                                  object on the timeline rather than a hole in it */
-  --color-media-clip-border: #94a3b8; /* slate-400 */
+     slop-animator carries the same warning in its theme, and it is easy to walk into anyway.
+     A CUSTOM step, not a slate one: slate-700 (1.92:1) read as a hole in the near-black lane and
+     slate-600 (2.63:1) as too light, and slate has no step between them. This is hsl(215 30% 30%)
+     — landing at 2.17:1, midway — with saturation lifted from slate's 19-25% to 30%, so the clip
+     holds a little colour of its own instead of going grey at this lightness. */
+  --color-media-clip: #364963;
+  --color-media-clip-border: #94a3b8; /* slate-400 — 3.6:1 on the fill */
   /* blue-400, not blue-500: on a near-black ground the deeper blue reads as electric and
      sits oddly against the neutral chrome. 400 is calmer and clears 3:1 against the clip
      fill it has to outline (2.98:1 vs blue-500's 2.06:1). */
