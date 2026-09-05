@@ -693,6 +693,32 @@ src/
     signal-dependent correlation dither removes. `random` is injectable purely so the tests assert
     exact codes instead of statistics with loose bounds.
 
+38. **The limiter is a hand-written lookahead peak limiter on the RENDERED BUFFER, and the ceiling
+    is guaranteed by construction rather than by trusting the smoothing.** A
+    `DynamicsCompressorNode` cannot do this job: knee, soft ratio, spec-defined internal makeup
+    gain (Gotcha 12) and no lookahead mean it cannot hold a ceiling. Offline rendering is what
+    makes a proper limiter easy — a real-time one needs a delay line and pays its latency, while
+    `limiter.ts` simply reads ahead in a buffer it already holds.
+    The proof matters, because a limiter that leaks is silent clipping: `req[i]` is the gain
+    sample `i` needs; `winMin[i]` is the minimum of `req` over `[i, i+L]`; `gain[i]` is a TRAILING
+    average of `winMin` over `L`. Every term of that average is a `winMin` whose own window
+    contains `i`, so every term is `<= req[i]` and so is their mean. The release only moves the
+    gain up toward that envelope, never past it. One envelope from the loudest channel drives all
+    of them — per-channel gain would swing the stereo image on every transient.
+    **One pass cannot reach a loudness target**, because limiting removes energy and therefore
+    loudness. Measured on a high-crest mix aiming at −16 LUFS, the passes land at −19.53, −16.19,
+    −16.01 — hence `normaliseChannels` loops up to `NORMALISE_MAX_PASSES` (4), stopping within
+    `NORMALISE_TOLERANCE_DB`. With the limiter on, the normalisation gain is computed with an
+    INFINITE ceiling: capping the gain as well would leave the target unreachable, which is the
+    very thing the limiter was switched on to fix.
+    It is **opt-in and reports what it cost** (deepest reduction in dB, shown in `warn` past 6 dB).
+    Gotcha 28 says normalisation refuses to include a limiter because that would change the
+    dynamics of a mix the user monitored; the difference here is consent — a box they tick.
+    Two pieces of this were dead code found by mutation testing, not by reading: the release
+    clamp in `limitPeaks` (the release branch cannot overshoot, since `target >= g` there) and a
+    silence guard in the loop (`normalisationGain` already returns a gain of 1 for a non-finite
+    measurement, which trips the convergence break). Both removed.
+
 ## Testing
 
 Vitest, `node` environment, no DOM (`src/**/*.test.ts`, see `vite.config.ts`). Pure logic

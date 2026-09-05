@@ -3,9 +3,8 @@
   import {
     exportFilename, exportWindow, FORMAT_EXT, FORMAT_LABELS, type ExportFormat,
   } from "../export/formats";
-  import {
-    applyGain, measureMix, NORMALISE_TARGETS, normalisationGain,
-  } from "../export/normalise";
+  import { measureMix, normaliseBuffer, NORMALISE_TARGETS } from "../export/normalise";
+  import { limitBuffer } from "../export/limiter";
   import { mixdown } from "../export/mixdown";
   import { pool, state as appState } from "../state/appState.svelte";
   import { formatTime } from "./geometry";
@@ -54,6 +53,11 @@
     acknowledgedOver = false;
   });
 
+  /** Opt-in, and session-only. A limiter CHANGES THE DYNAMICS, which is exactly why
+   *  normalisation refuses to include one — the difference is that this is a box you tick. */
+  let limit = $state(false);
+  let reductionDb = $state<number | null>(null);
+
   const range = $derived(exportWindow(appState.project, appState.selection));
   const isSelection = $derived(appState.selection.kind === "range");
 
@@ -66,14 +70,17 @@
       // shared by preview and export, and a gain stage in it would make the two drift.
       const target = appState.normaliseLufs;
       if (target !== null) {
-        const before = measureMix(rendered);
-        const n = normalisationGain(before.lufs, before.peak, target);
-        applyGain(rendered, n.gain);
-        achievedLufs = Number.isFinite(n.achievedLufs) ? n.achievedLufs : null;
-        fellShort = n.limitedByPeak;
+        // Gain, then limit, then measure again — repeatedly, because limiting lowers loudness and
+        // one pass always undershoots the target.
+        const r = normaliseBuffer(rendered, target, limit);
+        achievedLufs = Number.isFinite(r.achievedLufs) ? r.achievedLufs : null;
+        fellShort = r.limitedByPeak;
+        reductionDb = limit ? r.reductionDb : null;
       } else {
         achievedLufs = null;
         fellShort = false;
+        // Limiting with no loudness target is still meaningful: it caps peaks and nothing else.
+        reductionDb = limit ? limitBuffer(rendered).maxReductionDb : null;
       }
       peakDb = measureMix(rendered).peakDbfs;
       // Stop on an over rather than silently writing a clipped file. The buffer is kept, so
@@ -150,6 +157,31 @@
         {/each}
       </select>
     </label>
+
+    <label class="mb-3 flex items-center gap-2 text-xs" title="Brick-wall limiter on the finished mix, so a loudness target can be reached instead of falling short. It changes the dynamics — that is the trade.">
+      <input
+        type="checkbox"
+        checked={limit}
+        disabled={busy}
+        onchange={(e) => {
+          limit = e.currentTarget.checked;
+          rendered = null;
+          peakDb = null;
+          achievedLufs = null;
+          reductionDb = null;
+          acknowledgedOver = false;
+        }}
+      />
+      Limit peaks
+    </label>
+
+    {#if reductionDb !== null}
+      <p class="mb-2 text-xs {reductionDb > 6 ? 'text-warn' : 'text-muted'}">
+        {reductionDb < 0.01
+          ? "Limiter did nothing — nothing reached the ceiling"
+          : `Limiter pulled down ${reductionDb.toFixed(1)} dB at its deepest`}
+      </p>
+    {/if}
 
     {#if achievedLufs !== null}
       <p class="mb-2 text-xs text-muted">

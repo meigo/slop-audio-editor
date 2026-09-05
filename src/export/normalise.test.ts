@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { NORMALISE_CEILING_DBFS, normalisationGain } from "./normalise";
+import { NORMALISE_CEILING_DBFS, normalisationGain, normaliseChannels,
+} from "./normalise";
 
 const at = (measured: number, peak: number, target: number) =>
   normalisationGain(measured, peak, target);
@@ -58,5 +59,88 @@ describe("normalisationGain", () => {
 
   it("leaves a non-finite peak alone", () => {
     expect(at(-20, 0, -16).gain).toBe(1);
+  });
+});
+
+describe("normalisationGain with the limiter on", () => {
+  // The dialog passes an infinite ceiling when limiting: take the gain the TARGET asks for and
+  // let the limiter deal with the peaks, instead of capping the gain and landing short.
+  it("reaches the target when the peak ceiling is lifted", () => {
+    const capped = normalisationGain(-30, 0.9, -16);
+    const uncapped = normalisationGain(-30, 0.9, -16, Infinity);
+
+    expect(capped.limitedByPeak).toBe(true);
+    expect(uncapped.limitedByPeak).toBe(false);
+    expect(uncapped.achievedLufs).toBeCloseTo(-16, 6);
+    expect(uncapped.gain).toBeGreaterThan(capped.gain);
+  });
+});
+
+/** A quiet body with sparse transients — high crest factor, the case gain-only normalisation
+ *  cannot solve. 4 s so the BS.1770 gating has enough 400 ms blocks to work with. */
+function highCrestMix(): Float32Array[] {
+  const SR = 48000;
+  const n = SR * 4;
+  return [0, 1].map(() => {
+    const d = new Float32Array(n);
+    for (let i = 0; i < n; i++) d[i] = 0.02 * Math.sin((2 * Math.PI * 220 * i) / SR);
+    for (let k = 0; k < 8; k++) {
+      const at = 3000 + k * 5500;
+      for (let j = 0; j < 40; j++) d[at + j] = 0.85 * Math.exp(-j / 8);
+    }
+    return d;
+  });
+}
+
+describe("normaliseChannels", () => {
+  const SR = 48000;
+  // A loop, not `Math.max(...spread)`: these buffers are 192k samples and spreading them blows
+  // the call stack.
+  const peakDb = (chs: Float32Array[]) => {
+    let peak = 0;
+    for (const c of chs) for (let i = 0; i < c.length; i++) peak = Math.max(peak, Math.abs(c[i]));
+    return 20 * Math.log10(peak);
+  };
+
+  it("falls short without the limiter, and says so", () => {
+    const ch = highCrestMix();
+    const r = normaliseChannels(ch, SR, -16, false);
+
+    expect(r.limitedByPeak).toBe(true);
+    expect(r.achievedLufs).toBeLessThan(-25); // nowhere near -16
+    expect(r.reductionDb).toBe(0); // and the dynamics are untouched
+  });
+
+  it("reaches the target with the limiter — which one pass could not", () => {
+    const ch = highCrestMix();
+    const r = normaliseChannels(ch, SR, -16, true);
+
+    expect(r.achievedLufs).toBeCloseTo(-16, 0);
+    expect(r.reductionDb).toBeGreaterThan(6); // and it cost real dynamics, which it reports
+    expect(peakDb(ch)).toBeLessThanOrEqual(-1 + 1e-6);
+  });
+
+  it("holds the ceiling however hard the target pushes", () => {
+    const ch = highCrestMix();
+    normaliseChannels(ch, SR, -6, true); // an aggressive target
+    expect(peakDb(ch)).toBeLessThanOrEqual(-1 + 1e-6);
+  });
+
+  it("does nothing to material already on target", () => {
+    const ch = highCrestMix();
+    normaliseChannels(ch, SR, -16, true);
+    const settled = ch.map((c) => Float32Array.from(c));
+
+    const again = normaliseChannels(ch, SR, -16, true);
+
+    expect(again.reductionDb).toBe(0); // no further squashing
+    expect([...ch[0]]).toEqual([...settled[0]]);
+  });
+
+  it("leaves silence alone rather than looping on an infinite gain", () => {
+    const ch = [new Float32Array(48000), new Float32Array(48000)];
+    const r = normaliseChannels(ch, SR, -16, true);
+    expect(r.reductionDb).toBe(0);
+    expect(ch[0].every((x) => x === 0)).toBe(true);
   });
 });
