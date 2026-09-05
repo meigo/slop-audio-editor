@@ -38,6 +38,27 @@ export function packProject(project: Project, sources: readonly SourceRecord[]):
   return zipSync(files);
 }
 
+/** Fill in fields added after a document was written.
+ *
+ *  Every one of these is an optional field with a well-defined default rather than a shape change,
+ *  which is why the file format has no version bump for them. It is exported because BOTH load
+ *  paths need it: a `.slopaudio` file goes through `unpackProject`, but an IndexedDB autosave does
+ *  not — it is handed to `loadInto` verbatim. Defaulting in only one of them left the autosave path
+ *  installing a document with no `eq`, which the inspector dereferences on render. */
+export function applyDocumentDefaults(project: Project): void {
+  if (typeof project.glue !== "boolean") project.glue = false;
+  if (typeof project.duckDepthDb !== "number") project.duckDepthDb = DEFAULT_DUCK_DEPTH_DB;
+  for (const t of project.tracks) {
+    if (typeof t.ducked !== "boolean") t.ducked = false;
+    const eq = t.eq as Partial<TrackEq> | undefined;
+    t.eq = {
+      lowDb: typeof eq?.lowDb === "number" ? eq.lowDb : 0,
+      midDb: typeof eq?.midDb === "number" ? eq.midDb : 0,
+      highDb: typeof eq?.highDb === "number" ? eq.highDb : 0,
+    };
+  }
+}
+
 export function unpackProject(zip: Uint8Array): { project: Project; sources: SourceRecord[] } {
   let files: Record<string, Uint8Array>;
   try {
@@ -81,23 +102,7 @@ export function unpackProject(zip: Uint8Array): { project: Project; sources: Sou
     return { id: s.id, name: s.name, bytes };
   });
 
-  // `glue` was added after the initial file format; a file saved before that has no such field.
-  // No version bump — it's an optional field with a well-defined default, not a shape change.
-  if (typeof project.glue !== "boolean") project.glue = false;
-  // Likewise `ducked`, added with background ducking. Same reasoning: optional field, well-defined
-  // default, no version bump — and defaulting it here means `planDucking` never sees `undefined`.
-  for (const t of project.tracks) {
-    if (typeof t.ducked !== "boolean") t.ducked = false;
-    // Same reasoning as `glue` and `ducked`: optional field, well-defined default, no version
-    // bump — and defaulting it here means the render graph never sees a partial `eq`.
-    const eq = t.eq as Partial<TrackEq> | undefined;
-    t.eq = {
-      lowDb: typeof eq?.lowDb === "number" ? eq.lowDb : 0,
-      midDb: typeof eq?.midDb === "number" ? eq.midDb : 0,
-      highDb: typeof eq?.highDb === "number" ? eq.highDb : 0,
-    };
-  }
-  if (typeof project.duckDepthDb !== "number") project.duckDepthDb = DEFAULT_DUCK_DEPTH_DB;
+  applyDocumentDefaults(project);
 
   return { project, sources };
 }

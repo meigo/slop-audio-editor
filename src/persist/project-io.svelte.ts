@@ -3,6 +3,7 @@ import { adoptIds, referencedSourceIdsAcross, type Project } from "../doc/docume
 import { pool, resetHistory, state as appState } from "../state/appState.svelte";
 import { clearAutosave, deleteSource, putSource, readAutosave } from "./autosave";
 import {
+  applyDocumentDefaults,
   PROJECT_FILE_EXT, ProjectFileError, packProject, unpackProject, type SourceRecord,
 } from "./project-file";
 import { exportFilename } from "../export/formats";
@@ -37,6 +38,24 @@ export function saveProjectFile(): void {
  *  every source is now decoded before ANY state is touched, not merely before `appState.project`
  *  is assigned. */
 async function loadInto(project: typeof appState.project, sources: SourceRecord[]): Promise<void> {
+  // Fill in fields added after this document was written. Done HERE rather than only in
+  // `unpackProject`, because an autosave is handed to this function verbatim and would otherwise
+  // install a document the UI dereferences fields on.
+  applyDocumentDefaults(project);
+
+  // Adopt the loaded ids BEFORE decoding, not after. Decoding is slow and yields to the event
+  // loop on every chunk, so the UI is live throughout: an import started while the banner is up
+  // calls `newId` with the counter still at 0 and mints an id the loading project already uses —
+  // and `putSource` is a keyed put, so it overwrites that source's bytes in IndexedDB. Advancing
+  // the counter early is safe even if the load then fails; it only skips some numbers.
+  const ids: string[] = [];
+  for (const t of project.tracks) {
+    ids.push(t.id);
+    for (const c of t.clips) ids.push(c.id);
+  }
+  for (const s of sources) ids.push(s.id);
+  adoptIds(ids);
+
   const decoded: Source[] = [];
   for (const s of sources) {
     appState.importing = { name: s.name, fraction: 0 };
@@ -51,17 +70,6 @@ async function loadInto(project: typeof appState.project, sources: SourceRecord[
     }
   }
   // Past this line nothing can fail, so the swap is effectively atomic.
-  // The id counter resets on every page load, but this project's ids were minted in an earlier
-  // session — adopt them all before installing anything, or the next newId() call could collide
-  // with one of them (see document.ts's adoptIds).
-  const ids: string[] = [];
-  for (const t of project.tracks) {
-    ids.push(t.id);
-    for (const c of t.clips) ids.push(c.id);
-  }
-  for (const d of decoded) ids.push(d.id);
-  adoptIds(ids);
-
   pool.clear();
   for (const d of decoded) pool.add(d);
   appState.project = project;
