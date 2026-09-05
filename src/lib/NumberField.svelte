@@ -33,10 +33,10 @@
   }
 </script>
 
-<label class="flex items-center gap-1 text-[11px] text-neutral-400" {title}>
+<label class="flex items-center gap-1 text-[11px] text-muted" {title}>
   {label}
   <input
-    class="w-16 rounded bg-neutral-800 px-1 py-0.5 text-right tabular-nums text-neutral-100"
+    class="w-16 rounded bg-panel px-1 py-0.5 text-right tabular-nums text-text"
     type="text"
     inputmode="decimal"
     bind:value={draft}
@@ -50,5 +50,5 @@
       e.stopPropagation(); // keep the global shortcuts out of a text field
     }}
   />
-  {#if suffix}<span class="text-neutral-600">{suffix}</span>{/if}
+  {#if suffix}<span class="text-muted">{suffix}</span>{/if}
 </label>

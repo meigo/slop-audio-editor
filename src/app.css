@@ -1,4 +1,32 @@
 @import "tailwindcss";
 
+/* Shared slop timeline palette — see /Users/meigo/Projects/slop/SLOP-TIMELINE-UI.md.
+   Roles, not hexes, are what component markup names: `bg-panel`, `border-line`, `text-muted`.
+   The greys carry a couple of points more blue than red; that faint lean is the family tint, and
+   the accent is what actually carries colour. */
+@theme {
+  --color-ground: #12141a;
+  --color-panel: #1a1d26;
+  --color-raised: #232734;
+  --color-line: #2e3342;
+  --color-text: #eef0f6;
+  --color-muted: #969db1;
+  /* Tailwind indigo-500 / indigo-400. */
+  --color-accent: #6366f1;
+  --color-accent-hover: #818cf8;
+  --color-danger: #f07178;
+  --color-warn: #d4a017;
+  --color-ok: #7dcea0;
+  --color-disabled: #3a3a42;
+}
+
+/* Checkboxes, range thumbs and scrollbars are drawn by the BROWSER, not by our CSS: without
+   `color-scheme` they stay in the OS light palette even on this dark ground, and `accent-color`
+   is what tints them to the app's blue instead of the OS default. */
+:root {
+  color-scheme: dark;
+  accent-color: var(--color-accent);
+}
+
 html, body, #app { height: 100%; margin: 0; }
 body { overscroll-behavior: none; }

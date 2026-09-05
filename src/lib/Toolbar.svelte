@@ -28,7 +28,12 @@
   // block needs an `@reference` to the stylesheet in every file, which is more ceremony than
   // one shared string.
   const BTN =
-    "rounded p-1 text-neutral-300 hover:bg-neutral-700 disabled:opacity-30 disabled:hover:bg-transparent";
+    "rounded p-1 text-text hover:bg-raised disabled:opacity-30 disabled:hover:bg-transparent";
+  /** A 1px rule between toolbar groups. Whitespace alone reads as accidental at this size. */
+  const DIVIDER = "mx-1 h-5 w-px shrink-0 bg-line";
+  /** Toggles are labelled checkboxes rather than icon buttons: the label IS the affordance, and
+   *  `accent-color` on `:root` tints the native box to the app blue. */
+  const TOGGLE = "flex items-center gap-1.5 rounded px-1 py-0.5 text-xs hover:bg-raised";
 
   function onMasterGain(g: number) {
     if (!masterDragging) {
@@ -40,7 +45,7 @@
   }
 </script>
 
-<div class="flex h-11 items-center gap-3 border-b border-neutral-700 px-2 text-neutral-300">
+<div class="flex h-11 items-center gap-3 border-b border-line bg-panel px-2 text-text">
   <div class="flex items-center gap-1">
     <button
       class={BTN}
@@ -57,9 +62,18 @@
     <button class={BTN} title="Open project" onclick={() => projectInput?.click()}>
       <FolderOpen size={16} />
     </button>
-    <button class={BTN} title="Save project (⌘S)" onclick={saveProjectFile}>
-      <Save size={16} />
-      {#if appState.dirty}<span class="ml-0.5 text-sky-400">•</span>{/if}
+    <!-- Unsaved state recolours the glyph and adds a badge that is positioned OUT OF FLOW. The
+         dot used to sit in the flow beside the icon, so every save/edit nudged this button and its
+         neighbours sideways. -->
+    <button
+      class="{BTN} relative"
+      title={appState.dirty ? "Save project — unsaved changes (⌘S)" : "Save project (⌘S)"}
+      onclick={saveProjectFile}
+    >
+      <Save size={16} class={appState.dirty ? "text-accent" : undefined} />
+      {#if appState.dirty}
+        <span class="absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-accent"></span>
+      {/if}
     </button>
   </div>
   <input
@@ -79,7 +93,7 @@
     }}
   />
   {#if fileError}
-    <span class="text-xs text-red-400">{fileError}</span>
+    <span class="text-xs text-danger">{fileError}</span>
   {/if}
 
   <button class={BTN} title="Import audio into the current track at the playhead — any format this browser can decode (MP3, WAV, M4A/AAC, FLAC, OGG, WebM)" onclick={() => fileInput?.click()}>
@@ -111,6 +125,8 @@
     }}
   />
 
+  <div class={DIVIDER}></div>
+
   <div class="flex items-center gap-1">
     <button class={BTN} title="Play/pause (Space)" onclick={togglePlay}>
       {#if appState.playing}<Pause size={16} />{:else}<Play size={16} />{/if}
@@ -120,7 +136,7 @@
     </button>
     <button
       class={BTN}
-      class:text-sky-400={appState.loop}
+      class:text-accent={appState.loop}
       title="Loop the in/out range, or the whole project (L)"
       onclick={() => (appState.loop = !appState.loop)}
     >
@@ -142,7 +158,11 @@
     </button>
   </div>
 
+  <div class={DIVIDER}></div>
+
   <span class="w-24 tabular-nums text-sm">{formatTime(appState.playheadS)}</span>
+
+  <div class={DIVIDER}></div>
 
   <div class="flex items-center gap-1">
     <button class={BTN} disabled={!canUndoNow()} title="Undo (⌘Z)" onclick={undoEdit}>
@@ -163,11 +183,13 @@
     </button>
   </div>
 
-  <label class="flex items-center gap-1 text-xs">
+  <div class={DIVIDER}></div>
+
+  <label class={TOGGLE}>
     <input type="checkbox" bind:checked={appState.snap} /> Snap
   </label>
 
-  <label class="flex items-center gap-1 text-xs">
+  <label class={TOGGLE}>
     <input
       type="checkbox"
       checked={appState.project.glue}
@@ -195,12 +217,14 @@
     <Scale size={16} />
   </button>
 
+  <div class={DIVIDER}></div>
+
   <button class={BTN} title="Mix down to a file (WAV, MP3, M4A or WebM) — solo is ignored, mutes are honoured" onclick={() => (exporting = true)}>
     <Upload size={16} />
   </button>
 
   <div class="ml-auto flex items-center gap-2 text-xs">
-    <span class="text-neutral-500">Master</span>
+    <span class="text-muted">Master</span>
     <Meter />
     <Fader
       gain={appState.project.masterGain}

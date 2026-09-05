@@ -17,6 +17,6 @@
   const x = $derived(timeToPx(appState.playheadS, appState.scrollS, appState.pxPerSecond));
 </script>
 
-<div class="pointer-events-none absolute inset-y-0 z-20 w-px bg-red-500" style="left: {x}px">
-  <div class="absolute -left-1 top-0 h-2 w-2 bg-red-500"></div>
+<div class="pointer-events-none absolute inset-y-0 z-20 w-px bg-danger" style="left: {x}px">
+  <div class="absolute -left-1 top-0 h-2 w-2 bg-danger"></div>
 </div>

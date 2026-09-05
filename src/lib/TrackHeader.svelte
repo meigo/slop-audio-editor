@@ -44,9 +44,9 @@
      double-clicking the name to rename it would otherwise highlight the word as it opens the
      editor. The rename input takes `select-text` back, because there selecting IS the point. -->
 <div
-  class="flex select-none flex-col justify-between border-b border-l-2 border-neutral-800 px-2 py-1"
+  class="flex select-none flex-col justify-between border-b border-l-2 border-line px-2 py-1"
   class:border-l-transparent={!isCurrent}
-  class:border-l-violet-400={isCurrent}
+  class:border-l-accent={isCurrent}
   style="height: {appState.trackHeightPx}px"
   onclick={() => setCurrentTrack(track.id)}
 >
@@ -54,7 +54,7 @@
     {#if renaming}
       <input
         bind:this={nameInput}
-        class="w-full select-text bg-neutral-800 px-1 text-xs"
+        class="w-full select-text bg-panel px-1 text-xs"
         value={track.name}
         onblur={(e) => {
           commit((p) => renameTrack(p, track.id, e.currentTarget.value.trim() || track.name));
@@ -64,7 +64,7 @@
       />
     {:else}
       <button
-        class="flex-1 truncate text-left text-xs text-neutral-300"
+        class="flex-1 truncate text-left text-xs text-text"
         title="Double-click to rename"
         ondblclick={() => (renaming = true)}
       >
@@ -74,9 +74,9 @@
 
     <button
       class="rounded px-1 text-[10px] font-bold"
-      class:bg-amber-500={track.muted}
+      class:bg-warn={track.muted}
       class:text-black={track.muted}
-      class:text-neutral-500={!track.muted}
+      class:text-muted={!track.muted}
       title="Mute (saved with the project, silences the export)"
       onclick={() => commit((p) => setTrackMuted(p, track.id, !track.muted))}
     >
@@ -84,9 +84,9 @@
     </button>
     <button
       class="rounded px-1 text-[10px] font-bold"
-      class:bg-sky-400={appState.soloed.has(track.id)}
+      class:bg-accent={appState.soloed.has(track.id)}
       class:text-black={appState.soloed.has(track.id)}
-      class:text-neutral-500={!appState.soloed.has(track.id)}
+      class:text-muted={!appState.soloed.has(track.id)}
       title="Solo (preview only — never affects the export)"
       onclick={() => toggleSolo(track.id)}
     >
@@ -94,9 +94,9 @@
     </button>
     <button
       class="rounded px-1 text-[10px] font-bold"
-      class:bg-emerald-500={track.ducked}
+      class:bg-ok={track.ducked}
       class:text-black={track.ducked}
-      class:text-neutral-500={!track.ducked}
+      class:text-muted={!track.ducked}
       title="Background: dip this track while any other track is playing (music under voice)"
       onclick={() => commit((p) => setTrackDucked(p, track.id, !track.ducked))}
     >

@@ -23,7 +23,7 @@
 <div class="flex items-center gap-1">
   <input
     type="range"
-    class="h-1 w-24 accent-sky-400"
+    class="h-1 w-24 accent-accent"
     title={label}
     min={0}
     max={1}
@@ -43,7 +43,7 @@
     onpointerup={onCommit}
     onkeyup={onCommit}
   />
-  <span class="w-16 shrink-0 text-right text-[10px] tabular-nums text-neutral-400">
+  <span class="w-16 shrink-0 text-right text-[10px] tabular-nums text-muted">
     {formatDb(gain)}
   </span>
 </div>

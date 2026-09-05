@@ -81,9 +81,8 @@
      multi-select, and dragging across labels selects them. -->
 <div
   data-clip-id={clip.id}
-  class="absolute top-1 touch-none select-none overflow-hidden rounded border bg-sky-800/70"
-  class:border-sky-300={selected}
-  class:border-sky-900={!selected}
+  class="absolute top-1 touch-none select-none overflow-hidden rounded border bg-accent/35
+         {selected ? 'border-accent' : 'border-accent/50'}"
   title="{name} — {formatTime(clip.durS)}"
   data-hint="Drag to move · ⌘-click or Shift-click to add to the selection · ⌘A selects every clip"
   onpointerdown={onPointerDown}
@@ -103,7 +102,7 @@
        green as the header's D toggle, so the cause and the effect are visibly the same thing. -->
   {#if duckMask}
     <div
-      class="pointer-events-none absolute inset-0 bg-emerald-900/55"
+      class="pointer-events-none absolute inset-0 bg-ok/20"
       style="clip-path: {duckMask}"
     ></div>
   {/if}
@@ -112,14 +111,14 @@
        curve — linear stays a triangle, equal-power bows, exponential sags. -->
   {#if clip.fadeInS > 0}
     <div
-      class="pointer-events-none absolute inset-y-0 left-0 bg-neutral-900/60"
+      class="pointer-events-none absolute inset-y-0 left-0 bg-ground/60"
       style="width: {clip.fadeInS * appState.pxPerSecond}px;
              clip-path: {fadeInMask}"
     ></div>
   {/if}
   {#if clip.fadeOutS > 0}
     <div
-      class="pointer-events-none absolute inset-y-0 right-0 bg-neutral-900/60"
+      class="pointer-events-none absolute inset-y-0 right-0 bg-ground/60"
       style="width: {clip.fadeOutS * appState.pxPerSecond}px;
              clip-path: {fadeOutMask}"
     ></div>

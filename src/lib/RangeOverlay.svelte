@@ -14,7 +14,7 @@
   {#each appState.project.tracks as track, i (track.id)}
     {#if tracks.has(track.id)}
       <div
-        class="pointer-events-none absolute z-10 border-x border-sky-300 bg-sky-400/20"
+        class="pointer-events-none absolute z-10 border-x border-accent bg-accent/20"
         style="left: {x}px; width: {w}px;
                top: {i * appState.trackHeightPx}px; height: {appState.trackHeightPx}px"
       ></div>

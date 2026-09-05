@@ -49,9 +49,9 @@
   };
 </script>
 
-<div class="flex h-10 shrink-0 items-center gap-4 border-t border-neutral-700 px-3">
+<div class="flex h-10 shrink-0 items-center gap-4 border-t border-line bg-panel px-3">
   {#if clip}
-    <span class="w-48 truncate text-xs text-neutral-300">{source?.name ?? "missing audio"}</span>
+    <span class="w-48 truncate text-xs text-text">{source?.name ?? "missing audio"}</span>
 
     <NumberField
       label="in"
@@ -92,7 +92,7 @@
     />
 
     <select
-      class="rounded bg-neutral-800 px-1 py-0.5 text-[11px]"
+      class="rounded bg-panel px-1 py-0.5 text-[11px]"
       value={clip.fadeShape}
       title="Fade curve shape"
       onchange={(e) =>
@@ -103,7 +103,7 @@
       {/each}
     </select>
   {:else}
-    <span class="text-xs text-neutral-600">Select a clip to edit its exact values</span>
+    <span class="text-xs text-muted">Select a clip to edit its exact values</span>
   {/if}
 
   {#if track}
@@ -113,7 +113,7 @@
       class="ml-auto flex items-center gap-2"
       data-hint="Three-band tone control for the current track ({EQ_LOW_HZ} Hz, {EQ_MID_HZ} Hz, {EQ_HIGH_HZ} Hz). Click a track header to switch tracks."
     >
-      <span class="max-w-24 truncate text-[11px] text-neutral-500">{track.name} EQ</span>
+      <span class="max-w-24 truncate text-[11px] text-muted">{track.name} EQ</span>
       <BandSlider
         label="low"
         db={track.eq.lowDb}

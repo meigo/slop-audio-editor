@@ -85,10 +85,10 @@
 </script>
 
 <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-  <div class="w-96 rounded bg-neutral-800 p-4 text-sm text-neutral-200">
+  <div class="w-96 rounded bg-panel p-4 text-sm text-text">
     <h2 class="mb-3 font-medium">Export mix</h2>
 
-    <p class="mb-3 text-xs text-neutral-400">
+    <p class="mb-3 text-xs text-muted">
       {#if isSelection}
         Selection — {formatTime(range.fromS)} to {formatTime(range.toS)}
       {:else}
@@ -99,7 +99,7 @@
     <label class="mb-4 flex items-center gap-2">
       Format
       <select
-        class="flex-1 rounded bg-neutral-700 px-1 py-1"
+        class="flex-1 rounded bg-raised px-1 py-1"
         bind:value={format}
         disabled={busy}
         onchange={() => (acknowledgedOver = false)}
@@ -111,7 +111,7 @@
     </label>
 
     {#if peakDb !== null}
-      <p class="mb-3 text-xs {clipsAtWrite ? 'text-red-400' : 'text-neutral-400'}">
+      <p class="mb-3 text-xs {clipsAtWrite ? 'text-danger' : 'text-muted'}">
         Peak {peakDb === -Infinity ? "silent" : `${peakDb > 0 ? "+" : ""}${peakDb.toFixed(2)} dBFS`}
         {#if clipsAtWrite}
           — will clip. Lower master by {peakDb.toFixed(2)} dB, or export 32-bit float.
@@ -120,15 +120,15 @@
     {/if}
 
     {#if error}
-      <p class="mb-3 text-xs text-red-400">{error}</p>
+      <p class="mb-3 text-xs text-danger">{error}</p>
     {/if}
 
     <div class="flex justify-end gap-2">
-      <button class="rounded px-3 py-1 hover:bg-neutral-700" disabled={busy} onclick={onClose}>
+      <button class="rounded px-3 py-1 hover:bg-raised" disabled={busy} onclick={onClose}>
         Cancel
       </button>
       <button
-        class="rounded bg-sky-600 px-3 py-1 hover:bg-sky-500 disabled:opacity-50"
+        class="rounded bg-accent px-3 py-1 hover:bg-accent-hover disabled:opacity-50"
         disabled={busy || range.toS <= range.fromS}
         onclick={run}
       >

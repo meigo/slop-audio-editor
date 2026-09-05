@@ -64,7 +64,7 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
   bind:this={el}
-  class="relative h-7 shrink-0 cursor-text touch-none select-none border-b border-neutral-700 bg-neutral-800"
+  class="relative h-7 shrink-0 cursor-text touch-none select-none border-b border-line bg-panel"
   onpointerdown={onPointerDown}
 >
   {#if appState.playRange}
@@ -72,30 +72,33 @@
     {@const ix = timeToPx(range.fromS, appState.scrollS, appState.pxPerSecond)}
     {@const ox = timeToPx(range.toS, appState.scrollS, appState.pxPerSecond)}
     <div
-      class="pointer-events-none absolute inset-y-0 bg-amber-400/20"
+      class="pointer-events-none absolute inset-y-0 bg-warn/15"
       style="left: {ix}px; width: {ox - ix}px"
     ></div>
-    <div class="pointer-events-none absolute inset-y-0 w-1 bg-amber-400" style="left: {ix - 2}px"></div>
-    <div class="pointer-events-none absolute inset-y-0 w-1 bg-amber-400" style="left: {ox - 2}px"></div>
-    <span
-      class="pointer-events-none absolute bottom-0.5 text-[9px] font-bold text-amber-300"
-      style="left: {ix + 3}px"
-    >I</span>
-    <span
-      class="pointer-events-none absolute bottom-0.5 text-[9px] font-bold text-amber-300"
-      style="left: {ox - 9}px"
-    >O</span>
+    <!-- A THIN line with a wedge at the top, not a thick bar: a bar reads as a clip and competes
+         with the media for attention, while the wedge gives the grab target its visual weight
+         where the pointer actually goes (the hit test is `hitTestRuler`, unchanged). -->
+    <div class="pointer-events-none absolute inset-y-0 w-px bg-warn" style="left: {ix}px"></div>
+    <div class="pointer-events-none absolute inset-y-0 w-px bg-warn" style="left: {ox}px"></div>
+    <div
+      class="pointer-events-none absolute top-0 h-2 w-2 bg-warn"
+      style="left: {ix}px; clip-path: polygon(0 0, 100% 0, 0 100%)"
+    ></div>
+    <div
+      class="pointer-events-none absolute top-0 h-2 w-2 bg-warn"
+      style="left: {ox - 8}px; clip-path: polygon(100% 0, 0 0, 100% 100%)"
+    ></div>
   {/if}
   {#each ticks as tick (tick.s)}
     {@const x = timeToPx(tick.s, appState.scrollS, appState.pxPerSecond)}
     <div
-      class="absolute bottom-0 w-px bg-neutral-600"
+      class="absolute bottom-0 w-px bg-line"
       class:h-2={!tick.major}
       class:h-3={tick.major}
       style="left: {x}px"
     ></div>
     {#if tick.major}
-      <span class="absolute top-0.5 text-[10px] text-neutral-400" style="left: {x + 3}px">
+      <span class="absolute top-0.5 text-[10px] text-muted" style="left: {x + 3}px">
         {formatTime(tick.s)}
       </span>
     {/if}

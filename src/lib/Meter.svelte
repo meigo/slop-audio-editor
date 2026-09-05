@@ -40,18 +40,18 @@
   title="Master output level. Red means the mix went over 0 dBFS and will clip — click to reset."
   onclick={() => (clipped = false)}
 >
-  <div class="relative h-2 w-24 overflow-hidden rounded-sm bg-neutral-700">
+  <div class="relative h-2 w-24 overflow-hidden rounded-sm bg-raised">
     <div
-      class="absolute inset-y-0 left-0 {peakDb >= -1 ? 'bg-red-500' : 'bg-emerald-500'}"
+      class="absolute inset-y-0 left-0 {peakDb >= -1 ? 'bg-danger' : 'bg-ok'}"
       style="width: {meterFillPct(peakDb)}%"
     ></div>
     {#if holdDb > -Infinity}
-      <div class="absolute inset-y-0 w-0.5 bg-neutral-200" style="left: {meterFillPct(holdDb)}%"></div>
+      <div class="absolute inset-y-0 w-0.5 bg-text" style="left: {meterFillPct(holdDb)}%"></div>
     {/if}
   </div>
   <span
     class="w-3 rounded-sm text-center text-[9px] leading-3 {clipped
-      ? 'bg-red-500 text-white'
-      : 'text-neutral-600'}">●</span
+      ? 'bg-danger text-white'
+      : 'text-muted'}">●</span
   >
 </button>

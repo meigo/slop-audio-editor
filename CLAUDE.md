@@ -441,6 +441,25 @@ src/
     Measured through `mixdown`: mid −9 dB reads exactly −9.00 dB at 1200 Hz with the other bands
     within 0.23 dB, and returning to flat restores 0.00 dB exactly.
 
+25. **Colour comes from the shared slop palette, and component markup names ROLES, never hexes.**
+    `src/app.css` declares the roles as Tailwind `@theme` `--color-*` tokens — `ground`, `panel`,
+    `raised`, `line`, `text`, `muted`, `accent`, `warn`, `danger`, `ok`, `disabled` — which
+    generates `bg-panel`, `border-line`, `text-muted`, `bg-accent/35` and so on. There are no
+    `neutral-*` / `sky-*` / `amber-*` utilities left in `src/`; adding one back re-forks the app
+    from its siblings. The palette and the rules that go with it live in
+    `/Users/meigo/Projects/slop/SLOP-TIMELINE-UI.md`, deliberately OUTSIDE this repo so
+    slop-animator and slop-video-compositor can adopt it without reading this codebase; that
+    document is the source of truth and this gotcha is only the local summary.
+    Two rules from it that are easy to undo by accident:
+    (a) **State must never move the layout.** The unsaved-changes mark used to be a `•` in the
+    flow beside the save icon, so every edit nudged the button and its neighbours sideways. It is
+    now a recoloured glyph plus an absolutely-positioned badge, which takes no layout space.
+    (b) **In/out markers are a THIN line plus a wedge**, not a thick bar — a bar reads as a clip
+    and competes with the media. `hitTestRuler`'s grab threshold is independent of how wide the
+    marker is drawn, so the target stayed easy to hit when the line got thinner.
+    `:root` also sets `color-scheme: dark` and `accent-color`: checkboxes, range thumbs and
+    scrollbars are drawn by the browser and would otherwise keep the OS light palette.
+
 ## Testing
 
 Vitest, `node` environment, no DOM (`src/**/*.test.ts`, see `vite.config.ts`). Pure logic

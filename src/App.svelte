@@ -59,18 +59,18 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-  class="relative flex h-full flex-col bg-neutral-900 text-neutral-200"
+  class="relative flex h-full flex-col bg-ground text-text"
   ondragover={(e) => e.preventDefault()}
   ondrop={onDrop}
 >
   {#if appState.importing}
-    <div class="absolute inset-x-0 top-0 z-50 bg-sky-700 px-2 py-1 text-xs">
+    <div class="absolute inset-x-0 top-0 z-50 bg-accent px-2 py-1 text-xs">
       Loading {appState.importing.name} — {Math.round(appState.importing.fraction * 100)}%
     </div>
   {/if}
   {#if loadError}
     <button
-      class="absolute inset-x-0 top-0 z-50 bg-red-800 px-2 py-1 text-left text-xs"
+      class="absolute inset-x-0 top-0 z-50 bg-danger/25 px-2 py-1 text-left text-xs"
       onclick={() => (loadError = null)}
     >
       {loadError} — click to dismiss
@@ -81,8 +81,8 @@
   <Toolbar />
 
   <div class="flex min-h-0 flex-1">
-    <div class="shrink-0 border-r border-neutral-700" style="width: {HEADER_W}px">
-      <div class="h-7 border-b border-neutral-700"></div>
+    <div class="shrink-0 border-r border-line bg-panel" style="width: {HEADER_W}px">
+      <div class="h-7 border-b border-line"></div>
       {#each appState.project.tracks as track (track.id)}
         <TrackHeader {track} />
       {/each}
