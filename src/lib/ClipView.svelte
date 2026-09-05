@@ -81,8 +81,8 @@
      multi-select, and dragging across labels selects them. -->
 <div
   data-clip-id={clip.id}
-  class="absolute top-1 touch-none select-none overflow-hidden rounded border bg-accent/35
-         {selected ? 'border-accent' : 'border-accent/50'}"
+  class="absolute top-1 touch-none select-none overflow-hidden rounded border bg-media-clip
+         {selected ? 'border-accent' : 'border-media-clip-border'}"
   title="{name} — {formatTime(clip.durS)}"
   data-hint="Drag to move · ⌘-click or Shift-click to add to the selection · ⌘A selects every clip"
   onpointerdown={onPointerDown}

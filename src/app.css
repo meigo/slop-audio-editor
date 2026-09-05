@@ -14,7 +14,17 @@
   --color-line: #3f3f46; /* zinc-700 */
   --color-text: #f4f4f5; /* zinc-100 */
   --color-muted: #a1a1aa; /* zinc-400 */
-  --color-accent: #3b82f6; /* blue-500 */
+  /* Media clips are SLATE, not the accent: a clip painted in the selection colour looks
+     permanently selected, and there is then nothing left to say "this one is selected" with.
+     slop-animator reached the same conclusion independently — its clips are separated from the
+     chrome by VALUE, not hue. Slate rather than zinc so a clip still reads as an object placed on
+     the neutral chrome rather than a lighter patch of it.
+     Named media-clip, NOT clip: `bg-clip-*` is Tailwind's own background-clip namespace, so a
+     `--color-clip-border` token would collide with the real `bg-clip-border` utility.
+     slop-animator carries the same warning in its theme, and it is easy to walk into anyway. */
+  --color-media-clip: #334155; /* slate-700 */
+  --color-media-clip-border: #64748b; /* slate-500 */
+  --color-accent: #3b82f6; /* blue-500 — selection and active state ONLY */
   --color-accent-hover: #60a5fa; /* blue-400 */
   --color-danger: #f87171; /* red-400 — playhead and errors */
   --color-warn: #f59e0b; /* amber-500 — in/out markers */
