@@ -80,17 +80,50 @@ function declickSpec(s: number, e: number, windowFromS: number, atStart: boolean
   };
 }
 
-function scheduleClip(c: Clip, trackId: string, fromS: number, toS: number): ScheduledClip | null {
+/** Do these two neighbours play as one unbroken stretch of the same audio?
+ *
+ *  True for the halves of a `splitAt`, which are bit-contiguous by construction: same source,
+ *  touching on the timeline, and the second one's in-point continues exactly where the first's
+ *  ends. Gain must match too — a step between clip gains is a real discontinuity.
+ *
+ *  Exported for tests. */
+export function playsContinuouslyInto(prev: Clip, next: Clip): boolean {
+  const eps = 1e-9;
+  return (
+    prev.sourceId === next.sourceId &&
+    prev.gain === next.gain &&
+    Math.abs(clipEndS(prev) - next.startS) < eps &&
+    Math.abs(prev.inS + prev.durS - next.inS) < eps
+  );
+}
+
+function scheduleClip(
+  c: Clip,
+  trackId: string,
+  fromS: number,
+  toS: number,
+  joinedAtStart: boolean,
+  joinedAtEnd: boolean,
+): ScheduledClip | null {
   const start = c.startS;
   const end = clipEndS(c);
   const s = Math.max(start, fromS);
   const e = Math.min(end, toS);
   if (!(e > s)) return null;
   // A clip's own fade always wins; the declick only fills an edge that would otherwise be a step.
-  let fadeIn = fadeSpec(start, c.fadeInS, c.fadeShape, s, e, fromS) ?? declickSpec(s, e, fromS, true);
+  //
+  // ...and only where there IS a step. A `splitAt` leaves two halves that continue the same audio
+  // sample-for-sample, so declicking both sides of that join punched a 10 ms hole to silence into
+  // material that had no discontinuity at all — an edit that changes nothing else in the mix
+  // became audible. `joinedAt*` suppresses the ramp at such a seam. The window edges are NOT
+  // seams: if the render window cut into this clip, starting playback there is a genuine
+  // discontinuity and still needs the ramp, which is what the `s === start` / `e === end` tests
+  // distinguish.
+  const declickIn = joinedAtStart && s === start ? null : declickSpec(s, e, fromS, true);
+  const declickOut = joinedAtEnd && e === end ? null : declickSpec(s, e, fromS, false);
+  let fadeIn = fadeSpec(start, c.fadeInS, c.fadeShape, s, e, fromS) ?? declickIn;
   const fadeOut =
-    fadeSpec(end - c.fadeOutS, c.fadeOutS, c.fadeShape, s, e, fromS) ??
-    declickSpec(s, e, fromS, false);
+    fadeSpec(end - c.fadeOutS, c.fadeOutS, c.fadeShape, s, e, fromS) ?? declickOut;
   // clampFades scales a colliding fade-in/fade-out pair to fill the clip EXACTLY, so the spans
   // built above can end up overlapping by a float ulp or abutting exactly. setValueCurveAtTime
   // throws on the former and is implementation-defined (observed to throw in Chromium) on the
@@ -143,8 +176,18 @@ export function planSchedule(
   for (const t of p.tracks) {
     if (t.muted) continue;
     if (soloed.size > 0 && !soloed.has(t.id)) continue;
-    for (const c of t.clips) {
-      const s = scheduleClip(c, t.id, fromS, toS);
+    for (let i = 0; i < t.clips.length; i++) {
+      const c = t.clips[i];
+      const prev = t.clips[i - 1];
+      const next = t.clips[i + 1];
+      const s = scheduleClip(
+        c,
+        t.id,
+        fromS,
+        toS,
+        prev !== undefined && playsContinuouslyInto(prev, c),
+        next !== undefined && playsContinuouslyInto(c, next),
+      );
       if (s) out.push(s);
     }
   }

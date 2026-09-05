@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { __resetIds, createProject, type Project } from "../doc/document";
-import { addClip, addTrack, makeClip, setClipFade, setClipGain, setTrackMuted } from "../doc/edits";
+import {
+  addClip, addTrack, makeClip, setClipFade, setClipGain, setTrackMuted, splitAt,
+} from "../doc/edits";
 import { DECLICK_S, planSchedule } from "./schedule";
 
 const NO_SOLO: ReadonlySet<string> = new Set();
@@ -195,5 +197,50 @@ describe("planSchedule ordering", () => {
     const plan = planSchedule(p, 0, 100, NO_SOLO);
     expect(plan.map((s) => [s.trackId === p.tracks[0].id ? "A" : "B", s.when]))
       .toEqual([["A", 0], ["A", 4], ["B", 2]]);
+  });
+});
+
+describe("declick at a seam between contiguous clips", () => {
+  /** One clip cut in two by `splitAt`: the halves are bit-contiguous, so the join is not a step. */
+  function splitOnce(): Project {
+    const base = createProject();
+    const p = addClip(base, base.tracks[0].id, makeClip("s", 0, 30));
+    return splitAt(p, [p.tracks[0].id], 15);
+  }
+
+  it("leaves a split seam alone — declicking it punched a hole in continuous audio", () => {
+    const [a, b] = planSchedule(splitOnce(), 0, 100, NO_SOLO);
+    expect(a.fadeOut).toBeNull();
+    expect(b.fadeIn).toBeNull();
+  });
+
+  it("still declicks the outer edges of those same two clips", () => {
+    const [a, b] = planSchedule(splitOnce(), 0, 100, NO_SOLO);
+    expect(a.fadeIn).toMatchObject({ atS: 0, durS: DECLICK_S });
+    expect(b.fadeOut).toMatchObject({ durS: DECLICK_S });
+  });
+
+  it("declicks the seam when the halves differ in gain — that IS a step", () => {
+    const p = splitOnce();
+    const withGain = setClipGain(p, p.tracks[0].clips[1].id, 0.5);
+    const [a, b] = planSchedule(withGain, 0, 100, NO_SOLO);
+    expect(a.fadeOut).not.toBeNull();
+    expect(b.fadeIn).not.toBeNull();
+  });
+
+  it("declicks between two different sources butted together", () => {
+    const base = createProject();
+    let p = addClip(base, base.tracks[0].id, makeClip("a", 0, 15));
+    p = addClip(p, p.tracks[0].id, makeClip("b", 15, 15));
+    const [a, b] = planSchedule(p, 0, 100, NO_SOLO);
+    expect(a.fadeOut).not.toBeNull();
+    expect(b.fadeIn).not.toBeNull();
+  });
+
+  it("declicks where the WINDOW cuts into a clip, seam or not", () => {
+    // Opening playback mid-clip is a genuine discontinuity even though the clip continues its
+    // neighbour: the previous audio was never played.
+    const plan = planSchedule(splitOnce(), 20, 100, NO_SOLO);
+    expect(plan[0].fadeIn).toMatchObject({ atS: 0, durS: DECLICK_S });
   });
 });

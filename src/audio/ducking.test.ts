@@ -77,6 +77,16 @@ describe("planDucking", () => {
     expect(atVoiceStart.gain).toBeCloseTo(DUCK_GAIN, 10);
   });
 
+  // The pre-roll clamps to 0 for a span at the very start, which makes two coincident points
+  // there. Resolving that tie the wrong way left the bed ramping slowly DOWN across the whole
+  // voice and only reaching depth as it ended — the exact opposite of the feature.
+  it("is already at full depth when the foreground starts at exactly t=0", () => {
+    const p = project([[0, 5]]);
+    const pts = planDucking(p, 0, 30).get(p.tracks[0].id)!;
+    expect(pts[0]).toEqual({ t: 0, gain: DUCK_GAIN });
+    expect(pts.find((x) => x.t === 5)!.gain).toBeCloseTo(DUCK_GAIN, 10);
+  });
+
   it("clamps the pre-roll at the timeline start rather than emitting a negative time", () => {
     const p = project([[0.02, 3]]); // less than one attack from t = 0
     const pts = planDucking(p, 0, 20).get(p.tracks[0].id)!;

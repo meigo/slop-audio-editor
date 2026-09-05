@@ -67,9 +67,14 @@ function breakpoints(spans: readonly Span[], duckGain: number): DuckPoint[] {
   return pts;
 }
 
-/** The envelope's value at an absolute time, linearly interpolated. Unity outside every span. */
+/** The envelope's value at an absolute time, linearly interpolated. Unity outside every span.
+ *
+ *  `t < pts[0].t`, NOT `<=`. A span starting at 0 has its pre-roll clamped to 0, so it emits two
+ *  coincident points there — unity, then full depth. Returning unity for `t === pts[0].t` picked
+ *  the first of them, and the window filter below then dropped both, leaving the bed to ramp
+ *  slowly down across the whole voice instead of being down for it. */
 function valueAt(pts: readonly DuckPoint[], t: number): number {
-  if (pts.length === 0 || t <= pts[0].t) return 1;
+  if (pts.length === 0 || t < pts[0].t) return 1;
   if (t >= pts[pts.length - 1].t) return 1;
   for (let i = 1; i < pts.length; i++) {
     if (t <= pts[i].t) {
