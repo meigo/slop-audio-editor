@@ -147,12 +147,39 @@ describe("rulerTicks", () => {
     expect(gapPx).toBeLessThanOrEqual(80);
   });
 
-  it("labels a round number often enough to read, but not so often they collide", () => {
-    const ticks = rulerTicks(0, 60, 60);
-    const majors = ticks.filter((t) => t.major);
+  it("labels often enough to read, but not so often they collide", () => {
+    const majors = rulerTicks(0, 60, 60).filter((t) => t.major);
     const labelGapPx = (majors[1].s - majors[0].s) * 60;
     expect(labelGapPx).toBeGreaterThanOrEqual(150); // a "00:00.000" label is ~55 px
-    expect(labelGapPx).toBeLessThanOrEqual(400);
+    expect(labelGapPx).toBeLessThanOrEqual(600);
+  });
+
+  // `00:02.500` reads like a mistake when there is room for whole seconds. Sub-second labels are
+  // normal only once a whole second no longer fits, which is what the zoomed-in case below pins.
+  it("labels whole seconds at every ordinary zoom", () => {
+    for (const pxPerSecond of [2, 10, 30, 60, 120, 400]) {
+      const majors = rulerTicks(0, 600, pxPerSecond).filter((t) => t.major);
+      for (const m of majors.slice(0, 5)) {
+        expect(Math.abs(m.s - Math.round(m.s))).toBeLessThan(1e-9);
+      }
+    }
+  });
+
+  it("falls back to sub-second labels only when a whole second would not fit", () => {
+    // At 2000 px/s a 1 s label gap is 2000 px — a viewport could show none at all.
+    const majors = rulerTicks(0, 2, 2000).filter((t) => t.major);
+    const gapPx = (majors[1].s - majors[0].s) * 2000;
+    expect(gapPx).toBeLessThanOrEqual(600);
+  });
+
+  it("always puts a label exactly on a tick, never between two", () => {
+    for (const pxPerSecond of [2, 30, 60, 120, 400, 2000]) {
+      const ticks = rulerTicks(0, 100, pxPerSecond);
+      expect(ticks.some((t) => t.major)).toBe(true);
+      // Majors are drawn from the same list as ticks, so this holds by construction — assert it
+      // so a future change that computes labels separately cannot drift.
+      expect(ticks.filter((t) => t.major).every((m) => ticks.includes(m))).toBe(true);
+    }
   });
 });
 

@@ -99,9 +99,16 @@ export function formatDb(gain: number): string {
  *  so nothing crowds. */
 const TICK_TARGET_PX = 40;
 
-/** Steps come from a 1-2-5 ladder so the labels are always round numbers. Every fifth tick is
- *  major (labelled). */
+/** Steps come from a 1-2-5 ladder so ticks land on round numbers. */
 const TICK_STEPS = [0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600];
+
+/** Labelled ticks prefer WHOLE SECONDS. A label reading `00:02.500` is hard to read against and
+ *  looks like a mistake; the tick step can be finer than a second without the labels being. */
+const LABEL_STEPS_S = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600];
+
+/** Past this, whole-second labels would be so far apart that a zoomed-in viewport could show
+ *  none at all — so above roughly 600 px/s the labels go sub-second rather than disappear. */
+const MAX_LABEL_GAP_PX = 600;
 
 export function rulerTicks(
   fromS: number,
@@ -111,11 +118,21 @@ export function rulerTicks(
   if (!(toS > fromS)) return [];
   const targetS = TICK_TARGET_PX / pxPerSecond;
   const step = TICK_STEPS.find((s) => s >= targetS) ?? TICK_STEPS[TICK_STEPS.length - 1];
+
+  // The smallest whole-second interval that is at least as sparse as every-fifth-tick AND lands
+  // exactly on ticks, so a label always sits on a tick rather than between two.
+  const isMultiple = (c: number): boolean => Math.abs(c / step - Math.round(c / step)) < 1e-9;
+  let labelStep =
+    LABEL_STEPS_S.find((c) => c >= 5 * step && isMultiple(c)) ??
+    LABEL_STEPS_S[LABEL_STEPS_S.length - 1];
+  if (labelStep * pxPerSecond > MAX_LABEL_GAP_PX) labelStep = step * 5;
+  const everyNth = Math.max(1, Math.round(labelStep / step));
+
   const out: { s: number; major: boolean }[] = [];
   const first = Math.floor(fromS / step);
   const last = Math.ceil(toS / step);
   for (let i = first; i <= last; i++) {
-    out.push({ s: i * step, major: i % 5 === 0 });
+    out.push({ s: i * step, major: i % everyNth === 0 });
   }
   return out;
 }
