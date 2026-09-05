@@ -96,7 +96,12 @@ $effect.root(() => {
   });
 });
 
-let history = createHistory<Project>();
+/** `$state`, not a plain `let`. `canUndoNow`/`canRedoNow` are read straight into the toolbar's
+ *  `disabled` bindings, and Svelte tracks what an expression READS: a plain module variable is
+ *  invisible to it, so those effects had no dependencies at all and never re-ran. The buttons
+ *  latched to their value at first render — permanently disabled, since history starts empty —
+ *  while ⌘Z kept working, because the keyboard path calls `undoEdit` without asking first. */
+let history = $state(createHistory<Project>());
 type GestureKind = "structural" | "mix";
 
 let gestureBase: Project | null = null;

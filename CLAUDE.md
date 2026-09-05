@@ -615,6 +615,18 @@ src/
     chips need `justify-self-start`, or each one stretches to the width of its column's widest
     entry and "L" renders as a box the width of "Space".
 
+34. **Undo/redo history is `$state`, and it has to be — the toolbar buttons read it through a
+    function.** `canUndoNow()`/`canRedoNow()` are called inside `disabled={!canUndoNow()}`, and
+    Svelte 5 tracks what an expression READS. While `history` was a plain module-level `let`,
+    those effects had no dependencies at all, so they ran once at first render and never again:
+    the Undo and Redo buttons were permanently greyed out no matter how many edits were made,
+    while ⌘Z worked perfectly, because `KeyboardShortcuts` calls `undoEdit` without asking
+    whether it can. That asymmetry is why it survived so long — the feature worked, only its
+    affordance was dead.
+    The general rule: any module-level value a component reads THROUGH A FUNCTION must be
+    `$state`, or the read is invisible to the tracker. A plain `let` is only safe for something no
+    component displays.
+
 ## Testing
 
 Vitest, `node` environment, no DOM (`src/**/*.test.ts`, see `vite.config.ts`). Pure logic
