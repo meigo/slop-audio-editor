@@ -23,7 +23,7 @@
        0 dB belongs in the MIDDLE of the travel rather than at 3/4 like unity gain. -->
   <input
     type="range"
-    class="slider w-20"
+    class="slider bipolar w-20"
     style="--fill-from: {Math.min(50, pct)}%; --fill-to: {Math.max(50, pct)}%"
     {title}
     min={-maxDb}

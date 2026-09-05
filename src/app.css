@@ -84,6 +84,28 @@ input[type="range"].slider {
   cursor: pointer;
 }
 
+/* Bipolar sliders (EQ) get a tick at the midpoint, so which SIDE of flat a band is on reads at a
+   glance instead of from the number. Painted as a second background LAYER, listed first so it
+   sits above the fill — the fill always spans the centre once a band is non-zero, and would
+   otherwise bury the tick exactly when it is most useful. Deliberately not a colour change for
+   cut vs boost: the sign is already carried by the thumb, the fill direction and the readout, and
+   `warn`/`danger` mean something specific in this palette that an ordinary saved edit is not. */
+input[type="range"].slider.bipolar {
+  background:
+    linear-gradient(
+      to right,
+      transparent calc(50% - 0.5px),
+      var(--color-muted) calc(50% - 0.5px) calc(50% + 0.5px),
+      transparent calc(50% + 0.5px)
+    ),
+    linear-gradient(
+      to right,
+      var(--color-raised) 0 var(--fill-from, 0%),
+      var(--slider-fill) var(--fill-from, 0%) var(--fill-to, 0%),
+      var(--color-raised) var(--fill-to, 0%) 100%
+    );
+}
+
 input[type="range"].slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 12px;
