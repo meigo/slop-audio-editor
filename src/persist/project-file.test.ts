@@ -3,7 +3,8 @@ import { unzipSync, zipSync, strToU8 } from "fflate";
 import { __resetIds, createProject } from "../doc/document";
 import { addClip, makeClip } from "../doc/edits";
 import {
-  PROJECT_FILE_VERSION, ProjectFileError, packProject, unpackProject, type SourceRecord,
+  PROJECT_FILE_VERSION, ProjectFileError, packCurrentProject, packProject, unpackProject,
+  type SourceRecord,
 } from "./project-file";
 
 const SOURCES: SourceRecord[] = [
@@ -146,4 +147,32 @@ it("defaults `ducked` to false on a project saved before background ducking exis
   const bytes = packProject(stripped as typeof legacy, []);
   const { project } = unpackProject(bytes);
   expect(project.tracks.every((t) => t.ducked === false)).toBe(true);
+});
+
+describe("packCurrentProject", () => {
+  it("leaves out audio no clip references, so a deleted source cannot travel in a shared file", () => {
+    __resetIds();
+    let p = createProject();
+    p = addClip(p, p.tracks[0].id, makeClip("src-1", 0, 1));
+    const records: SourceRecord[] = [
+      { id: "src-1", name: "used.wav", bytes: new Uint8Array([1, 2, 3]) },
+      { id: "src-deleted", name: "secret.wav", bytes: new Uint8Array([9, 9, 9]) },
+    ];
+
+    const { sources } = unpackProject(packCurrentProject(p, records));
+
+    expect(sources.map((s) => s.id)).toEqual(["src-1"]);
+  });
+
+  it("keeps a source referenced by any track, not just the first", () => {
+    __resetIds();
+    let p = createProject();
+    p = { ...p, tracks: [...p.tracks, { ...p.tracks[0], id: "track-9", clips: [] }] };
+    p = addClip(p, "track-9", makeClip("src-2", 0, 1));
+    const records: SourceRecord[] = [{ id: "src-2", name: "b.wav", bytes: new Uint8Array([4]) }];
+
+    const { sources } = unpackProject(packCurrentProject(p, records));
+
+    expect(sources.map((s) => s.id)).toEqual(["src-2"]);
+  });
 });

@@ -4,7 +4,7 @@ import { pool, resetHistory, state as appState } from "../state/appState.svelte"
 import { deleteSource, listSourceIds, putDocument, putSources, readAutosave } from "./autosave";
 import {
   applyDocumentDefaults,
-  PROJECT_FILE_EXT, ProjectFileError, packProject, unpackProject, type SourceRecord,
+  PROJECT_FILE_EXT, ProjectFileError, packCurrentProject, unpackProject, type SourceRecord,
 } from "./project-file";
 import { exportFilename } from "../export/formats";
 
@@ -18,8 +18,8 @@ function download(blob: Blob, filename: string): void {
 }
 
 export function saveProjectFile(): void {
-  const bytes = packProject($state.snapshot(appState.project), pool.records());
-  // `packProject`'s return type is the bare `Uint8Array`, which TS widens to
+  const bytes = packCurrentProject($state.snapshot(appState.project), pool.records());
+  // `packCurrentProject`'s return type is the bare `Uint8Array`, which TS widens to
   // `Uint8Array<ArrayBufferLike>` — Blob wants the concrete `ArrayBuffer` form. `zipSync` (its
   // implementation) always backs the array with a real ArrayBuffer, so this narrows a type, not a fact.
   download(

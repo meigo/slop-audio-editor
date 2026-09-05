@@ -1,5 +1,7 @@
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
-import { DEFAULT_DUCK_DEPTH_DB, type Project, type TrackEq } from "../doc/document";
+import {
+  DEFAULT_DUCK_DEPTH_DB, referencedSourceIdsAcross, type Project, type TrackEq,
+} from "../doc/document";
 
 export const PROJECT_FILE_VERSION = 1;
 export const PROJECT_FILE_EXT = ".slopaudio";
@@ -105,4 +107,19 @@ export function unpackProject(zip: Uint8Array): { project: Project; sources: Sou
   applyDocumentDefaults(project);
 
   return { project, sources };
+}
+
+/** Packs only the audio the document actually references.
+ *
+ *  The pool holds everything imported this session, including sources whose every clip was since
+ *  deleted — `packProject` faithfully writes whatever it is handed, so passing `pool.records()`
+ *  put audio the user had removed inside a file they might share, and inflated it for no benefit.
+ *  Nothing in the file can ever need those bytes: undo history is not saved (`loadInto` resets
+ *  it), so no reachable document references them. */
+export function packCurrentProject(
+  project: Project,
+  records: readonly SourceRecord[],
+): Uint8Array {
+  const referenced = referencedSourceIdsAcross([project]);
+  return packProject(project, records.filter((r) => referenced.has(r.id)));
 }
