@@ -31,9 +31,13 @@
     "rounded p-1 text-text hover:bg-raised disabled:opacity-30 disabled:hover:bg-transparent";
   /** A 1px rule between toolbar groups. Whitespace alone reads as accidental at this size. */
   const DIVIDER = "mx-1 h-5 w-px shrink-0 bg-line";
-  /** Toggles are labelled checkboxes rather than icon buttons: the label IS the affordance, and
-   *  `accent-color` on `:root` tints the native box to the app blue. */
-  const TOGGLE = "flex items-center gap-1.5 rounded px-1 py-0.5 text-xs hover:bg-raised";
+  /** Toggle buttons, not checkboxes: the track headers already say "on" by FILLING (M / S / D),
+   *  and two idioms for the same idea in one window is one too many. Text rather than an icon
+   *  because "Glue" has no glyph anyone would read correctly — a cryptic icon would trade a
+   *  consistency problem for a comprehension one. */
+  const toggleClass = (on: boolean): string =>
+    "rounded px-2 py-0.5 text-xs " +
+    (on ? "bg-accent font-medium text-ground" : "text-muted hover:bg-raised hover:text-text");
 
   function onMasterGain(g: number) {
     if (!masterDragging) {
@@ -185,17 +189,23 @@
 
   <div class={DIVIDER}></div>
 
-  <label class={TOGGLE}>
-    <input type="checkbox" bind:checked={appState.snap} /> Snap
-  </label>
+  <button
+    class={toggleClass(appState.snap)}
+    aria-pressed={appState.snap}
+    title="Snap edges to clip boundaries, the playhead and t=0 while dragging (hold Shift to override)"
+    onclick={() => (appState.snap = !appState.snap)}
+  >
+    Snap
+  </button>
 
-  <label class={TOGGLE}>
-    <input
-      type="checkbox"
-      checked={appState.project.glue}
-      onchange={(e) => commit((p) => setGlue(p, e.currentTarget.checked))}
-    /> Glue
-  </label>
+  <button
+    class={toggleClass(appState.project.glue)}
+    aria-pressed={appState.project.glue}
+    title="Band-limit and gently compress the master bus so disparate sources cohere"
+    onclick={() => commit((p) => setGlue(p, !appState.project.glue))}
+  >
+    Glue
+  </button>
 
   <!-- Only while a track is actually marked D: an always-visible control for a feature nobody in
        this project is using is just clutter, and its appearance next to the toggle teaches what
