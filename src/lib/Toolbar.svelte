@@ -1,10 +1,10 @@
 <script lang="ts">
   import {
-    ArrowLeftToLine, ArrowRightToLine, Download, FilePlus2, FolderOpen, Pause, Play, Plus,
+    ArrowLeftToLine, ArrowRightToLine, Download, FilePlus2, FolderOpen, Pause, Play,
     Redo2, Repeat, Save, Scale, Scissors, Square, Undo2, Upload, X,
   } from "@lucide/svelte";
   import { createProject } from "../doc/document";
-  import { addTrack, setDuckDepth, setGlue, setMasterGain, splitAt } from "../doc/edits";
+  import { setDuckDepth, setGlue, setMasterGain, splitAt } from "../doc/edits";
   import { openProjectFile, pruneUnreferencedSources, saveProjectFile } from "../persist/project-io.svelte";
   import {
     amend, beginGesture, canRedoNow, canUndoNow, clearPlayRange, commit, currentTrackId,
@@ -181,9 +181,6 @@
       onclick={() => commit((p) => splitAt(p, selectedTrackIds(), appState.playheadS))}
     >
       <Scissors size={16} />
-    </button>
-    <button class={BTN} title="Add an empty track below" onclick={() => commit((p) => addTrack(p))}>
-      <Plus size={16} />
     </button>
   </div>
 

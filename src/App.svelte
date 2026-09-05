@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { Plus } from "@lucide/svelte";
+  import { addTrack } from "./doc/edits";
   import Inspector from "./lib/Inspector.svelte";
   import KeyboardShortcuts from "./lib/KeyboardShortcuts.svelte";
   import Playhead from "./lib/Playhead.svelte";
@@ -12,7 +14,7 @@
   import { PROJECT_FILE_EXT } from "./persist/project-file";
   import { openProjectFile, restoreAutosave, saveProjectFile } from "./persist/project-io.svelte";
   import {
-    currentTrackId, importFiles, markRestoreSettled, state as appState,
+    commit, currentTrackId, importFiles, markRestoreSettled, state as appState,
   } from "./state/appState.svelte";
 
   /** Left column holding track headers. Fixed so the ruler and lanes share one x origin. */
@@ -82,7 +84,19 @@
 
   <div class="flex min-h-0 flex-1">
     <div class="shrink-0 border-r border-line bg-panel" style="width: {HEADER_W}px">
-      <div class="h-7 border-b border-line"></div>
+      <!-- The strip that aligns with the ruler was dead space. Unlike a row under the last
+           header, this stays put however many tracks there are, and it sits at the head of the
+           column it adds to. It used to be a bare "+" in the toolbar's edit group, between
+           undo/redo and cut — nothing to do with its neighbours, and unreadable as "add track". -->
+      <button
+        class="flex h-7 w-full items-center gap-1.5 border-b border-line px-2 text-[11px]
+               text-muted hover:bg-raised hover:text-text"
+        title="Add an empty track below the last one"
+        onclick={() => commit((p) => addTrack(p))}
+      >
+        <Plus size={13} />
+        Add track
+      </button>
       {#each appState.project.tracks as track (track.id)}
         <TrackHeader {track} />
       {/each}
