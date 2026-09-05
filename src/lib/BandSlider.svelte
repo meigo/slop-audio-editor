@@ -34,7 +34,7 @@
     onpointerup={onCommit}
     onkeyup={onCommit}
   />
-  <span class="w-14 shrink-0 text-right text-[10px] tabular-nums text-muted">
+  <span class="w-12 shrink-0 text-right text-[10px] tabular-nums text-muted">
     {formatSignedDb(db)}
   </span>
 </div>

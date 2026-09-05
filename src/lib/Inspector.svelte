@@ -49,9 +49,11 @@
   };
 </script>
 
-<div class="flex h-10 shrink-0 items-center gap-4 border-t border-line bg-panel px-3">
+<!-- `overflow-x-auto` is the fallback for a genuinely narrow window: the controls keep their
+     natural size and the bar scrolls, rather than squeezing until labels wrap. -->
+<div class="flex h-10 shrink-0 items-center gap-3 overflow-x-auto border-t border-line bg-panel px-3">
   {#if clip}
-    <span class="w-48 truncate text-xs text-text">{source?.name ?? "missing audio"}</span>
+    <span class="w-32 shrink-0 truncate text-xs text-text">{source?.name ?? "missing audio"}</span>
 
     <NumberField
       label="in"
@@ -110,7 +112,7 @@
     <!-- Right-aligned and always present: EQ belongs to the current track, so unlike the clip
          fields it has something to show even when nothing is selected. -->
     <div
-      class="ml-auto flex items-center gap-2"
+      class="ml-auto flex items-center gap-1.5"
       data-hint="Three-band tone control for the current track ({EQ_LOW_HZ} Hz, {EQ_MID_HZ} Hz, {EQ_HIGH_HZ} Hz). Click a track header to switch tracks."
     >
       <span class="max-w-24 truncate text-[11px] text-muted">{track.name} EQ</span>

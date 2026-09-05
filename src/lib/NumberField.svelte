@@ -33,7 +33,9 @@
   }
 </script>
 
-<label class="flex items-center gap-1 text-[11px] text-muted" {title}>
+<!-- `whitespace-nowrap`: without it flex relieves a crowded row by WRAPPING the label, so
+     "fade in" silently became two lines instead of the row admitting it was too full. -->
+<label class="flex shrink-0 items-center gap-1 whitespace-nowrap text-[11px] text-muted" {title}>
   {label}
   <!-- `raised`, not `panel`: the toolbar and the inspector ARE panel, so a panel-coloured input
        is invisible against them and the label reads as unrelated to its own value. -->
