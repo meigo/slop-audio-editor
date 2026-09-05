@@ -13,10 +13,6 @@
      ground->panel from 1.12 to 1.04, so the whole ramp moves together and the steps come out
      slightly WIDER than stock zinc (1.14 / 1.21 / 1.44). */
   --color-ground: #101013; /* 0.53% luminance — still near-black, one step off the floor */
-  /* The track lanes are LIGHTER than the app ground, so the timeline reads as a bed the clips sit
-     on rather than a void they float in — slop-video-compositor does the same. Only the lanes:
-     the area below the last track stays `ground`, which is what makes the bed's extent legible. */
-  --color-lane: #1c1c22;
   --color-panel: #1e1e22;
   --color-raised: #2d2d33;
   --color-line: #2e2e35; /* only slightly lighter than the panels it divides — 1.23:1 */
