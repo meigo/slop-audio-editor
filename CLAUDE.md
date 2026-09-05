@@ -460,6 +460,33 @@ src/
     `:root` also sets `color-scheme: dark` and `accent-color`: checkboxes, range thumbs and
     scrollbars are drawn by the browser and would otherwise keep the OS light palette.
 
+26. **Every piece of id-keyed session state must be resolved against the live project at the
+    point of USE.** `currentTrackId()` does it via `resolveTrackId` (Gotcha 14); `soloed` did not,
+    and `planSchedule` drops every track when the solo set is non-empty and nothing in it matches.
+    Soloing a track and then deleting it — or starting a new project, which mints fresh track ids —
+    silenced the entire timeline with no `S` lit anywhere to explain it and no way out but a
+    reload. `activeSoloed()` filters the set against the live tracks at each `engine.play` call,
+    which covers delete, New project and Open in one place. The raw `state.soloed` is still what
+    `toggleSolo` and the header buttons read, so a stale id survives an undo that brings its track
+    back — filtering at use, not on mutation, is what makes that work.
+    Export was never affected (Gotcha 1), which is exactly why this could hide: it looked like the
+    app had broken rather than like a mix problem.
+
+27. **The declick is suppressed at a seam where clips genuinely continue each other, and the
+    document-defaulting/id-adoption steps run BEFORE the decode loop in `loadInto`.** Three fixes
+    with one shape — a correct-looking step in the wrong place.
+    (a) `playsContinuouslyInto` (`schedule.ts`): `splitAt` leaves halves that are bit-contiguous,
+    so declicking both sides of that join punched a 10 ms hole to silence into audio that had no
+    discontinuity. Same source + touching + contiguous in-points + equal gain means no ramp; a gain
+    step, a different source, or a window edge cutting into a clip all keep theirs.
+    (b) `applyDocumentDefaults` (`project-file.ts`) is called from `loadInto`, not only from
+    `unpackProject`. An IndexedDB autosave is handed to `loadInto` verbatim, so a session saved
+    before `eq` existed installed a document the Inspector dereferences on render.
+    (c) `adoptIds` runs before decoding, not after. Decoding yields to the event loop on every
+    chunk and the UI stays live, so an import started while the loading banner is up minted an id
+    the loading project already used — and `putSource` is a keyed put, which overwrote that
+    source's bytes in IndexedDB.
+
 ## Testing
 
 Vitest, `node` environment, no DOM (`src/**/*.test.ts`, see `vite.config.ts`). Pure logic

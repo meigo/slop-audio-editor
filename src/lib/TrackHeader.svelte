@@ -89,6 +89,7 @@
 
     <button
       class={flagClass(track.muted, FLAG_DOC)}
+      aria-pressed={track.muted}
       title="Mute — saved with the project and silences the export"
       onclick={() => commit((p) => setTrackMuted(p, track.id, !track.muted))}
     >
@@ -96,6 +97,7 @@
     </button>
     <button
       class={flagClass(appState.soloed.has(track.id), FLAG_SESSION)}
+      aria-pressed={appState.soloed.has(track.id)}
       title="Solo — preview only, never saved and never affects the export"
       onclick={() => toggleSolo(track.id)}
     >
@@ -103,6 +105,7 @@
     </button>
     <button
       class={flagClass(track.ducked, FLAG_DOC)}
+      aria-pressed={track.ducked}
       title="Background — saved with the project; dips this track while any other track plays"
       onclick={() => commit((p) => setTrackDucked(p, track.id, !track.ducked))}
     >

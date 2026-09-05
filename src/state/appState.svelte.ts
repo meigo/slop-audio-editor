@@ -174,7 +174,7 @@ function restartIfPlaying(): void {
   if (!state.playing) return;
   const at = engine.positionS();
   engine.stop();
-  engine.play(state.project, pool, at, playEndS(), state.soloed);
+  engine.play(state.project, pool, at, playEndS(), activeSoloed());
 }
 
 /** The play range bounds playback whether or not looping is on — loop only controls whether
@@ -212,12 +212,12 @@ export function togglePlay(): void {
     // `onEnded` on a zero-delay timer, which would land straight back here forever.
     if (state.loop && playEndS() > restartAt) {
       state.playheadS = restartAt;
-      engine.play(state.project, pool, restartAt, playEndS(), state.soloed);
+      engine.play(state.project, pool, restartAt, playEndS(), activeSoloed());
       return;
     }
     state.playing = false;
   };
-  engine.play(state.project, pool, from, playEndS(), state.soloed);
+  engine.play(state.project, pool, from, playEndS(), activeSoloed());
   state.playheadS = from;
   state.playing = true;
 }
@@ -247,7 +247,7 @@ export function seekTo(s: number): void {
   state.playheadS = clamped;
   if (state.playing) {
     engine.stop();
-    engine.play(state.project, pool, clamped, playEndS(), state.soloed);
+    engine.play(state.project, pool, clamped, playEndS(), activeSoloed());
   }
 }
 
@@ -255,6 +255,20 @@ export function seekTo(s: number): void {
  *  undoable, but persisted through `preferences` so it survives a reload. */
 export function cycleTrackHeight(): void {
   state.trackHeightPx = nextTrackHeight(state.trackHeightPx);
+}
+
+/** The soloed ids that still name a live track.
+ *
+ *  `soloed` is the one piece of session state with no resolve step, and `planSchedule` drops every
+ *  track when the set is non-empty and none of it matches: soloing a track and then deleting it
+ *  (or starting a new project) silenced the whole timeline, with no `S` lit anywhere to explain
+ *  it and no way out but a reload. Filtering at the point of USE fixes every route in one place —
+ *  delete, New project, and opening a file — exactly as `currentTrackId()` does for its field. */
+export function activeSoloed(): ReadonlySet<string> {
+  const live = new Set(state.project.tracks.map((t) => t.id));
+  const out = new Set<string>();
+  for (const id of state.soloed) if (live.has(id)) out.add(id);
+  return out;
 }
 
 export function toggleSolo(trackId: string): void {
