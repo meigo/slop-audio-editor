@@ -6,7 +6,7 @@ import type { Source, SourcePool } from "./pool";
  *  `AudioContext` is unavailable under Vitest's default (non-browser) environment, and
  *  `currentTime` needs to be directly controllable to test the schedule lead-in. */
 class FakeNode {
-  connect(): FakeNode {
+  connect(_dest?: unknown, _output?: number): FakeNode {
     return this;
   }
   disconnect(): void {}
@@ -14,12 +14,31 @@ class FakeNode {
 class FakeGainNode extends FakeNode {
   gain = { value: 1, setValueCurveAtTime: (): void => {} };
 }
-/** The meter tap. `fillWith` lets a test put a known waveform in front of `peakLevel()`. */
+/** The meter tap. This fake models the one Web Audio behaviour the meter depends on: an analyser
+ *  fed a stereo node directly sees the DOWN-MIX (the channels averaged), while one fed from a
+ *  splitter output sees that channel alone. `fakeCtx.channelSignal` is the signal on the graph's
+ *  terminal node — without this distinction a test could not tell a per-channel meter from a
+ *  down-mixing one, which is exactly the bug. */
 class FakeAnalyserNode extends FakeNode {
   fftSize = 2048;
-  fillWith = 0;
+  /** Splitter output this analyser is fed from; null when fed the full stereo node. */
+  channel: number | null = null;
+  constructor(private readonly ctx: FakeAudioContext) {
+    super();
+  }
   getFloatTimeDomainData(out: Float32Array): void {
-    out.fill(this.fillWith);
+    const sig = this.ctx.channelSignal;
+    out.fill(
+      this.channel === null
+        ? sig.reduce((a, b) => a + b, 0) / sig.length
+        : (sig[this.channel] ?? 0),
+    );
+  }
+}
+class FakeChannelSplitterNode extends FakeNode {
+  connect(dest?: unknown, output = 0): FakeNode {
+    if (dest instanceof FakeAnalyserNode) dest.channel = output;
+    return this;
   }
 }
 class FakeBufferSourceNode extends FakeNode {
@@ -37,10 +56,13 @@ class FakeAudioContext {
   createBufferSource(): FakeBufferSourceNode {
     return new FakeBufferSourceNode();
   }
-  lastAnalyser: FakeAnalyserNode | null = null;
+  /** Per-channel signal on the graph's terminal node, as amplitude. */
+  channelSignal: number[] = [0, 0];
   createAnalyser(): FakeAnalyserNode {
-    this.lastAnalyser = new FakeAnalyserNode();
-    return this.lastAnalyser;
+    return new FakeAnalyserNode(this);
+  }
+  createChannelSplitter(): FakeChannelSplitterNode {
+    return new FakeChannelSplitterNode();
   }
 }
 
@@ -122,15 +144,25 @@ describe("AudioEngine.peakLevel", () => {
   it("reports the level on the graph's terminal node while playing", () => {
     const engine = new AudioEngine();
     engine.play(createProject(), emptyPool(), 0, 10, new Set());
-    fakeCtx.lastAnalyser!.fillWith = -0.75; // magnitude, so a trough must register
+    fakeCtx.channelSignal = [-0.75, -0.75]; // magnitude, so a trough must register
     expect(engine.peakLevel()).toBeCloseTo(0.75, 6);
     engine.stop();
   });
 
-  it("returns to 0 once stopped, releasing the analyser", () => {
+  it("measures each channel separately, so a hard-panned mix is not read as half its level", () => {
     const engine = new AudioEngine();
     engine.play(createProject(), emptyPool(), 0, 10, new Set());
-    fakeCtx.lastAnalyser!.fillWith = 0.9;
+    // Full scale in one channel, silence in the other — a single analyser down-mixes this to
+    // 0.45 and shows a comfortable mix while that channel is on the edge of clipping.
+    fakeCtx.channelSignal = [0.9, 0];
+    expect(engine.peakLevel()).toBeCloseTo(0.9, 6);
+    engine.stop();
+  });
+
+  it("returns to 0 once stopped, releasing the analysers", () => {
+    const engine = new AudioEngine();
+    engine.play(createProject(), emptyPool(), 0, 10, new Set());
+    fakeCtx.channelSignal = [0.9, 0.9];
     expect(engine.peakLevel()).toBeCloseTo(0.9, 6);
     engine.stop();
     expect(engine.peakLevel()).toBe(0);
@@ -139,7 +171,7 @@ describe("AudioEngine.peakLevel", () => {
   it("reports an over above 1.0 rather than clamping to full scale", () => {
     const engine = new AudioEngine();
     engine.play(createProject(), emptyPool(), 0, 10, new Set());
-    fakeCtx.lastAnalyser!.fillWith = 1.4;
+    fakeCtx.channelSignal = [1.4, 1.4];
     expect(engine.peakLevel()).toBeCloseTo(1.4, 6);
     engine.stop();
   });

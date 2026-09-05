@@ -5,6 +5,10 @@ import { renderPlan, SCHEDULE_LEAD_S, type RenderedGraph } from "./render";
 import { peakAmplitude } from "./peak";
 import { planSchedule } from "./schedule";
 
+/** The app always renders stereo: `AudioContext`'s default destination, and
+ *  `OfflineAudioContext(2, …)` for export. The meter splits those same two channels. */
+const METER_CHANNELS = 2;
+
 /**
  * Transport. Schedules the ENTIRE remaining project up front — sample-accurate by construction,
  * no timer, no drift. Structural edits stop and restart from the current position; mix changes
@@ -18,10 +22,11 @@ export class AudioEngine {
   #stopTimer: ReturnType<typeof setTimeout> | null = null;
   /** Metering tap on the graph's terminal node. Playback-only by design: `planSchedule` and
    *  `renderPlan` stay identical for preview and export (see the shared-planner rule), so the
-   *  analyser is attached HERE, in the caller, rather than inside the graph builder — an
+   *  analysers are attached HERE, in the caller, rather than inside the graph builder — an
    *  AnalyserNode in an OfflineAudioContext render would measure nothing and mean nothing. */
-  #analyser: AnalyserNode | null = null;
-  #meterBuf: Float32Array<ArrayBuffer> | null = null;
+  #splitter: ChannelSplitterNode | null = null;
+  #analysers: AnalyserNode[] = [];
+  #meterBufs: Float32Array<ArrayBuffer>[] = [];
 
   /** Fired when playback runs off the end of the scheduled window. */
   onEnded: (() => void) | null = null;
@@ -73,12 +78,23 @@ export class AudioEngine {
 
     this.#graph = renderPlan(ctx, planSchedule(project, fromS, end, soloed), pool, project, startAt,
       { fromS, toS: end });
+    // One analyser PER CHANNEL, fed through a splitter. A single AnalyserNode down-mixes its
+    // input to mono before filling the buffer, so a hard-panned mix reads up to 6 dB quieter
+    // than it is: full scale in one channel and silence in the other averages to half, and the
+    // meter sits comfortably while that channel clips. The splitter's discrete interpretation
+    // keeps the channels apart, and `peakAmplitude` takes the max across them.
+    //
     // fftSize samples (~43 ms at 48 kHz) is longer than a 60 fps frame, so consecutive reads
     // overlap and no peak can slip between them.
-    this.#analyser = ctx.createAnalyser();
-    this.#analyser.fftSize = 2048;
-    this.#meterBuf = new Float32Array(this.#analyser.fftSize);
-    this.#graph.output.connect(this.#analyser);
+    this.#splitter = ctx.createChannelSplitter(METER_CHANNELS);
+    this.#graph.output.connect(this.#splitter);
+    for (let c = 0; c < METER_CHANNELS; c++) {
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 2048;
+      this.#splitter.connect(analyser, c);
+      this.#analysers.push(analyser);
+      this.#meterBufs.push(new Float32Array(analyser.fftSize));
+    }
     this.#startCtxTime = startAt;
     this.#startOffsetS = fromS;
     this.#endS = end;
@@ -110,9 +126,11 @@ export class AudioEngine {
       s.disconnect();
     }
     this.#graph.masterGain.disconnect();
-    this.#analyser?.disconnect();
-    this.#analyser = null;
-    this.#meterBuf = null;
+    this.#splitter?.disconnect();
+    for (const a of this.#analysers) a.disconnect();
+    this.#splitter = null;
+    this.#analysers = [];
+    this.#meterBufs = [];
     this.#graph = null;
   }
 
@@ -140,8 +158,10 @@ export class AudioEngine {
   /** Peak amplitude over the last analyser window, as heard: post-master, post-Glue. 0 when
    *  stopped. Values above 1.0 are real overs and are reported as such. */
   peakLevel(): number {
-    if (!this.#analyser || !this.#meterBuf) return 0;
-    this.#analyser.getFloatTimeDomainData(this.#meterBuf);
-    return peakAmplitude([this.#meterBuf]);
+    if (this.#analysers.length === 0) return 0;
+    for (let c = 0; c < this.#analysers.length; c++) {
+      this.#analysers[c].getFloatTimeDomainData(this.#meterBufs[c]);
+    }
+    return peakAmplitude(this.#meterBufs);
   }
 }
