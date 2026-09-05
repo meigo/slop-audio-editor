@@ -459,6 +459,14 @@ src/
     (b) **In/out markers are a THIN line plus a wedge**, not a thick bar — a bar reads as a clip
     and competes with the media. `hitTestRuler`'s grab threshold is independent of how wide the
     marker is drawn, so the target stayed easy to hit when the line got thinner.
+    (c) **The playhead spans the ruler too**, so it is mounted beside `TimelineViewport` rather
+    than inside it — which is why that column carries `relative overflow-hidden`: the viewport
+    used to provide the clipping, and without it a playhead scrolled off the left edge paints
+    over the track-header column (the ruler's own markers already did, unnoticed). Its head is a
+    SYMMETRIC downward triangle against the in/out markers' asymmetric half-wedges, because
+    `danger` red beside `warn` amber is the worst pair for the common colour blindnesses and
+    colour alone would not separate them. It stays `pointer-events-none` so ruler scrubbing
+    passes through it.
     `:root` also sets `color-scheme: dark` and `accent-color`: checkboxes, range thumbs and
     scrollbars are drawn by the browser and would otherwise keep the OS light palette. The FOCUS
     RING needs its own rule — `accent-color` does not reach it — so a global `:focus-visible`

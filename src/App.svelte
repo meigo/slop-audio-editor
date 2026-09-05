@@ -147,15 +147,22 @@
       {/each}
     </div>
 
-    <div class="flex min-w-0 flex-1 flex-col" bind:clientWidth={timelineWidth}>
+    <!-- `relative overflow-hidden`: the playhead lives at THIS level, not inside the viewport, so
+         that it spans the ruler as well as the lanes — which means the clipping the viewport used
+         to provide has to move up here too. It also contains the ruler, whose in/out markers were
+         previously free to draw over the track-header column once scrolled off the left edge. -->
+    <div
+      class="relative flex min-w-0 flex-1 flex-col overflow-hidden"
+      bind:clientWidth={timelineWidth}
+    >
       <Ruler widthPx={timelineWidth} />
       <TimelineViewport>
         {#each appState.project.tracks as track (track.id)}
           <TrackLane {track} />
         {/each}
         <RangeOverlay />
-        <Playhead />
       </TimelineViewport>
+      <Playhead />
     </div>
   </div>
 
