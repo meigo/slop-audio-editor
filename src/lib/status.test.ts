@@ -36,6 +36,19 @@ describe("statusSummary", () => {
     expect(statusSummary(twoTracks, sel, null)).toContain("00:01.000–00:03.500 (2.500 s)");
   });
 
+  // A range selection is the one piece of state that silently changes what an export CONTAINS,
+  // and it is easy to paint by accident with a stray drag on a lane. The status line names it,
+  // mirroring the "in/out" label on the markers that look similar but never reach a file.
+  it("labels a range selection as the export window", () => {
+    const sel = { kind: "range" as const, range: { fromS: 1, toS: 3.5, trackIds: ["t"] } };
+    expect(statusSummary(twoTracks, sel, null)).toContain("export 00:01.000–00:03.500");
+  });
+
+  it("does not call a clip selection an export window — it does not bound the export", () => {
+    const sel = { kind: "clips" as const, clipIds: ["a"] };
+    expect(statusSummary(twoTracks, sel, null)).not.toContain("export");
+  });
+
   // The in/out markers are session state that bounds playback but never the export (Gotcha 13),
   // so the status line must not describe them as if they were a selection.
   it("reports the in/out play range separately from the selection", () => {
