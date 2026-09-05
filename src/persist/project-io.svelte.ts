@@ -1,7 +1,7 @@
 import { decodeSource, type Source } from "../audio/pool";
 import { adoptIds, referencedSourceIdsAcross, type Project } from "../doc/document";
 import { pool, resetHistory, state as appState } from "../state/appState.svelte";
-import { clearAutosave, deleteSource, putSource, readAutosave } from "./autosave";
+import { deleteSource, listSourceIds, putDocument, putSources, readAutosave } from "./autosave";
 import {
   applyDocumentDefaults,
   PROJECT_FILE_EXT, ProjectFileError, packProject, unpackProject, type SourceRecord,
@@ -84,8 +84,21 @@ export async function openProjectFile(file: File): Promise<void> {
   const bytes = new Uint8Array(await file.arrayBuffer());
   const { project, sources } = unpackProject(bytes); // throws ProjectFileError, surfaced by caller
   await loadInto(project, sources); // may throw — must happen before anything is destroyed
-  await clearAutosave();
-  for (const s of sources) await putSource(s);
+
+  // The previous autosave is never cleared, and the order below is the whole point. Clearing
+  // first emptied both stores and then wrote the sources one transaction at a time — so a quota
+  // error (likely: this is the audio that was just loaded) left NOTHING restorable, and the
+  // document debounce then wrote the new project 3 s later referencing sources that were never
+  // stored. Next launch: a project whose clips resolve to nothing, reported as a clean restore.
+  // Nothing is destroyed until the replacement is safely in place. `putSources` is atomic, so a
+  // failure here leaves the previous session exactly as it was; `putDocument` bypasses the
+  // debounce so the two stores never describe different projects; and only then are the sources
+  // the replaced session left behind pruned — never the ones just written, which the pool holds.
+  const previousIds = await listSourceIds();
+  await putSources(sources);
+  await putDocument(project);
+  const written = new Set(sources.map((s) => s.id));
+  await pruneUnreferencedSources(project, previousIds.filter((id) => !written.has(id)));
 }
 
 export function referencedSourceIds(project: Project): Set<string> {

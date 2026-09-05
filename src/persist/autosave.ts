@@ -47,6 +47,54 @@ export async function putSource(record: SourceRecord): Promise<void> {
   );
 }
 
+/** Every record in ONE transaction, so replacing a whole session is all-or-nothing.
+ *  `putSource` writes one record per transaction, which is right for import — one file at a
+ *  time, and a failure loses only that file — but wrong here. The sources being written are the
+ *  ones just loaded, hundreds of megabytes, which is exactly when a quota error happens; a
+ *  per-record loop that fails partway would leave the store holding some of the new project's
+ *  audio and some of the previous one's, a mix that looks intact and is not. IndexedDB aborts a
+ *  transaction wholesale when any request in it fails, so either every source lands or the
+ *  previous session is untouched. Awaiting the TRANSACTION rather than each request is what
+ *  makes that guarantee observable — a per-request await would resolve for the puts that
+ *  succeeded before the abort. */
+export async function putSources(records: readonly SourceRecord[]): Promise<void> {
+  if (records.length === 0) return;
+  const db = await open();
+  const t = db.transaction(SRC_STORE, "readwrite");
+  const store = t.objectStore(SRC_STORE);
+  await new Promise<void>((resolve, reject) => {
+    t.oncomplete = () => resolve();
+    t.onabort = () => reject(t.error ?? new Error("IndexedDB transaction aborted"));
+    t.onerror = () => reject(t.error ?? new Error("IndexedDB write failed"));
+    for (const r of records) store.put({ name: r.name, bytes: r.bytes }, r.id);
+  });
+}
+
+/** Writes the document NOW and propagates failure, unlike `scheduleDocumentSave`.
+ *
+ *  The debounce is right for editing: the document is rewritten every few seconds regardless, so
+ *  a dropped tick costs nothing. Replacing the whole session has a window the debounce cannot
+ *  cover — until the new document lands, the doc store still describes the PREVIOUS project
+ *  while the source store already holds this one's audio. Closing that window is the caller's
+ *  reason for existing, so this one reports its failures.
+ *
+ *  Same constraint as `scheduleDocumentSave`: `project` must already be a plain snapshot. */
+export async function putDocument(project: Project): Promise<void> {
+  const db = await open();
+  await awaitRequest(tx(db, DOC_STORE, "readwrite").put(project, "project"));
+}
+
+/** Keys only. The values are the audio itself and can be hundreds of megabytes, so a caller that
+ *  merely wants to know WHICH sources are stored must never reach for `readAutosave`. */
+export async function listSourceIds(): Promise<string[]> {
+  const db = await open();
+  return new Promise((resolve) => {
+    const r = tx(db, SRC_STORE, "readonly").getAllKeys();
+    r.onsuccess = () => resolve(r.result.map(String));
+    r.onerror = () => resolve([]);
+  });
+}
+
 /** Removes one source record. `putSource` is otherwise append-only, so this is the only way an
  *  orphaned source — no longer referenced by any clip in the document — stops taking up space. */
 export async function deleteSource(id: string): Promise<void> {
@@ -64,7 +112,7 @@ export function scheduleDocumentSave(project: Project): void {
   timer = setTimeout(async () => {
     timer = null;
     // No caller is waiting on this timer callback to reject to, so — unlike `putSource` and
-    // `clearAutosave` — a failure here is swallowed rather than propagated. Crashing the app over
+    // `putDocument` — a failure here is swallowed rather than propagated. Crashing the app over
     // a missed autosave tick would be a worse outcome than the tick itself: the document is
     // rewritten every few seconds regardless of user action, so the next edit's debounce will
     // simply retry the same write.
@@ -100,10 +148,4 @@ export async function readAutosave(): Promise<{ project: Project; sources: Sourc
     cursor.onerror = () => resolve(out);
   });
   return { project, sources };
-}
-
-export async function clearAutosave(): Promise<void> {
-  const db = await open();
-  await awaitRequest(tx(db, DOC_STORE, "readwrite").clear());
-  await awaitRequest(tx(db, SRC_STORE, "readwrite").clear());
 }

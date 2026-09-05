@@ -508,6 +508,36 @@ src/
     high-crest-factor mix stops at exactly −1.00 dBFS peak and reports falling short; silence is
     left alone rather than multiplied by infinity.
 
+29. **Replacing a session never destroys the old one first — `openProjectFile` writes the
+    replacement, then prunes.** It used to `clearAutosave()` (emptying both stores) and only then
+    write the new sources, one transaction per source. Those sources are the audio that was just
+    loaded — hundreds of megabytes, i.e. exactly when a quota error happens — so a failure left
+    NOTHING restorable, and the document debounce then wrote the new project 3 s later
+    referencing sources that were never stored: next launch restored a project whose clips
+    resolve to nothing, reported as success. Same class as Gotchas 1 and 16a.
+    Reordering alone does not fix it, which is the part worth remembering: per-record
+    transactions fail independently, so writing sources first and clearing after would leave the
+    store holding some of the new project's audio and some of the old one's — a mix that looks
+    intact. `putSources` puts every record in ONE transaction and awaits the TRANSACTION, not the
+    individual requests; IndexedDB aborts wholesale when any request in it fails, so it is
+    genuinely all-or-nothing. Verified in a browser: a failing request in a batch rolled back the
+    puts that had already succeeded and left the previous session's sources and document
+    untouched, and a simulated failure during a real `openProjectFile` threw with the old session
+    still restorable.
+    `putDocument` exists for the same reason: `scheduleDocumentSave`'s 3 s debounce is right for
+    editing (the document is rewritten constantly, so a dropped tick costs nothing) but leaves a
+    window here where the doc store still describes the PREVIOUS project while the source store
+    already holds this one's audio. `clearAutosave` was deleted rather than left unused — nothing
+    in this path should have a one-call way to empty the stores.
+    Pruning runs LAST, against the ids the store held BEFORE the write, minus the ids just
+    written. Not "everything unreferenced": a `.slopaudio` can carry sources no clip references
+    (`saveProjectFile` packs the whole pool), `loadInto` decodes all of them into the pool, and
+    pruning by reference alone would delete bytes that are in memory and expected on disk.
+    Still open: after a failed source write the in-memory session has ALREADY been swapped, so
+    the user's next edit schedules a document save whose audio was never stored. The autosave is
+    consistent until then. Closing that needs a session-level "autosave unavailable" state and a
+    way to tell the user — deliberately not done here.
+
 ## Testing
 
 Vitest, `node` environment, no DOM (`src/**/*.test.ts`, see `vite.config.ts`). Pure logic
