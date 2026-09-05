@@ -71,8 +71,10 @@ describe("projectDurationS", () => {
   });
 });
 
-describe("id collision after a simulated reload (regression)", () => {
-  it("newId mints ids that collide with a previously-restored project, unless adopted", () => {
+describe("adoptIds", () => {
+  // Unit coverage of the primitive only. That `loadInto` actually CALLS it is covered by
+  // persist/load-into.test.ts, which drives the real load path.
+  it("mints ids that collide with a restored project unless the loaded ids are adopted first", () => {
     // Session 1: build a project the way the app would.
     let p = createProject();
     p = addTrack(p, "Track 2");
