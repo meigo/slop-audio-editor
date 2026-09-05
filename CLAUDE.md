@@ -95,6 +95,9 @@ src/
     history.ts            undo/redo stack, cap 100, structuredClone snapshots
 
   export/
+    limiter.ts       limitPeaks(channels, sampleRate, ceilingDbfs) — lookahead brick-wall peak
+                     limiter, pure. Applied to the RENDERED BUFFER only, never the node graph
+    normalise.ts     loudness targets; normaliseChannels(...) does the gain-then-limit passes
     mixdown.ts       OfflineAudioContext render via planSchedule, with solo hard-wired out
                      (see Gotcha 1)
     wav.ts           AudioBuffer -> WAV Blob (16-bit or 32-bit float), tested
