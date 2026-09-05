@@ -2,18 +2,21 @@
 
 /* Shared slop timeline palette — see /Users/meigo/Projects/slop/SLOP-TIMELINE-UI.md.
    Roles, not hexes, are what component markup names: `bg-panel`, `border-line`, `text-muted`.
-   The greys carry a couple of points more blue than red; that faint lean is the family tint, and
-   the accent is what actually carries colour. */
+   The chrome greys are a single blue hue ramp, not neutrals — the accent then sits inside the
+   same family rather than against it. */
 @theme {
-  --color-ground: #12141a;
-  --color-panel: #1a1d26;
-  --color-raised: #232734;
-  --color-line: #2e3342;
-  --color-text: #eef0f6;
-  --color-muted: #969db1;
-  /* Tailwind indigo-500 / indigo-400. */
-  --color-accent: #6366f1;
-  --color-accent-hover: #818cf8;
+  /* Blue theme: the greys are a single hue ramp (~215 deg) rather than neutrals with a hint of
+     blue, so the chrome itself reads blue and the accent sits IN the same family instead of
+     against it. */
+  --color-ground: #0d1420;
+  --color-panel: #141d2b;
+  --color-raised: #1d2838;
+  --color-line: #29354a;
+  --color-text: #e8eef7;
+  --color-muted: #93a1b8;
+  /* Tailwind blue-500 / blue-400. */
+  --color-accent: #3b82f6;
+  --color-accent-hover: #60a5fa;
   --color-danger: #f07178;
   --color-warn: #d4a017;
   --color-ok: #7dcea0;
