@@ -112,7 +112,7 @@ src/
 
   lib/               Svelte components — Toolbar, Ruler, TimelineViewport, TrackHeader, TrackLane,
                      ClipView, Waveform, Playhead, RangeOverlay, Inspector, NumberField, Fader,
-                     ExportDialog, KeyboardShortcuts; clip-drag.svelte.ts holds drag-gesture logic
+                     ExportDialog, KeyboardShortcuts, ShortcutHelp; clip-drag.svelte.ts holds drag-gesture logic
 ```
 
 ## Gotchas
@@ -576,6 +576,33 @@ src/
     history is not saved (`loadInto` resets it, Gotcha 16a), so no document reachable from the
     file references them. Note this is the OPPOSITE of the pruning rule in Gotcha 16b — pruning
     happens in a live session where undo can still reach a document, and packing does not.
+
+33. **The shortcut overlay's list is checked against the parser by tests, not maintained beside
+    it.** `SHORTCUTS` (`src/lib/shortcuts.ts`) is a table of `{group, keys, label, event,
+    command}` that `ShortcutHelp.svelte` renders. `resolveShortcut` was deliberately NOT
+    refactored to consume it: that parser is small, pure and well tested, and turning it into a
+    data-driven dispatcher so it could generate its own documentation would put the riskier code
+    in the more important place. Two tests join them instead:
+    (a) every entry's `event` really resolves to the `command` it claims — so the overlay cannot
+    advertise a key that does nothing;
+    (b) a sweep of the key space (letters in both cases, digits, arrows, Space, Delete/Backspace,
+    `+ - = _ ? /`, × four modifier states) collects every command the parser can produce and
+    asserts the set equals the documented set — so a shortcut cannot be added without being
+    documented. A switch statement cannot be reflected over; sweeping is what makes this
+    detectable at all. It works: the first draft of the table lumped cut/copy/paste into one row
+    and (b) failed with two undocumented commands.
+    What NO test can catch is a wrong `label` — "Undo" written next to ⌘Y. That stays on the
+    author.
+    The overlay opens on `?` (a normal `showHelp` command, so its own key is documented like
+    everything else) and from a toolbar button — the point is to reach people who do not know the
+    shortcuts, so reaching it must not require knowing one. While it is open,
+    `KeyboardShortcuts.svelte` returns early for everything except Esc and `?`: editing the
+    project behind a modal is not a feature. `ExportDialog` still does NOT do this (Gotcha 18
+    records it); that was left alone deliberately rather than swept in.
+    Layout note: the sections are CSS `columns-2`, not a 2-column grid — grid rows are as tall as
+    the tallest section in the row, which left a large gap under the short columns. And the key
+    chips need `justify-self-start`, or each one stretches to the width of its column's widest
+    entry and "L" renders as a box the width of "Space".
 
 ## Testing
 

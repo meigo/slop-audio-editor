@@ -21,11 +21,25 @@
 
   function onKeyDown(e: KeyboardEvent) {
     if (isTextTarget(e.target)) return;
+
+    // While the overlay is up, the only keys that do anything are the ones that dismiss it.
+    // Editing the project behind a modal you cannot see the result through is not a feature.
+    if (appState.helpOpen) {
+      if (e.key === "Escape" || e.key === "?") {
+        e.preventDefault();
+        appState.helpOpen = false;
+      }
+      return;
+    }
+
     const cmd = resolveShortcut(e);
     if (!cmd) return;
     e.preventDefault();
 
     switch (cmd.kind) {
+      case "showHelp":
+        appState.helpOpen = true;
+        return;
       case "togglePlay":
         return togglePlay();
       case "split":

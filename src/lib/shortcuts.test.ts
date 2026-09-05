@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveShortcut, type KeyEventLike } from "./shortcuts";
+import { resolveShortcut, SHORTCUTS, type KeyEventLike } from "./shortcuts";
 
 function key(k: string, mods: Partial<KeyEventLike> = {}): KeyEventLike {
   return { key: k, metaKey: false, ctrlKey: false, shiftKey: false, altKey: false, ...mods };
@@ -93,5 +93,46 @@ describe("select all", () => {
 
   it("leaves a bare 'a' unbound, so typing is not hijacked", () => {
     expect(resolveShortcut(key("a"))).toBeNull();
+  });
+});
+
+describe("the documented shortcut list", () => {
+  it("opens the help overlay on ?", () => {
+    expect(resolveShortcut(key("?", { shiftKey: true }))).toEqual({ kind: "showHelp" });
+  });
+
+  // Without this the overlay could advertise a key that does nothing — the failure mode of every
+  // hand-written shortcut list.
+  it("only lists keys that really resolve to the command they claim", () => {
+    for (const entry of SHORTCUTS) {
+      expect(resolveShortcut(entry.event)?.kind, `${entry.keys} (${entry.label})`)
+        .toBe(entry.command);
+    }
+  });
+
+  // ...and this is the other direction: a shortcut added to the parser but never documented.
+  // Sweeping the key space is what makes that detectable at all — a switch statement cannot be
+  // reflected over.
+  it("documents every command the parser can produce", () => {
+    const keys = [
+      " ", "Delete", "Backspace", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown",
+      "=", "+", "-", "_", "?", "/", "Escape", "Enter", "Tab",
+      ...Array.from({ length: 26 }, (_, i) => String.fromCharCode(97 + i)),
+      ...Array.from({ length: 10 }, (_, i) => String(i)),
+    ];
+    const resolvable = new Set<string>();
+    for (const k of keys) {
+      for (const mod of [false, true]) {
+        for (const shift of [false, true]) {
+          // Real browsers report the SHIFTED character, so a shifted letter arrives uppercase —
+          // "S" is a different key event from "s", and the parser distinguishes them.
+          const sent = shift && /^[a-z]$/.test(k) ? k.toUpperCase() : k;
+          const cmd = resolveShortcut(key(sent, { metaKey: mod, shiftKey: shift }));
+          if (cmd) resolvable.add(cmd.kind);
+        }
+      }
+    }
+
+    expect([...resolvable].sort()).toEqual([...new Set(SHORTCUTS.map((s) => s.command))].sort());
   });
 });

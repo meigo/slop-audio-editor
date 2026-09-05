@@ -1,7 +1,7 @@
 <script lang="ts">
   import {
     ArrowLeftToLine, ArrowRightToLine, Download, FilePlus2, FolderOpen, Pause, Play,
-    Redo2, Repeat, Save, Scale, Scissors, Square, Undo2, Upload, X,
+    Keyboard, Redo2, Repeat, Save, Scale, Scissors, Square, Undo2, Upload, X,
   } from "@lucide/svelte";
   import { createProject } from "../doc/document";
   import { setDuckDepth, setGlue, setMasterGain, splitAt } from "../doc/edits";
@@ -13,6 +13,7 @@
     setPlayIn, setPlayOut, state as appState, togglePlay, undoEdit,
   } from "../state/appState.svelte";
   import ExportDialog from "./ExportDialog.svelte";
+  import ShortcutHelp from "./ShortcutHelp.svelte";
   import NumberField from "./NumberField.svelte";
   import Meter from "./Meter.svelte";
   import Fader from "./Fader.svelte";
@@ -253,6 +254,12 @@
     <Upload size={16} />
   </button>
 
+  <!-- A button as well as the `?` key: the whole point of the overlay is to reach people who do
+       not know the shortcuts, so reaching it can't require knowing one. -->
+  <button class={BTN} title="Keyboard shortcuts (?)" onclick={() => (appState.helpOpen = true)}>
+    <Keyboard size={16} />
+  </button>
+
   <div class="ml-auto flex items-center gap-2 text-xs">
     <span class="text-muted">Master</span>
     <Meter />
@@ -267,4 +274,8 @@
 
 {#if exporting}
   <ExportDialog onClose={() => (exporting = false)} />
+{/if}
+
+{#if appState.helpOpen}
+  <ShortcutHelp onClose={() => (appState.helpOpen = false)} />
 {/if}

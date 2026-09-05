@@ -45,6 +45,9 @@ export const state = $state({
   lastFormat: prefs.lastFormat,
   normaliseLufs: prefs.normaliseLufs,
   importing: null as { name: string; fraction: number } | null,
+  /** Keyboard-shortcut overlay. Session state: two unrelated components open it (the `?` key and
+   *  the toolbar button), so it lives here rather than being drilled through props. */
+  helpOpen: false,
   dirty: false,
   /** Set when a source write to IndexedDB has failed, which makes autosave unsafe for the rest
    *  of the session: `openProjectFile` swaps the in-memory session BEFORE it persists (so a bad
