@@ -4,6 +4,7 @@
   import { TRACK_HEIGHTS } from "./persist/preferences";
   import Inspector from "./lib/Inspector.svelte";
   import KeyboardShortcuts from "./lib/KeyboardShortcuts.svelte";
+  import MasterPanel from "./lib/MasterPanel.svelte";
   import Playhead from "./lib/Playhead.svelte";
   import RangeOverlay from "./lib/RangeOverlay.svelte";
   import Ruler from "./lib/Ruler.svelte";
@@ -164,6 +165,8 @@
       </TimelineViewport>
       <Playhead />
     </div>
+
+    <MasterPanel />
   </div>
 
   <Inspector />

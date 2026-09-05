@@ -1,4 +1,4 @@
-import { projectDurationS, type Project, type TrackEq } from "../doc/document";
+import { projectDurationS, type Project, type EqBands } from "../doc/document";
 import { getAudioContext } from "./context";
 import type { SourcePool } from "./pool";
 import { renderPlan, SCHEDULE_LEAD_S, type RenderedGraph } from "./render";
@@ -143,8 +143,19 @@ export class AudioEngine {
   /** Live EQ change — no rescheduling, so bands can be swept while listening. Silently does
    *  nothing when the track's EQ was flat at schedule time: no filters were built, so there is
    *  nothing to adjust and the caller's `commit` will rebuild the graph on the next play. */
-  setTrackEq(trackId: string, eq: TrackEq): void {
+  setTrackEq(trackId: string, eq: EqBands): void {
     const nodes = this.#graph?.trackEqs.get(trackId);
+    if (!nodes) return;
+    nodes.low.gain.value = eq.lowDb;
+    nodes.mid.gain.value = eq.midDb;
+    nodes.high.gain.value = eq.highDb;
+  }
+
+  /** Live master-EQ change — no rescheduling, so bands can be swept while listening. Silently
+   *  does nothing when the master EQ was flat at schedule time: no filters were built, so there
+   *  is nothing to adjust and the caller's `commit` rebuilds the graph on the next play. */
+  setMasterEq(eq: EqBands): void {
+    const nodes = this.#graph?.masterEq;
     if (!nodes) return;
     nodes.low.gain.value = eq.lowDb;
     nodes.mid.gain.value = eq.midDb;

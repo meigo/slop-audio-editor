@@ -40,6 +40,13 @@ class FakeGainNode extends FakeNode {
   };
 }
 
+class FakeBiquadNode extends FakeNode {
+  type = "";
+  frequency = { value: 0 };
+  gain = { value: 0 };
+  Q = { value: 0 };
+}
+
 class FakeBufferSourceNode extends FakeNode {
   buffer: unknown = null;
   startCalls: { when: number; offset: number; duration: number }[] = [];
@@ -52,6 +59,7 @@ class FakeBufferSourceNode extends FakeNode {
  *  WHOLE plan (1-indexed), simulating a fade span the real Web Audio API would reject. */
 function makeFakeCtx(throwOnCall = Infinity) {
   const gains: FakeGainNode[] = [];
+  const biquads: FakeBiquadNode[] = [];
   const bufferSources: FakeBufferSourceNode[] = [];
   const destination = new FakeNode();
   let curveCalls = 0;
@@ -66,13 +74,18 @@ function makeFakeCtx(throwOnCall = Infinity) {
       gains.push(g);
       return g;
     },
+    createBiquadFilter: (): FakeBiquadNode => {
+      const n = new FakeBiquadNode();
+      biquads.push(n);
+      return n;
+    },
     createBufferSource: (): FakeBufferSourceNode => {
       const s = new FakeBufferSourceNode();
       bufferSources.push(s);
       return s;
     },
   };
-  return { ctx: ctx as unknown as BaseAudioContext, gains, bufferSources, destination };
+  return { ctx: ctx as unknown as BaseAudioContext, gains, biquads, bufferSources, destination };
 }
 
 function fakeProject(trackIds: string[]): Project {
@@ -81,6 +94,7 @@ function fakeProject(trackIds: string[]): Project {
     masterGain: 1,
     glue: false,
     duckDepthDb: -12,
+    masterEq: { lowDb: 0, midDb: 0, highDb: 0 },
     tracks: trackIds.map((id) => ({ id, name: id, clips: [], gain: 1, muted: false, ducked: false, eq: { lowDb: 0, midDb: 0, highDb: 0 } })),
   };
 }
@@ -143,5 +157,48 @@ describe("renderPlan", () => {
     const graph = renderPlan(ctx, plan, NO_SOLO_POOL, fakeProject(["t1"]), 0, WINDOW);
     expect(bufferSources).toHaveLength(0);
     expect(graph.sources).toHaveLength(0);
+  });
+});
+
+describe("master EQ", () => {
+  const clip = fakeScheduledClip();
+  const pool = { get: (): Source => fakeSource("s1") };
+
+  it("builds no biquads at all when it is flat, so an untouched project renders the old graph", () => {
+    const { ctx, biquads } = makeFakeCtx();
+    renderPlan(ctx, [clip], pool, fakeProject(["t1"]), 0, WINDOW);
+    expect(biquads.length).toBe(0);
+  });
+
+  it("builds three bands when shaped, and retains them for live adjustment", () => {
+    const { ctx, biquads } = makeFakeCtx();
+    const project = { ...fakeProject(["t1"]), masterEq: { lowDb: 0, midDb: -9, highDb: 0 } };
+
+    const graph = renderPlan(ctx, [clip], pool, project, 0, WINDOW);
+
+    expect(biquads.map((b) => b.type)).toEqual(["lowshelf", "peaking", "highshelf"]);
+    expect(graph.masterEq?.mid.gain.value).toBe(-9);
+  });
+
+  it("is null on the graph when flat — there is nothing to adjust", () => {
+    const { ctx } = makeFakeCtx();
+    expect(renderPlan(ctx, [clip], pool, fakeProject(["t1"]), 0, WINDOW).masterEq).toBe(null);
+  });
+
+  // Master and track EQ are independent chains: six biquads, not three shared ones.
+  it("does not share its bands with a track's EQ", () => {
+    const { ctx, biquads } = makeFakeCtx();
+    const base = fakeProject(["t1"]);
+    const project: Project = {
+      ...base,
+      masterEq: { lowDb: 3, midDb: 0, highDb: 0 },
+      tracks: base.tracks.map((t) => ({ ...t, eq: { lowDb: -3, midDb: 0, highDb: 0 } })),
+    };
+
+    const graph = renderPlan(ctx, [clip], pool, project, 0, WINDOW);
+
+    expect(biquads.length).toBe(6);
+    expect(graph.masterEq?.low.gain.value).toBe(3);
+    expect(graph.trackEqs.get("t1")?.low.gain.value).toBe(-3);
   });
 });

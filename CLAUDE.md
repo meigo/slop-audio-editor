@@ -112,7 +112,7 @@ src/
 
   lib/               Svelte components — Toolbar, Ruler, TimelineViewport, TrackHeader, TrackLane,
                      ClipView, Waveform, Playhead, RangeOverlay, Inspector, NumberField, Fader,
-                     ExportDialog, KeyboardShortcuts, ShortcutHelp; clip-drag.svelte.ts holds drag-gesture logic
+                     ExportDialog, KeyboardShortcuts, MasterPanel, ShortcutHelp; clip-drag.svelte.ts holds drag-gesture logic
 ```
 
 ## Gotchas
@@ -626,6 +626,27 @@ src/
     The general rule: any module-level value a component reads THROUGH A FUNCTION must be
     `$state`, or the read is invisible to the tracker. A plain `let` is only safe for something no
     component displays.
+
+35. **Master EQ is the SAME three bands as a track's, built by the SAME function, and sits
+    between the master fader and Glue.** `Project.masterEq` is an `EqBands` (the type is no longer
+    called `TrackEq`, because it is no longer only a track's). `renderPlan`'s `buildEq` serves
+    both — one builder, so the "a flat EQ builds NO nodes" guarantee of Gotcha 24 cannot hold for
+    tracks and quietly lapse for the master. Verified in `render.test.ts`: 0 biquads when flat, 3
+    when shaped, 6 when a track and the master are both shaped (independent chains, not shared).
+    Placement is before Glue so the compressor reacts to the shaped signal rather than fighting
+    it, which is the usual mastering order. Measured through a real `OfflineAudioContext`: master
+    mid at −9 dB reads exactly −9.00 dB at 1200 Hz, +6 reads +6.00, master −9 stacked with track
+    −3 reads −12.00, and returning to flat renders a bit-identical result.
+    It is a MIX change (Gotcha 8): `beginGesture("mix")`/`amend`/`endGesture` plus
+    `engine.setMasterEq` onto the retained biquads, so a band can be swept while listening. A
+    whole sweep is one undo entry — verified through the UI, five input events and one release.
+    **The meter and the master fader deliberately stay in the toolbar**, outside the collapsible
+    panel. The meter is a safety device and the fader gets ridden during playback; neither should
+    be reachable only by expanding something. The panel holds what you set and leave — EQ and
+    Glue. Its toggle is pinned to the panel's RIGHT edge: the panel grows leftwards, so its left
+    edge moves by the full width it opens by while the right edge does not move at all, and the
+    collapsed rail is 30 px rather than 28 so flex cannot shrink the button and shift it by a
+    pixel or two.
 
 ## Testing
 

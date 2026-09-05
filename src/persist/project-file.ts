@@ -1,6 +1,6 @@
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import {
-  DEFAULT_DUCK_DEPTH_DB, referencedSourceIdsAcross, type Project, type TrackEq,
+  DEFAULT_DUCK_DEPTH_DB, referencedSourceIdsAcross, type Project, type EqBands,
 } from "../doc/document";
 
 export const PROJECT_FILE_VERSION = 1;
@@ -47,17 +47,25 @@ export function packProject(project: Project, sources: readonly SourceRecord[]):
  *  paths need it: a `.slopaudio` file goes through `unpackProject`, but an IndexedDB autosave does
  *  not — it is handed to `loadInto` verbatim. Defaulting in only one of them left the autosave path
  *  installing a document with no `eq`, which the inspector dereferences on render. */
+/** Coerces a possibly-absent, possibly-malformed EQ into three real numbers. Shared by tracks and
+ *  the master bus, so a document saved before either existed cannot install `undefined` where the
+ *  UI dereferences bands on render. */
+function eqOrFlat(eq: unknown): EqBands {
+  const e = eq as Partial<EqBands> | undefined;
+  return {
+    lowDb: typeof e?.lowDb === "number" ? e.lowDb : 0,
+    midDb: typeof e?.midDb === "number" ? e.midDb : 0,
+    highDb: typeof e?.highDb === "number" ? e.highDb : 0,
+  };
+}
+
 export function applyDocumentDefaults(project: Project): void {
   if (typeof project.glue !== "boolean") project.glue = false;
   if (typeof project.duckDepthDb !== "number") project.duckDepthDb = DEFAULT_DUCK_DEPTH_DB;
+  project.masterEq = eqOrFlat(project.masterEq);
   for (const t of project.tracks) {
     if (typeof t.ducked !== "boolean") t.ducked = false;
-    const eq = t.eq as Partial<TrackEq> | undefined;
-    t.eq = {
-      lowDb: typeof eq?.lowDb === "number" ? eq.lowDb : 0,
-      midDb: typeof eq?.midDb === "number" ? eq.midDb : 0,
-      highDb: typeof eq?.highDb === "number" ? eq.highDb : 0,
-    };
+    t.eq = eqOrFlat(t.eq);
   }
 }
 

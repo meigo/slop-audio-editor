@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { EQ_HIGH_HZ, EQ_LOW_HZ, EQ_MAX_DB, EQ_MID_HZ, findClip, findTrack, type FadeShape, type TrackEq } from "../doc/document";
+  import { EQ_HIGH_HZ, EQ_LOW_HZ, EQ_MAX_DB, EQ_MID_HZ, findClip, findTrack, type FadeShape, type EqBands } from "../doc/document";
   import { setClipFade, setClipGain, setTrackEq, trimClipEnd, trimClipStart } from "../doc/edits";
   import {
     amend, beginGesture, commit, currentTrackId, endGesture, engine, pool, state as appState,
@@ -26,7 +26,7 @@
    *  reschedule. `dragging` is what collapses a whole sweep into one undo step. */
   let dragging = false;
 
-  function onBand(patch: Partial<TrackEq>) {
+  function onBand(patch: Partial<EqBands>) {
     const id = currentTrackId();
     if (!dragging) {
       dragging = true;

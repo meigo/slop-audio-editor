@@ -44,6 +44,7 @@ export const state = $state({
    *  property of how you work, not of the document. */
   lastFormat: prefs.lastFormat,
   normaliseLufs: prefs.normaliseLufs,
+  masterPanelOpen: prefs.masterPanelOpen,
   importing: null as { name: string; fraction: number } | null,
   /** Keyboard-shortcut overlay. Session state: two unrelated components open it (the `?` key and
    *  the toolbar button), so it lives here rather than being drilled through props. */
@@ -91,6 +92,7 @@ $effect.root(() => {
       snap: state.snap,
       trackHeightPx: state.trackHeightPx,
       lastFormat: state.lastFormat,
+      masterPanelOpen: state.masterPanelOpen,
       normaliseLufs: state.normaliseLufs,
     });
   });

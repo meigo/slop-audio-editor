@@ -4,7 +4,7 @@
     Keyboard, Redo2, Repeat, Save, Scale, Scissors, Square, Undo2, Upload, X,
   } from "@lucide/svelte";
   import { createProject } from "../doc/document";
-  import { setDuckDepth, setGlue, setMasterGain, splitAt } from "../doc/edits";
+  import { setDuckDepth, setMasterGain, splitAt } from "../doc/edits";
   import { openProjectFile, pruneUnreferencedSources, saveProjectFile } from "../persist/project-io.svelte";
   import {
     amend, beginGesture, canRedoNow, canUndoNow, clearPlayRange, commit, currentTrackId,
@@ -37,8 +37,9 @@
   const DIVIDER = "mx-1 h-5 w-px shrink-0 bg-line";
   /** Toggle buttons, not checkboxes: the track headers already say "on" by FILLING (M / S / D),
    *  and two idioms for the same idea in one window is one too many. Text rather than an icon
-   *  because "Glue" has no glyph anyone would read correctly — a cryptic icon would trade a
-   *  consistency problem for a comprehension one. */
+   *  because "Snap" has no glyph anyone would read correctly — a cryptic icon would trade a
+   *  consistency problem for a comprehension one. (Glue used the same class before it moved to
+   *  the master panel, where it belongs with the rest of the master bus.) */
   const toggleClass = (on: boolean): string =>
     `${CONTROL_H} px-2 text-xs ` +
     (on ? "bg-accent font-medium text-ground" : "text-muted hover:bg-raised hover:text-text");
@@ -126,6 +127,7 @@
   <button class={BTN} title="Import audio into the current track at the playhead — any format this browser can decode (MP3, WAV, M4A/AAC, FLAC, OGG, WebM)" onclick={() => fileInput?.click()}>
     <Download size={16} />
   </button>
+
   <input
     bind:this={fileInput}
     type="file"
@@ -218,14 +220,6 @@
     Snap
   </button>
 
-  <button
-    class={toggleClass(appState.project.glue)}
-    aria-pressed={appState.project.glue}
-    title="Band-limit and gently compress the master bus so disparate sources cohere"
-    onclick={() => commit((p) => setGlue(p, !appState.project.glue))}
-  >
-    Glue
-  </button>
 
   <!-- Always mounted, disabled until some track is marked D. It used to be `{#if}`-gated, which
        meant marking a track D made a control appear IN the toolbar row and shoved its neighbours

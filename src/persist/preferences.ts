@@ -7,6 +7,9 @@ export interface Preferences {
   lastFormat: string;
   /** Loudness target for export, LUFS. `null` means no normalisation. */
   normaliseLufs: number | null;
+  /** Master panel expanded. Persisted because it is a working preference, not document state —
+   *  the same reason zoom and snap live here. */
+  masterPanelOpen: boolean;
 }
 
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -15,6 +18,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   trackHeightPx: 88,
   lastFormat: "wav16",
   normaliseLufs: null,
+  masterPanelOpen: false,
 };
 
 /** The three track heights the UI offers. The MIDDLE one is the long-standing default, so the
@@ -48,6 +52,10 @@ export function sanitisePreferences(raw: unknown): Preferences {
       typeof r.normaliseLufs === "number" && Number.isFinite(r.normaliseLufs)
         ? Math.max(-40, Math.min(0, r.normaliseLufs))
         : null,
+    masterPanelOpen:
+      typeof r.masterPanelOpen === "boolean"
+        ? r.masterPanelOpen
+        : DEFAULT_PREFERENCES.masterPanelOpen,
   };
 }
 

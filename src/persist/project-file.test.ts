@@ -3,8 +3,8 @@ import { unzipSync, zipSync, strToU8 } from "fflate";
 import { __resetIds, createProject } from "../doc/document";
 import { addClip, makeClip } from "../doc/edits";
 import {
-  PROJECT_FILE_VERSION, ProjectFileError, packCurrentProject, packProject, unpackProject,
-  type SourceRecord,
+  applyDocumentDefaults, PROJECT_FILE_VERSION, ProjectFileError, packCurrentProject,
+  packProject, unpackProject, type SourceRecord,
 } from "./project-file";
 
 const SOURCES: SourceRecord[] = [
@@ -174,5 +174,32 @@ describe("packCurrentProject", () => {
     const { sources } = unpackProject(packCurrentProject(p, records));
 
     expect(sources.map((s) => s.id)).toEqual(["src-2"]);
+  });
+});
+
+describe("applyDocumentDefaults", () => {
+  // Gotcha: an autosave written before a field existed is handed to loadInto verbatim, so a
+  // missing masterEq would install undefined where the master panel dereferences bands.
+  it("fills in a master EQ missing from an older document", () => {
+    const p = { ...createProject(), masterEq: undefined } as unknown as Parameters<
+      typeof applyDocumentDefaults
+    >[0];
+
+    applyDocumentDefaults(p);
+
+    expect(p.masterEq).toEqual({ lowDb: 0, midDb: 0, highDb: 0 });
+  });
+
+  it("keeps a master EQ that is already there", () => {
+    const p = { ...createProject(), masterEq: { lowDb: 3, midDb: -3, highDb: 1 } };
+    applyDocumentDefaults(p);
+    expect(p.masterEq).toEqual({ lowDb: 3, midDb: -3, highDb: 1 });
+  });
+
+  it("survives a round trip through the file format", () => {
+    const p = { ...createProject(), masterEq: { lowDb: -2, midDb: 5, highDb: 0 } };
+    expect(unpackProject(packProject(p, [])).project.masterEq).toEqual({
+      lowDb: -2, midDb: 5, highDb: 0,
+    });
   });
 });

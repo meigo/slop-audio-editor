@@ -20,15 +20,17 @@ export const EQ_HIGH_HZ = 6000;
 /** Per band. Wide enough to rescue a bad source, narrow enough that it cannot be used as a fader. */
 export const EQ_MAX_DB = 12;
 
-export interface TrackEq {
+/** Three fixed bands, used for BOTH a track and the master bus — same frequencies, same Q, so
+ *  one set of controls and one graph builder serve both. */
+export interface EqBands {
   lowDb: number;
   midDb: number;
   highDb: number;
 }
 
-export const FLAT_EQ: TrackEq = { lowDb: 0, midDb: 0, highDb: 0 };
+export const FLAT_EQ: EqBands = { lowDb: 0, midDb: 0, highDb: 0 };
 
-export function isFlatEq(eq: TrackEq): boolean {
+export function isFlatEq(eq: EqBands): boolean {
   return eq.lowDb === 0 && eq.midDb === 0 && eq.highDb === 0;
 }
 
@@ -64,7 +66,7 @@ export interface Track {
   ducked: boolean;
   /** Three-band tone control. Flat by default, and when flat NO filter nodes are built at all —
    *  the graph stays bit-identical to one without EQ, the same guarantee Glue makes. */
-  eq: TrackEq;
+  eq: EqBands;
 }
 
 export interface Project {
@@ -73,6 +75,9 @@ export interface Project {
   masterGain: number;
   /** "Glue": band-limits and gently compresses the master to cohere sources — see render.ts. */
   glue: boolean;
+  /** Master-bus EQ, the same three fixed bands as a track's. Sits between the master fader and
+   *  Glue, so the compressor reacts to the shaped signal rather than fighting it. */
+  masterEq: EqBands;
   /** How far tracks marked `ducked` dip, in dB. One value for the whole project: the feature is
    *  meant to stay a single toggle plus a single strength, not a per-track mixer. 0 disables it. */
   duckDepthDb: number;
@@ -123,6 +128,7 @@ export function createProject(name = "Untitled"): Project {
     tracks: [createTrack("Track 1")],
     masterGain: 1,
     glue: false,
+    masterEq: { ...FLAT_EQ },
     duckDepthDb: DEFAULT_DUCK_DEPTH_DB,
   };
 }

@@ -1,5 +1,5 @@
 import {
-  EQ_HIGH_HZ, EQ_LOW_HZ, EQ_MID_HZ, EQ_MID_Q, isFlatEq, type Project, type TrackEq,
+  EQ_HIGH_HZ, EQ_LOW_HZ, EQ_MID_HZ, EQ_MID_Q, isFlatEq, type Project, type EqBands,
 } from "../doc/document";
 import { planDucking } from "./ducking";
 import { FADE_CURVE_POINTS, fadeInCurve, fadeOutCurve } from "./fades";
@@ -43,7 +43,7 @@ export function scaleCurve(curve: Float32Array, gain: number): Float32Array {
 
 /** The three biquads of one track's EQ, retained so the bands can be adjusted during playback
  *  without rescheduling — the same reason `trackGains` is retained. */
-export interface TrackEqNodes {
+export interface EqNodes {
   low: BiquadFilterNode;
   mid: BiquadFilterNode;
   high: BiquadFilterNode;
@@ -52,8 +52,10 @@ export interface TrackEqNodes {
 export interface RenderedGraph {
   trackGains: Map<string, GainNode>;
   /** Only tracks whose EQ is NOT flat appear here. */
-  trackEqs: Map<string, TrackEqNodes>;
+  trackEqs: Map<string, EqNodes>;
   masterGain: GainNode;
+  /** Null when the master EQ is flat — in that case no biquads were built at all. */
+  masterEq: EqNodes | null;
   sources: AudioBufferSourceNode[];
   /** Last node before the destination — `masterGain`, or Glue's trim when Glue is on. Metering
    *  taps THIS, not `masterGain`: Glue's compressor and trim change the level, so a meter on
@@ -92,7 +94,42 @@ export function renderPlan(
   const duck = planDucking(project, window.fromS, window.toS);
   const masterGain = ctx.createGain();
   masterGain.gain.value = project.masterGain;
-  let output: AudioNode = masterGain;
+
+  const trackGains = new Map<string, GainNode>();
+  const trackEqs = new Map<string, EqNodes>();
+  const eqNodes: BiquadFilterNode[] = [];
+  const duckGains: GainNode[] = [];
+
+  /** Build an EQ chain and return its tail, or the input untouched when the EQ is flat.
+   *  A flat EQ builds NOTHING: three biquads at 0 dB are not quite transparent (each still runs
+   *  its difference equation, and shelves at 0 dB are only nominally unity), and more to the
+   *  point, a project that never touches EQ should render exactly the graph it always did. The
+   *  same builder serves tracks and the master bus — the bands are identical, so a second copy
+   *  would be a second place for that guarantee to be broken. */
+  function buildEq(input: AudioNode, eq: EqBands): { tail: AudioNode; nodes: EqNodes | null } {
+    if (isFlatEq(eq)) return { tail: input, nodes: null };
+    const band = (type: BiquadFilterType, hz: number, db: number, q?: number): BiquadFilterNode => {
+      const n = ctx.createBiquadFilter();
+      n.type = type;
+      n.frequency.value = hz;
+      n.gain.value = db;
+      if (q !== undefined) n.Q.value = q;
+      eqNodes.push(n);
+      return n;
+    };
+    const low = band("lowshelf", EQ_LOW_HZ, eq.lowDb);
+    const mid = band("peaking", EQ_MID_HZ, eq.midDb, EQ_MID_Q);
+    const high = band("highshelf", EQ_HIGH_HZ, eq.highDb);
+    input.connect(low);
+    low.connect(mid);
+    mid.connect(high);
+    return { tail: high, nodes: { low, mid, high } };
+  }
+
+  // Master EQ sits between the fader and Glue, so Glue's compressor reacts to the shaped signal
+  // rather than fighting it — the usual order for a mastering chain.
+  const master = buildEq(masterGain, project.masterEq);
+  let output: AudioNode = master.tail;
 
   // When Glue is off, this is the ENTIRE master chain — bit-identical to the graph before Glue
   // existed. The nodes below are only ever created when `project.glue` is true.
@@ -116,7 +153,7 @@ export function renderPlan(
     const trim = ctx.createGain();
     trim.gain.value = GLUE_TRIM_GAIN;
 
-    masterGain.connect(highpass);
+    master.tail.connect(highpass);
     highpass.connect(lowpass);
     lowpass.connect(compressor);
     compressor.connect(trim);
@@ -124,38 +161,9 @@ export function renderPlan(
     glueNodes.push(highpass, lowpass, compressor, trim);
     output = trim;
   } else {
-    masterGain.connect(ctx.destination);
+    master.tail.connect(ctx.destination);
   }
 
-  const trackGains = new Map<string, GainNode>();
-  const trackEqs = new Map<string, TrackEqNodes>();
-  const eqNodes: BiquadFilterNode[] = [];
-  const duckGains: GainNode[] = [];
-
-  /** Build a track's EQ chain and return its tail, or the input untouched when the EQ is flat.
-   *  A flat EQ builds NOTHING: three biquads at 0 dB are not quite transparent (each still runs
-   *  its difference equation, and shelves at 0 dB are only nominally unity), and more to the
-   *  point, a project that never touches EQ should render exactly the graph it always did. */
-  function withEq(input: AudioNode, trackId: string, eq: TrackEq): AudioNode {
-    if (isFlatEq(eq)) return input;
-    const band = (type: BiquadFilterType, hz: number, db: number, q?: number): BiquadFilterNode => {
-      const n = ctx.createBiquadFilter();
-      n.type = type;
-      n.frequency.value = hz;
-      n.gain.value = db;
-      if (q !== undefined) n.Q.value = q;
-      eqNodes.push(n);
-      return n;
-    };
-    const low = band("lowshelf", EQ_LOW_HZ, eq.lowDb);
-    const mid = band("peaking", EQ_MID_HZ, eq.midDb, EQ_MID_Q);
-    const high = band("highshelf", EQ_HIGH_HZ, eq.highDb);
-    input.connect(low);
-    low.connect(mid);
-    mid.connect(high);
-    trackEqs.set(trackId, { low, mid, high });
-    return high;
-  }
   const sources: AudioBufferSourceNode[] = [];
   const toStart: { node: AudioBufferSourceNode; when: number; offset: number; duration: number }[] = [];
 
@@ -171,7 +179,9 @@ export function renderPlan(
         trackGain.gain.value = track?.gain ?? 1;
         // EQ sits AFTER the fader: the fader is only a level, so filtering before or after it is
         // equivalent, and this way one chain per track covers every clip on it.
-        const tail = withEq(trackGain, sc.trackId, track?.eq ?? { lowDb: 0, midDb: 0, highDb: 0 });
+        const trackEq = buildEq(trackGain, track?.eq ?? { lowDb: 0, midDb: 0, highDb: 0 });
+        const tail = trackEq.tail;
+        if (trackEq.nodes) trackEqs.set(sc.trackId, trackEq.nodes);
         const points = duck.get(sc.trackId);
         if (points && points.length > 0) {
           // A SEPARATE node from the fader's. Writing the envelope onto `trackGain` itself would
@@ -228,5 +238,5 @@ export function renderPlan(
 
   for (const { node, when, offset, duration } of toStart) node.start(when, offset, duration);
 
-  return { trackGains, trackEqs, masterGain, sources, output };
+  return { trackGains, trackEqs, masterEq: master.nodes, masterGain, sources, output };
 }

@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { EQ_MAX_DB, __resetIds, createProject, findTrack } from "./document";
 import {
-  addTrack, removeTrack, renameTrack, reorderTrack, setDuckDepth, setGlue, setMasterGain, setTrackEq, setTrackGain, setTrackMuted,
+  addTrack, removeTrack, renameTrack, reorderTrack, setDuckDepth, setGlue, setMasterEq,
+  setMasterGain, setTrackEq, setTrackGain, setTrackMuted,
 } from "./edits";
 
 beforeEach(() => __resetIds());
@@ -126,5 +127,28 @@ describe("setTrackEq", () => {
   it("returns the same project for a no-op, so no undo entry is created", () => {
     const base = createProject("p");
     expect(setTrackEq(base, base.tracks[0].id, { lowDb: 0 })).toBe(base);
+  });
+});
+
+describe("setMasterEq", () => {
+  it("sets a band and leaves the others alone", () => {
+    const p = setMasterEq(createProject(), { midDb: -6 });
+    expect(p.masterEq).toEqual({ lowDb: 0, midDb: -6, highDb: 0 });
+  });
+
+  it("clamps to the same range as a track's bands", () => {
+    expect(setMasterEq(createProject(), { lowDb: 99 }).masterEq.lowDb).toBe(EQ_MAX_DB);
+    expect(setMasterEq(createProject(), { lowDb: -99 }).masterEq.lowDb).toBe(-EQ_MAX_DB);
+  });
+
+  // The no-op guard is what stops a fader that lands back on its old value pushing an undo entry.
+  it("returns the same project when nothing changes", () => {
+    const p = createProject();
+    expect(setMasterEq(p, { lowDb: 0 })).toBe(p);
+  });
+
+  it("does not touch track EQ", () => {
+    const p = setMasterEq(createProject(), { highDb: 4 });
+    expect(p.tracks[0].eq).toEqual({ lowDb: 0, midDb: 0, highDb: 0 });
   });
 });

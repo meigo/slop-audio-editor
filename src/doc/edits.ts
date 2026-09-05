@@ -3,7 +3,7 @@
 
 import {
   EQ_MAX_DB, MIN_CLIP_S, clipEndS, createTrack, findClip, newId,
-  type Clip, type FadeShape, type Project, type Track, type TrackEq,
+  type Clip, type FadeShape, type Project, type Track, type EqBands,
 } from "./document";
 import { clampFades, insertClip, sliceClip } from "./overlap";
 
@@ -56,18 +56,31 @@ export function setTrackMuted(p: Project, trackId: string, muted: boolean): Proj
 
 /** Mark a track as background: it dips while any other track is playing. See `planDucking`. */
 /** Patch one or more EQ bands on a track. Each band is clamped to +/-EQ_MAX_DB. */
-export function setTrackEq(p: Project, trackId: string, patch: Partial<TrackEq>): Project {
-  const clamp = (v: number): number => Math.max(-EQ_MAX_DB, Math.min(EQ_MAX_DB, v));
+const clampEqDb = (v: number): number => Math.max(-EQ_MAX_DB, Math.min(EQ_MAX_DB, v));
+
+export function setTrackEq(p: Project, trackId: string, patch: Partial<EqBands>): Project {
   return mapTrack(p, trackId, (t) => {
-    const next: TrackEq = {
-      lowDb: clamp(patch.lowDb ?? t.eq.lowDb),
-      midDb: clamp(patch.midDb ?? t.eq.midDb),
-      highDb: clamp(patch.highDb ?? t.eq.highDb),
+    const next: EqBands = {
+      lowDb: clampEqDb(patch.lowDb ?? t.eq.lowDb),
+      midDb: clampEqDb(patch.midDb ?? t.eq.midDb),
+      highDb: clampEqDb(patch.highDb ?? t.eq.highDb),
     };
     const same =
       next.lowDb === t.eq.lowDb && next.midDb === t.eq.midDb && next.highDb === t.eq.highDb;
     return same ? t : { ...t, eq: next };
   });
+}
+
+/** Master-bus EQ. Same clamp as a track's — the bands are the same bands. */
+export function setMasterEq(p: Project, patch: Partial<EqBands>): Project {
+  const next: EqBands = {
+    lowDb: clampEqDb(patch.lowDb ?? p.masterEq.lowDb),
+    midDb: clampEqDb(patch.midDb ?? p.masterEq.midDb),
+    highDb: clampEqDb(patch.highDb ?? p.masterEq.highDb),
+  };
+  const cur = p.masterEq;
+  if (next.lowDb === cur.lowDb && next.midDb === cur.midDb && next.highDb === cur.highDb) return p;
+  return { ...p, masterEq: next };
 }
 
 export function setTrackDucked(p: Project, trackId: string, ducked: boolean): Project {

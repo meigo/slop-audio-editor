@@ -13,8 +13,12 @@ describe("sanitisePreferences", () => {
   it("keeps valid values", () => {
     const p = sanitisePreferences({
       pxPerSecond: 120, snap: false, trackHeightPx: 64, lastFormat: "m4a", normaliseLufs: -16,
+      masterPanelOpen: true,
     });
-    expect(p).toEqual({ pxPerSecond: 120, snap: false, trackHeightPx: 64, lastFormat: "m4a", normaliseLufs: -16 });
+    expect(p).toEqual({
+      pxPerSecond: 120, snap: false, trackHeightPx: 64, lastFormat: "m4a", normaliseLufs: -16,
+      masterPanelOpen: true,
+    });
   });
 
   it("clamps out-of-range numbers rather than trusting them", () => {
@@ -74,5 +78,10 @@ describe("normaliseLufs", () => {
   it("clamps a hand-edited target into range", () => {
     expect(sanitisePreferences({ normaliseLufs: 12 }).normaliseLufs).toBe(0);
     expect(sanitisePreferences({ normaliseLufs: -99 }).normaliseLufs).toBe(-40);
+  });
+
+  it("defaults the master panel to closed, and ignores a non-boolean", () => {
+    expect(sanitisePreferences({}).masterPanelOpen).toBe(false);
+    expect(sanitisePreferences({ masterPanelOpen: "yes" }).masterPanelOpen).toBe(false);
   });
 });
