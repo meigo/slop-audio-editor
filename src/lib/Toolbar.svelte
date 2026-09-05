@@ -27,8 +27,11 @@
   // Inline rather than an `@apply` rule: in Tailwind 4 an `@apply` inside a component <style>
   // block needs an `@reference` to the stylesheet in every file, which is more ceremony than
   // one shared string.
+  /** Every toolbar control is 24 px tall. Padding alone gave icon buttons 24 px and the text
+   *  toggles 20 px, so the row read as two rows of slightly different things. */
+  const CONTROL_H = "flex h-6 items-center justify-center rounded";
   const BTN =
-    "rounded p-1 text-text hover:bg-raised disabled:opacity-30 disabled:hover:bg-transparent";
+    `${CONTROL_H} w-6 text-text hover:bg-raised disabled:opacity-30 disabled:hover:bg-transparent`;
   /** A 1px rule between toolbar groups. Whitespace alone reads as accidental at this size. */
   const DIVIDER = "mx-1 h-5 w-px shrink-0 bg-line";
   /** Toggle buttons, not checkboxes: the track headers already say "on" by FILLING (M / S / D),
@@ -36,14 +39,14 @@
    *  because "Glue" has no glyph anyone would read correctly — a cryptic icon would trade a
    *  consistency problem for a comprehension one. */
   const toggleClass = (on: boolean): string =>
-    "rounded px-2 py-0.5 text-xs " +
+    `${CONTROL_H} px-2 text-xs ` +
     (on ? "bg-accent font-medium text-ground" : "text-muted hover:bg-raised hover:text-text");
   /** An ICON toggle, same on-state as the text ones. Built as one string rather than layering
    *  `class:text-accent` over `BTN`: both are text-colour utilities of equal specificity, so which
    *  one wins depends on the ORDER TAILWIND EMITS THEM, not on the markup. Loop looked dead for
    *  exactly that reason — it was toggling all along, invisibly. */
   const toggleIconClass = (on: boolean): string =>
-    "rounded p-1 " + (on ? "bg-accent text-ground" : "text-text hover:bg-raised");
+    `${CONTROL_H} w-6 ` + (on ? "bg-accent text-ground" : "text-text hover:bg-raised");
 
   function onMasterGain(g: number) {
     if (!masterDragging) {
@@ -214,9 +217,9 @@
        this project is using is just clutter, and its appearance next to the toggle teaches what
        the toggle does. -->
   {#if appState.project.tracks.some((t) => t.ducked)}
-    <div class="flex items-center gap-1 text-xs">
+    <div class="flex items-center text-xs">
       <NumberField
-        label="duck"
+        label="Duck"
         value={appState.project.duckDepthDb}
         min={-40}
         suffix="dB"

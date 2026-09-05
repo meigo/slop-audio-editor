@@ -35,8 +35,10 @@
 
 <label class="flex items-center gap-1 text-[11px] text-muted" {title}>
   {label}
+  <!-- `raised`, not `panel`: the toolbar and the inspector ARE panel, so a panel-coloured input
+       is invisible against them and the label reads as unrelated to its own value. -->
   <input
-    class="w-16 rounded bg-panel px-1 py-0.5 text-right tabular-nums text-text"
+    class="h-6 w-14 rounded bg-raised px-1 text-right tabular-nums text-text"
     type="text"
     inputmode="decimal"
     bind:value={draft}

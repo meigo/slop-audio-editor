@@ -36,7 +36,7 @@
 
 <button
   type="button"
-  class="flex items-center gap-1"
+  class="flex h-6 items-center gap-1"
   title="Master output level. Red means the mix went over 0 dBFS and will clip — click to reset."
   onclick={() => (clipped = false)}
 >
