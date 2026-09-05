@@ -133,11 +133,11 @@ export function meterFillPct(db: number, floorDb: number = METER_FLOOR_DB): numb
  *  breakpoints in seconds from the clip's start. Same convention as the fade curves — the
  *  shaded region is the area under `1 - gain` — but for irregularly spaced points rather than an
  *  evenly sampled curve. Returns "" when there is nothing to draw. */
-export function envelopeMaskPolygon(
+export function envelopeXY(
   points: readonly { t: number; gain: number }[],
   durS: number,
-): string {
-  if (points.length === 0 || !(durS > 0)) return "";
+): { x: number; y: number }[] {
+  if (points.length === 0 || !(durS > 0)) return [];
   const xy = points.map((p) => ({
     x: Math.max(0, Math.min(100, (p.t / durS) * 100)),
     y: (1 - p.gain) * 100,
@@ -146,13 +146,28 @@ export function envelopeMaskPolygon(
   // stop partway and read as the level coming back up when it does not.
   const last = xy[xy.length - 1];
   if (last.x < 100) xy.push({ x: 100, y: last.y });
-
-  const pts = ["0% 0%", "100% 0%"];
-  for (let i = xy.length - 1; i >= 0; i--) {
-    pts.push(`${xy[i].x.toFixed(2)}% ${xy[i].y.toFixed(2)}%`);
-  }
-  return `polygon(${pts.join(", ")})`;
+  return xy;
 }
+
+/** The same, as SVG `points`: the envelope's edge, and the region it removes closed along the
+ *  top. Ducking draws these exactly as a fade draws its curve — one convention for both. */
+export function envelopeCurvePoints(
+  points: readonly { t: number; gain: number }[],
+  durS: number,
+): string {
+  return envelopeXY(points, durS)
+    .map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`)
+    .join(" ");
+}
+
+export function envelopeAreaPoints(
+  points: readonly { t: number; gain: number }[],
+  durS: number,
+): string {
+  const edge = envelopeCurvePoints(points, durS);
+  return edge === "" ? "" : `0,0 100,0 ${edge.split(" ").reverse().join(" ")}`;
+}
+
 
 /** Timeline scale limits, shared by the wheel handler and the pinch gesture. */
 export const MIN_PX_PER_S = 2;

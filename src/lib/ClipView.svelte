@@ -6,7 +6,7 @@
   import { fadeInCurve, fadeOutCurve } from "../audio/fades";
   import type { DuckPoint } from "../audio/ducking";
   import {
-    envelopeMaskPolygon, FADE_MASK_POINTS, fadeAreaPoints, fadeCurvePoints, formatTime, timeToPx,
+    envelopeAreaPoints, envelopeCurvePoints, FADE_MASK_POINTS, fadeAreaPoints, fadeCurvePoints, formatTime, timeToPx,
   } from "./geometry";
   import { hitTestClip, MOUSE_ZONES, TOUCH_ZONES, type ClipZone } from "./hit-test";
   import Waveform from "./Waveform.svelte";
@@ -15,7 +15,8 @@
     clip, trackId, heightPx, duck,
   }: { clip: Clip; trackId: string; heightPx: number; duck: DuckPoint[] } = $props();
 
-  const duckMask = $derived(envelopeMaskPolygon(duck, clip.durS));
+  const duckArea = $derived(envelopeAreaPoints(duck, clip.durS));
+  const duckCurve = $derived(envelopeCurvePoints(duck, clip.durS));
 
   // Sampled from the engine's own fade curves, so the overlay shows the shape that will play.
   const fadeIn = $derived(fadeInCurve(clip.fadeShape, FADE_MASK_POINTS));
@@ -78,11 +79,15 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <!-- `select-none`: a clip is a drag target, not text. Without it Shift-click (which adds to the
      selection) also extends the browser's TEXT selection, so clip names light up blue as you
-     multi-select, and dragging across labels selects them. -->
+     multi-select, and dragging across labels selects them.
+     `outline` rather than `border`: a border eats 2px of the content box, so the waveform canvas
+     (sized from the height prop) and the overlay SVGs (sized to the box) disagreed by a pixel and
+     the fade wedges sat off-centre against the waveform. An outline draws in the same place
+     without taking any layout. -->
 <div
   data-clip-id={clip.id}
-  class="absolute top-1 touch-none select-none overflow-hidden rounded border bg-media-clip
-         {selected ? 'border-accent' : 'border-media-clip-border'}"
+  class="absolute top-1 touch-none select-none overflow-hidden rounded bg-media-clip outline
+         -outline-offset-1 {selected ? 'outline-accent' : 'outline-media-clip-border'}"
   title="{name} — {formatTime(clip.durS)}"
   data-hint="Drag to move · ⌘-click or Shift-click to add to the selection · ⌘A selects every clip"
   onpointerdown={onPointerDown}
@@ -102,11 +107,22 @@
        darkening wash as a fade, because it means the same thing — level removed here. It was
        green (tied to the D toggle's badge) which read as a status colour rather than as
        attenuation. The badge still identifies the track; the wash shows the effect. -->
-  {#if duckMask}
-    <div
-      class="pointer-events-none absolute inset-0 bg-ground/55"
-      style="clip-path: {duckMask}"
-    ></div>
+  {#if duckArea}
+    <svg
+      class="pointer-events-none absolute inset-0 h-full w-full"
+      viewBox="0 0 100 100"
+      preserveAspectRatio="none"
+      aria-hidden="true"
+    >
+      <polygon points={duckArea} class="fill-media-clip/85" />
+      <polyline
+        points={duckCurve}
+        class="stroke-text/70"
+        fill="none"
+        stroke-width="1"
+        vector-effect="non-scaling-stroke"
+      />
+    </svg>
   {/if}
 
   <!-- Fade overlays. The shaded area is what the fade takes away; the stroked line ON TOP is the
@@ -117,13 +133,14 @@
   {#each [{ on: clip.fadeInS > 0, curve: fadeIn, w: clip.fadeInS, side: "left" }, { on: clip.fadeOutS > 0, curve: fadeOut, w: clip.fadeOutS, side: "right" }] as f (f.side)}
     {#if f.on}
       <svg
-        class="pointer-events-none absolute inset-y-0 {f.side === 'left' ? 'left-0' : 'right-0'}"
+        class="pointer-events-none absolute inset-y-0 h-full
+               {f.side === 'left' ? 'left-0' : 'right-0'}"
         style="width: {f.w * appState.pxPerSecond}px"
         viewBox="0 0 100 100"
         preserveAspectRatio="none"
         aria-hidden="true"
       >
-        <polygon points={fadeAreaPoints(f.curve)} class="fill-ground/70" />
+        <polygon points={fadeAreaPoints(f.curve)} class="fill-media-clip/85" />
         <polyline
           points={fadeCurvePoints(f.curve)}
           class="stroke-text/70"
