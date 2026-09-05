@@ -36,8 +36,11 @@
   );
 </script>
 
+<!-- h-7 rather than an arbitrary 22px: it matches the ruler / add-track strip, so the app has one
+     thin-strip height (28) alongside the inspector (40) and toolbar (44) instead of a fourth value
+     nothing else uses. -->
 <div
-  class="flex h-[22px] shrink-0 items-center gap-2 border-t border-line bg-panel px-3 text-[11px]"
+  class="flex h-7 shrink-0 items-center gap-2 border-t border-line bg-panel px-3 text-[11px]"
 >
   <!-- One brightness for both states. The text swaps completely between the resting summary and
        the hovered control's help, so a colour change on top of that carries no extra information
