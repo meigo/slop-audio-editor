@@ -10,7 +10,7 @@ import { matchLoudnessGains, type LoudnessEntry } from "../doc/loudness-match";
 import { setIn, setOut, type PlayRange } from "../doc/play-range";
 import { NO_SELECTION, type Selection } from "../doc/selection";
 import { putSource, scheduleDocumentSave } from "../persist/autosave";
-import { loadPreferences, savePreferences } from "../persist/preferences";
+import { loadPreferences, nextTrackHeight, savePreferences } from "../persist/preferences";
 import { canRedo, canUndo, createHistory, record, redo, undo } from "./history";
 
 export const pool = new SourcePool();
@@ -249,6 +249,12 @@ export function seekTo(s: number): void {
     engine.stop();
     engine.play(state.project, pool, clamped, playEndS(), state.soloed);
   }
+}
+
+/** Step the track height to the next preset. View state, like zoom: not in the document, not
+ *  undoable, but persisted through `preferences` so it survives a reload. */
+export function cycleTrackHeight(): void {
+  state.trackHeightPx = nextTrackHeight(state.trackHeightPx);
 }
 
 export function toggleSolo(trackId: string): void {

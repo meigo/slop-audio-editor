@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_PREFERENCES, sanitisePreferences } from "./preferences";
+import {
+  DEFAULT_PREFERENCES, TRACK_HEIGHTS, nextTrackHeight, sanitisePreferences,
+} from "./preferences";
 
 describe("sanitisePreferences", () => {
   it("returns defaults for junk", () => {
@@ -23,5 +25,36 @@ describe("sanitisePreferences", () => {
 
   it("ignores fields of the wrong type", () => {
     expect(sanitisePreferences({ snap: "yes" }).snap).toBe(DEFAULT_PREFERENCES.snap);
+  });
+});
+
+describe("track height presets", () => {
+  it("puts the long-standing default in the middle, so nothing moves for existing users", () => {
+    expect(TRACK_HEIGHTS[1]).toBe(DEFAULT_PREFERENCES.trackHeightPx);
+  });
+
+  it("cycles small -> medium -> large -> small", () => {
+    const [s, m, l] = TRACK_HEIGHTS;
+    expect(nextTrackHeight(s)).toBe(m);
+    expect(nextTrackHeight(m)).toBe(l);
+    expect(nextTrackHeight(l)).toBe(s);
+  });
+
+  // A height restored from localStorage need not be one of the presets — it may predate them, or
+  // have been hand-edited. Snapping to the next larger preset is what keeps the button usable
+  // instead of appearing to do nothing.
+  it("snaps an off-preset height up to the next preset", () => {
+    expect(nextTrackHeight(TRACK_HEIGHTS[0] + 1)).toBe(TRACK_HEIGHTS[1]);
+    expect(nextTrackHeight(TRACK_HEIGHTS[1] - 1)).toBe(TRACK_HEIGHTS[1]);
+  });
+
+  it("wraps to the smallest from anything at or above the largest", () => {
+    expect(nextTrackHeight(TRACK_HEIGHTS[2] + 50)).toBe(TRACK_HEIGHTS[0]);
+  });
+
+  it("keeps every preset inside what sanitisePreferences accepts", () => {
+    for (const h of TRACK_HEIGHTS) {
+      expect(sanitisePreferences({ trackHeightPx: h }).trackHeightPx).toBe(h);
+    }
   });
 });

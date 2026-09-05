@@ -14,6 +14,20 @@ export const DEFAULT_PREFERENCES: Preferences = {
   lastFormat: "wav16",
 };
 
+/** The three track heights the UI offers. The MIDDLE one is the long-standing default, so the
+ *  feature arrives without moving anyone's timeline. Kept inside `sanitisePreferences`'s 40–300
+ *  range, which is pinned by a test. */
+export const TRACK_HEIGHTS = [56, 88, 140] as const;
+
+/** The next preset above `current`, wrapping at the top.
+ *
+ *  Works from an arbitrary height, not just a preset: a value restored from localStorage may
+ *  predate the presets or have been hand-edited, and a strict index lookup would leave the button
+ *  doing nothing at all. */
+export function nextTrackHeight(current: number): number {
+  return TRACK_HEIGHTS.find((h) => h > current) ?? TRACK_HEIGHTS[0];
+}
+
 function clamp(v: unknown, lo: number, hi: number, fallback: number): number {
   return typeof v === "number" && Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : fallback;
 }
