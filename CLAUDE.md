@@ -49,7 +49,9 @@ src/
                      range this computes is session state (see `state/appState.svelte.ts`'s
                      `playRange`), never part of `Project`: it is not saved and never affects
                      export, which keeps using the time-range selection (`exportWindow`)
-    clipboard.ts     copy/cut/paste, normalised to t = 0
+    clipboard.ts     copy/cut/paste, normalised to t = 0. Paste lands on the CURRENT track (see
+                     `pasteAtPlayhead`), never back on the track the clips came from — a
+                     multi-track copy keeps its relative track offsets below it
     loudness-match.ts  matchLoudnessGains(entries) — per-clip linear gain correction toward the
                      median LUFS of a group, clamped to ±MAX_MATCH_DB; non-finite (silent) entries
                      are skipped, never boosted

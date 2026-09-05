@@ -355,10 +355,12 @@ export function matchLoudness(): void {
 
 /** Pastes onto the track the copy came from when that track still exists, falling back to the
  *  resolved current track otherwise. */
+/** Paste lands on the CURRENT track — the one you last touched — not back on the track the clips
+ *  were copied from.
+ *
+ *  Preferring the source track made clicking a track header silently inert for the one operation
+ *  where it matters most: copying a phrase and then choosing where to put it. A multi-track copy
+ *  keeps its relative track offsets, so the current track becomes the topmost of the group. */
 export function pasteAtPlayhead(): void {
-  const target =
-    clipboard.sourceTrackId && state.project.tracks.some((t) => t.id === clipboard.sourceTrackId)
-      ? clipboard.sourceTrackId
-      : currentTrackId();
-  commit((p) => pasteClips(p, clipboard, target, state.playheadS));
+  commit((p) => pasteClips(p, clipboard, currentTrackId(), state.playheadS));
 }

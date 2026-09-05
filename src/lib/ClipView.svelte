@@ -89,7 +89,7 @@
   class="absolute top-1 touch-none select-none overflow-hidden rounded bg-media-clip outline
          -outline-offset-1 {selected ? 'outline-accent' : 'outline-media-clip-border'}"
   title="{name} — {formatTime(clip.durS)}"
-  data-hint="Drag to move · ⌘-click or Shift-click to add to the selection · ⌘A selects every clip"
+  data-hint="Drag to move · ⌘-click or Shift-click to add to the selection · ⌘A all · ⌘C copy, ⌘X cut, ⌘V paste at the playhead, ⌘D duplicate"
   onpointerdown={onPointerDown}
   onpointermove={(e) => (zone = zoneAt(e))}
   style="left: {x}px; width: {w}px; height: {heightPx - 8}px; cursor: {CURSORS[zone]}"
