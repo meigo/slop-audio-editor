@@ -103,13 +103,17 @@
     gain={clip.gain}
   />
 
+  <!-- Both overlays are inset 1px vertically. At silence a fade curve lands exactly on the clip's
+       bottom edge, where it shares pixels with the outline and the two read as one thick smudge;
+       drawing inside the outline keeps the curve and the clip's own edge legible as separate
+       things. -->
   <!-- Ducking: how far this background track is pushed down by the foreground. Drawn as the SAME
        darkening wash as a fade, because it means the same thing — level removed here. It was
        green (tied to the D toggle's badge) which read as a status colour rather than as
        attenuation. The badge still identifies the track; the wash shows the effect. -->
   {#if duckArea}
     <svg
-      class="pointer-events-none absolute inset-0 h-full w-full"
+      class="pointer-events-none absolute inset-x-0 inset-y-px h-[calc(100%-2px)] w-full"
       viewBox="0 0 100 100"
       preserveAspectRatio="none"
       aria-hidden="true"
@@ -133,7 +137,7 @@
   {#each [{ on: clip.fadeInS > 0, curve: fadeIn, w: clip.fadeInS, side: "left" }, { on: clip.fadeOutS > 0, curve: fadeOut, w: clip.fadeOutS, side: "right" }] as f (f.side)}
     {#if f.on}
       <svg
-        class="pointer-events-none absolute inset-y-0 h-full
+        class="pointer-events-none absolute inset-y-px h-[calc(100%-2px)]
                {f.side === 'left' ? 'left-0' : 'right-0'}"
         style="width: {f.w * appState.pxPerSecond}px"
         viewBox="0 0 100 100"
