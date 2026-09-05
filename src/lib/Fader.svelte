@@ -23,7 +23,8 @@
 <div class="flex items-center gap-1">
   <input
     type="range"
-    class="h-1 w-24 accent-accent"
+    class="slider w-24"
+    style="--fill-from: 0%; --fill-to: {position * 100}%"
     title={label}
     min={0}
     max={1}

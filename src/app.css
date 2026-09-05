@@ -13,9 +13,13 @@
      ground->panel from 1.12 to 1.04, so the whole ramp moves together and the steps come out
      slightly WIDER than stock zinc (1.14 / 1.21 / 1.44). */
   --color-ground: #101013; /* 0.53% luminance — still near-black, one step off the floor */
+  /* The track lanes are LIGHTER than the app ground, so the timeline reads as a bed the clips sit
+     on rather than a void they float in — slop-video-compositor does the same. Only the lanes:
+     the area below the last track stays `ground`, which is what makes the bed's extent legible. */
+  --color-lane: #1c1c22;
   --color-panel: #1e1e22;
   --color-raised: #2d2d33;
-  --color-line: #45454e;
+  --color-line: #2e2e35; /* only slightly lighter than the panels it divides — 1.23:1 */
   --color-text: #f4f4f5; /* zinc-100 */
   --color-muted: #a1a1aa; /* zinc-400 */
   /* Media clips are SLATE, not the accent: a clip painted in the selection colour looks
@@ -26,18 +30,21 @@
      Named media-clip, NOT clip: `bg-clip-*` is Tailwind's own background-clip namespace, so a
      `--color-clip-border` token would collide with the real `bg-clip-border` utility.
      slop-animator carries the same warning in its theme, and it is easy to walk into anyway.
-     A CUSTOM step, not a slate one — slate has nothing usable between 700 (a hole in the lane)
-     and 600 (washed out). This is hsl(215 30% 26%): 1.77:1 against the lifted ground, with
-     saturation held at 30% so it keeps some colour of its own rather than going grey.
-     The fill can sit this close to the ground because the light BORDER does the separating —
-     4.2:1 on the fill. Chasing contrast in the fill instead is what made clips glow. */
-  --color-media-clip: #2e3f56;
-  --color-media-clip-border: #94a3b8; /* slate-400 — 4.2:1 on the fill */
-  /* blue-400, not blue-500: on a near-black ground the deeper blue reads as electric and
-     sits oddly against the neutral chrome. 400 is calmer and clears 3:1 against the clip
-     fill it has to outline (2.98:1 vs blue-500's 2.06:1). */
-  --color-accent: #60a5fa; /* blue-400 — selection and active state ONLY */
-  --color-accent-hover: #93c5fd; /* blue-300 */
+     A CUSTOM value: it shares the ACCENT'S HUE (222°, a dark indigo) rather than slate's 215°,
+     so the clip and the selection that outlines it are the same family instead of two blues that
+     nearly match. hsl(222 40% 21%), a long way down — 1.3:1 against the lane.
+     It can sit that close because the light BORDER does the separating (5.3:1 on the fill).
+     Chasing contrast in the FILL is what made clips glow against the lane earlier; if a clip is
+     hard to pick out, brighten the border or lift the lane, do not lift the fill. */
+  --color-media-clip: #202d4b;
+  /* Only slightly lighter than the fill: a bright border made the clip read as a chip with
+     a rim rather than a block of audio. hsl(222 35% 34%), 1.58:1 on the fill. */
+  --color-media-clip-border: #384b75;
+  /* slop-video-compositor's accent: a softer indigo-blue than Tailwind's blue-400, which is what
+     gives that app its character. Not a palette step, and kept deliberately — 6.0:1 on ground and
+     3.4:1 on the clip fill it has to outline. */
+  --color-accent: #5b8cff; /* selection and active state ONLY */
+  --color-accent-hover: #7aa3ff;
   --color-danger: #f87171; /* red-400 — playhead and errors */
   --color-warn: #f59e0b; /* amber-500 — in/out markers */
   --color-ok: #34d399; /* emerald-400 */
@@ -54,3 +61,50 @@
 
 html, body, #app { height: 100%; margin: 0; }
 body { overscroll-behavior: none; }
+
+/* Range inputs.
+   `accent-color` alone cannot change the THUMB SIZE — that is browser-drawn — so these take over
+   the rendering entirely. The cost of `appearance: none` is the filled portion of the track, which
+   the browser also draws for free; each slider therefore reports its own fill as two percentages
+   and the gradient below rebuilds it. Two stops rather than one so a BIPOLAR control (EQ) can
+   fill outward from the centre instead of always from the left. */
+input[type="range"].slider {
+  /* The filled part of the track is the accent blended halfway into the track colour, not the
+     accent itself: at full strength the bar competes with the THUMB, which is the thing you aim
+     at. Mixed toward `raised` rather than made translucent so the result does not depend on
+     whatever happens to sit behind the control. */
+  --slider-fill: color-mix(in srgb, var(--color-accent) 50%, var(--color-raised));
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--color-raised) 0 var(--fill-from, 0%),
+    var(--slider-fill) var(--fill-from, 0%) var(--fill-to, 0%),
+    var(--color-raised) var(--fill-to, 0%) 100%
+  );
+  cursor: pointer;
+}
+
+input[type="range"].slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  border: none;
+}
+
+input[type="range"].slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  border: none;
+}
+
+input[type="range"].slider:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}

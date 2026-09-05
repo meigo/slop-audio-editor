@@ -34,7 +34,9 @@
       source.peaks, PROJECT_SAMPLE_RATE, PEAK_SAMPLES_PER_PAIR, inS, inS + durS, w,
     );
     const mid = h / 2;
-    ctx.fillStyle = "rgba(255,255,255,0.55)";
+    // Slate ink, not white: the clip's NAME is drawn over this, and white-on-white left the
+    // label at 2.4:1 against the waveform. Slate-400 at the same alpha puts it at 4.7:1.
+    ctx.fillStyle = "rgba(148,163,184,0.55)";
     for (let col = 0; col < w; col++) {
       // The waveform shows what you will HEAR, not the raw source: scale by the clip's gain, then
       // clamp to +-1 so a boosted clip visibly hits the ceiling instead of drawing outside its box.

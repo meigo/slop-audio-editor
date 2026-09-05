@@ -11,6 +11,10 @@
     onInput: (db: number) => void;
     onCommit: () => void;
   } = $props();
+
+  /** The thumb's position as a percentage, so the track can be filled from the CENTRE outward —
+   *  a band that cuts should read as filled leftward, not as a track that is merely less full. */
+  const pct = $derived(((db + maxDb) / (2 * maxDb)) * 100);
 </script>
 
 <div class="flex items-center gap-1">
@@ -19,7 +23,8 @@
        0 dB belongs in the MIDDLE of the travel rather than at 3/4 like unity gain. -->
   <input
     type="range"
-    class="h-1 w-20 accent-accent"
+    class="slider w-20"
+    style="--fill-from: {Math.min(50, pct)}%; --fill-to: {Math.max(50, pct)}%"
     {title}
     min={-maxDb}
     max={maxDb}
