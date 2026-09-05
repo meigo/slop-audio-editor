@@ -5,13 +5,17 @@
    The chrome greys are a single blue hue ramp, not neutrals — the accent then sits inside the
    same family rather than against it. */
 @theme {
-  /* Blue theme: the greys are a single hue ramp (~215 deg) rather than neutrals with a hint of
-     blue, so the chrome itself reads blue and the accent sits IN the same family instead of
-     against it. */
-  --color-ground: #0d1420;
-  --color-panel: #141d2b;
-  --color-raised: #1d2838;
-  --color-line: #29354a;
+  /* Blue theme: a single hue ramp (~217 deg), not neutrals with a hint of blue, so the chrome
+     itself reads blue and the accent sits IN the same family instead of against it.
+     `ground` is pushed to near-black (0.12% relative luminance) because the timeline is mostly
+     empty space and the clips should be the brightest thing in it. Contrast RATIOS compress at
+     this end of the scale, so the steps above it are WIDER than a mid-dark ramp would need:
+     ground->panel is 1.16:1 here versus 1.09:1 in the previous, lighter scheme. Darkening the
+     ground without widening the steps is what makes panels and dividers disappear. */
+  --color-ground: #02040a;
+  --color-panel: #101828;
+  --color-raised: #1f2a3c;
+  --color-line: #354258;
   --color-text: #e8eef7;
   --color-muted: #93a1b8;
   /* Tailwind blue-500 / blue-400. */
