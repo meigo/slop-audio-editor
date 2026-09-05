@@ -50,7 +50,8 @@ function grabbedGroup(p: Project, clipId: string): string[] {
 
 export function startClipDrag(e: PointerEvent, clipId: string, trackId: string, zone: ClipZone): void {
   const target = e.currentTarget as HTMLElement;
-  target.setPointerCapture(e.pointerId);
+  const pointerId = e.pointerId;
+  target.setPointerCapture(pointerId);
   setCurrentTrack(trackId);
 
   const startX = e.clientX;
@@ -67,6 +68,7 @@ export function startClipDrag(e: PointerEvent, clipId: string, trackId: string, 
   beginGesture();
 
   function onMove(ev: PointerEvent) {
+    if (ev.pointerId !== pointerId) return; // ignore a second finger's motion
     const dxS = (ev.clientX - startX) / appState.pxPerSecond;
     const snapOn = appState.snap && !ev.shiftKey;
 
@@ -102,15 +104,32 @@ export function startClipDrag(e: PointerEvent, clipId: string, trackId: string, 
     amend(() => setClipFade(base, clipId, { fadeOutS: Math.max(0, original.fadeOutS - dxS) }));
   }
 
-  function onUp(ev: PointerEvent) {
-    target.releasePointerCapture(ev.pointerId);
+  function detach() {
+    try {
+      target.releasePointerCapture(pointerId);
+    } catch {
+      // `pointercancel` releases capture itself, so this throws on that path. Not worth
+      // surfacing — the point of the call is to guarantee release, not to report it.
+    }
     window.removeEventListener("pointermove", onMove);
     window.removeEventListener("pointerup", onUp);
+    window.removeEventListener("pointercancel", onUp);
+  }
+
+  /** Also bound to `pointercancel`. The OS can take a touch away mid-drag (an edge-swipe, palm
+   *  rejection, a system alert) and then no `pointerup` ever arrives. Without this the gesture
+   *  stays open forever: `endGesture` never runs, so the move the user can SEE is never recorded
+   *  in history and never reschedules playback, and the window listeners leak. Finishing where
+   *  the pointer stopped is the least surprising outcome — the clip is left where it looks. */
+  function onUp(ev: PointerEvent) {
+    if (ev.pointerId !== pointerId) return; // a second finger must not end this drag
+    detach();
     endGesture();
   }
 
   window.addEventListener("pointermove", onMove);
   window.addEventListener("pointerup", onUp);
+  window.addEventListener("pointercancel", onUp);
 }
 
 /**
@@ -123,15 +142,17 @@ export function startClipDrag(e: PointerEvent, clipId: string, trackId: string, 
  */
 export function startRangeDrag(e: PointerEvent, trackId: string): void {
   const target = e.currentTarget as HTMLElement;
+  const pointerId = e.pointerId;
   const rect = target.getBoundingClientRect();
   const startY = e.clientY;
   const anchorS = pxToTime(e.clientX - rect.left, appState.scrollS, appState.pxPerSecond);
   const anchorIndex = appState.project.tracks.findIndex((t) => t.id === trackId);
   setCurrentTrack(trackId);
   appState.selection = NO_SELECTION;
-  target.setPointerCapture(e.pointerId);
+  target.setPointerCapture(pointerId);
 
   function onMove(ev: PointerEvent) {
+    if (ev.pointerId !== pointerId) return;
     const s = pxToTime(ev.clientX - rect.left, appState.scrollS, appState.pxPerSecond);
     const overIndex = Math.max(
       0,
@@ -153,9 +174,15 @@ export function startRangeDrag(e: PointerEvent, trackId: string): void {
   }
 
   function onUp(ev: PointerEvent) {
-    target.releasePointerCapture(ev.pointerId);
+    if (ev.pointerId !== pointerId) return;
+    try {
+      target.releasePointerCapture(pointerId);
+    } catch {
+      // Already released — `pointercancel` does that for us.
+    }
     window.removeEventListener("pointermove", onMove);
     window.removeEventListener("pointerup", onUp);
+    window.removeEventListener("pointercancel", onUp);
     // A click with no drag is a deselect, not a zero-length range.
     if (
       appState.selection.kind === "range" &&
