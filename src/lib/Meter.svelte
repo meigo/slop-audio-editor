@@ -50,7 +50,7 @@
     {/if}
   </div>
   <span
-    class="w-3 rounded-sm text-center text-[9px] leading-3 {clipped
+    class="w-3 rounded-sm text-center text-[9px]/3 {clipped
       ? 'bg-danger text-white'
       : 'text-muted'}">●</span
   >

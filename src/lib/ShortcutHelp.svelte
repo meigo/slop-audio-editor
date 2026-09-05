@@ -14,7 +14,7 @@
     if (e.target === e.currentTarget) onClose();
   }}
 >
-  <div class="max-h-full w-[38rem] overflow-y-auto rounded bg-panel p-4 text-sm text-text">
+  <div class="max-h-full w-152 overflow-y-auto rounded bg-panel p-4 text-sm text-text">
     <div class="mb-3 flex items-center justify-between">
       <h2 class="font-medium">Keyboard shortcuts</h2>
       <button class="rounded p-1 text-muted hover:bg-raised hover:text-text" title="Close (Esc)" onclick={onClose}>

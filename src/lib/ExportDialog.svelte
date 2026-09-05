@@ -47,6 +47,9 @@
 
   // Any edit to the document invalidates the rendered mix and everything measured from it.
   $effect(() => {
+    // Reading it IS the subscription — this effect exists to re-run on any document edit, so the
+    // bare read is the point rather than a leftover. ESLint cannot know that.
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
     appState.project;
     rendered = null;
     peakDb = null;
@@ -121,7 +124,7 @@
     <label class="mb-4 flex items-center gap-2">
       Format
       <select
-        class="flex-1 rounded bg-raised px-1 py-1"
+        class="flex-1 rounded bg-raised p-1"
         bind:value={format}
         disabled={busy}
         onchange={(e) => {
@@ -138,7 +141,7 @@
     <label class="mb-3 flex items-center gap-2">
       Loudness
       <select
-        class="flex-1 rounded bg-raised px-1 py-1"
+        class="flex-1 rounded bg-raised p-1"
         disabled={busy}
         value={String(appState.normaliseLufs)}
         onchange={(e) => {

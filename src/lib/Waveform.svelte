@@ -51,6 +51,6 @@
 
 <canvas
   bind:this={canvas}
-  class="pointer-events-none absolute inset-0 h-full w-full"
+  class="pointer-events-none absolute inset-0 size-full"
   style="width: {widthPx}px; height: {heightPx}px"
 ></canvas>

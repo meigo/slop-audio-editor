@@ -86,7 +86,7 @@ describe("pasteClips", () => {
   });
 
   it("preserves gain and fades", () => {
-    let p = scene();
+    const p = scene();
     p.tracks[0].clips[0].gain = 0.5;
     p.tracks[0].clips[0].fadeInS = 0.25;
     const data = copyClips(p, [p.tracks[0].clips[0].id]);

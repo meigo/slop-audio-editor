@@ -1,6 +1,4 @@
 <script lang="ts">
-  import { untrack } from "svelte";
-
   const {
     label, value, min = 0, suffix = "", title = undefined, disabled = false,
     onCommit,
@@ -10,15 +8,10 @@
     onCommit: (v: number) => void;
   } = $props();
 
-  // `untrack`: we only want the INITIAL value here — the $effect below is what re-syncs `draft`
-  // when `value` changes later. Without it, svelte-check flags this as a suspected missing
-  // reactive read and the build gate (0 warnings) fails.
-  let draft = $state(untrack(() => value.toFixed(2)));
-
-  // Re-sync when the underlying value changes from elsewhere (a drag, an undo).
-  $effect(() => {
-    draft = value.toFixed(2);
-  });
+  // A WRITABLE `$derived`: typing assigns to it, and it re-syncs on its own whenever `value`
+  // changes from elsewhere (a drag, an undo). This replaced a `$state` + `untrack` + `$effect`
+  // trio that did the same thing by hand and needed a comment explaining the `untrack`.
+  let draft = $derived(value.toFixed(2));
 
   function commitDraft() {
     // Both blur and Escape land here. Committing what is ALREADY displayed would be a real edit,

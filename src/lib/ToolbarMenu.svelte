@@ -30,7 +30,7 @@
   >
     {label}<span class="text-[9px] opacity-70">▾</span>
     {#if marked}
-      <span class="absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full {markClass}"></span>
+      <span class="absolute right-0.5 top-0.5 size-1.5 rounded-full {markClass}"></span>
     {/if}
   </button>
   {#if open}

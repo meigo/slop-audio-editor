@@ -81,11 +81,11 @@
     <div class="pointer-events-none absolute inset-y-0 w-px bg-warn" style="left: {ix}px"></div>
     <div class="pointer-events-none absolute inset-y-0 w-px bg-warn" style="left: {ox}px"></div>
     <div
-      class="pointer-events-none absolute top-0 h-2 w-2 bg-warn"
+      class="pointer-events-none absolute top-0 size-2 bg-warn"
       style="left: {ix}px; clip-path: polygon(0 0, 100% 0, 0 100%)"
     ></div>
     <div
-      class="pointer-events-none absolute top-0 h-2 w-2 bg-warn"
+      class="pointer-events-none absolute top-0 size-2 bg-warn"
       style="left: {ox - 8}px; clip-path: polygon(100% 0, 0 0, 100% 100%)"
     ></div>
   {/if}
