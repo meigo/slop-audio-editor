@@ -1,6 +1,6 @@
 <script lang="ts">
   import { projectDurationS } from "../doc/document";
-  import { deleteClips, deleteRange, moveClips, setTrackMuted, splitAt } from "../doc/edits";
+  import { moveClips, setTrackMuted, splitAt } from "../doc/edits";
   import { editPoints, nextEditPoint, prevEditPoint, NO_SELECTION } from "../doc/selection";
   import {
     clearPlayRange,
@@ -8,6 +8,8 @@
     copySelection,
     currentTrackId,
     cutSelection,
+    deleteSelection,
+    duplicateSelection,
     pasteAtPlayhead,
     redoEdit,
     seekTo,
@@ -75,18 +77,8 @@
         return setPlayOut();
       case "clearPlayRange":
         return clearPlayRange();
-      case "delete": {
-        if (appState.selection.kind === "clips") {
-          const ids = appState.selection.clipIds;
-          appState.selection = NO_SELECTION;
-          return commit((p) => deleteClips(p, ids));
-        }
-        if (appState.selection.kind === "range") {
-          const r = appState.selection.range;
-          return commit((p) => deleteRange(p, r.trackIds, r.fromS, r.toS, cmd.ripple));
-        }
-        return;
-      }
+      case "delete":
+        return deleteSelection(cmd.ripple);
       case "copy":
         return copySelection();
       case "cut":
@@ -94,8 +86,7 @@
       case "paste":
         return pasteAtPlayhead();
       case "duplicate":
-        copySelection();
-        return pasteAtPlayhead();
+        return duplicateSelection();
       case "undo":
         return undoEdit();
       case "redo":

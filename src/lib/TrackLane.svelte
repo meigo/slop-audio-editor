@@ -4,6 +4,7 @@
   import { state as appState } from "../state/appState.svelte";
   import ClipView from "./ClipView.svelte";
   import { startRangeDrag } from "./clip-drag.svelte";
+  import { armLongPress, endLongPress, moveLongPress } from "./long-press";
 
   const { track }: { track: Track } = $props();
 
@@ -35,7 +36,18 @@
   data-track-id={track.id}
   class="relative touch-none border-b border-line bg-ground"
   style="height: {appState.trackHeightPx}px"
-  onpointerdown={(e) => startRangeDrag(e, track.id)}
+  onpointerdown={(e) => {
+    startRangeDrag(e, track.id);
+    armLongPress(e);
+  }}
+  onpointermove={moveLongPress}
+  onpointerup={endLongPress}
+  onpointercancel={endLongPress}
+  oncontextmenu={(e) => {
+    // Empty lane time: the menu is here for Paste, so the selection is left exactly as it was.
+    e.preventDefault();
+    appState.contextMenu = { x: e.clientX, y: e.clientY };
+  }}
 >
   {#each track.clips as clip (clip.id)}
     <ClipView

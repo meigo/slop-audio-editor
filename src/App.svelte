@@ -3,6 +3,7 @@
   import { addTrack, removeTrack } from "./doc/edits";
   import { TRACK_HEIGHTS } from "./persist/preferences";
   import Inspector from "./lib/Inspector.svelte";
+  import ContextMenu from "./lib/ContextMenu.svelte";
   import KeyboardShortcuts from "./lib/KeyboardShortcuts.svelte";
   import MixPanel from "./lib/MixPanel.svelte";
   import Playhead from "./lib/Playhead.svelte";
@@ -175,4 +176,5 @@
 
   <Inspector />
   <StatusBar />
+  <ContextMenu />
 </div>

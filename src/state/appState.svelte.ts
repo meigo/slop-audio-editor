@@ -3,7 +3,7 @@ import { AudioEngine } from "../audio/engine";
 import { SourcePool, sourceFromFile } from "../audio/pool";
 import { copyClips, cutClips, pasteClips, type ClipboardData } from "../doc/clipboard";
 import { createProject, projectDurationS, resolveTrackId, type Project } from "../doc/document";
-import { addClip, makeClip, setClipGain } from "../doc/edits";
+import { addClip, deleteClips, deleteRange, makeClip, setClipGain } from "../doc/edits";
 import { matchLoudnessGains, type LoudnessEntry } from "../doc/loudness-match";
 import { setIn, setOut, type PlayRange } from "../doc/play-range";
 import { NO_SELECTION, type Selection } from "../doc/selection";
@@ -44,6 +44,9 @@ export const state = $state({
   normaliseLufs: prefs.normaliseLufs,
   masterPanelOpen: prefs.masterPanelOpen,
   importing: null as { name: string; fraction: number } | null,
+  /** Context menu position in viewport pixels, or null when closed. Session state because two
+   *  unrelated components open it (a clip and the lane behind it) and neither owns it. */
+  contextMenu: null as { x: number; y: number } | null,
   /** Keyboard-shortcut overlay. Session state: two unrelated components open it (the `?` key and
    *  the toolbar button), so it lives here rather than being drilled through props. */
   helpOpen: false,
@@ -106,7 +109,12 @@ type GestureKind = "structural" | "mix";
 
 let gestureBase: Project | null = null;
 let gestureKind: GestureKind = "structural";
-let clipboard: ClipboardData = { entries: [], sourceTrackId: null };
+/** `$state`, for the same reason `history` is: `canPaste()` is read inside a component's
+ *  `$derived`, and Svelte tracks what an expression READS. As a plain module variable it was
+ *  invisible to the tracker, so the context menu's Paste row stayed greyed out after a copy until
+ *  something else happened to invalidate the derived. Any module-level value a component reads
+ *  THROUGH A FUNCTION has to be `$state`. */
+let clipboard: ClipboardData = $state({ entries: [], sourceTrackId: null });
 
 /** Every document reachable through undo or redo, plus the open one.
  *
@@ -386,4 +394,35 @@ export function matchLoudness(): void {
  *  keeps its relative track offsets, so the current track becomes the topmost of the group. */
 export function pasteAtPlayhead(): void {
   commit((p) => pasteClips(p, clipboard, currentTrackId(), state.playheadS));
+}
+
+/** Is there anything on the clipboard? The clipboard itself is module-private, so a menu that
+ *  wants to grey out Paste cannot see it any other way. */
+export function canPaste(): boolean {
+  return clipboard.entries.length > 0;
+}
+
+/** Delete whatever is selected — clips, or a time range across tracks.
+ *
+ *  Lives HERE rather than inside the keyboard handler because the context menu deletes too, and
+ *  two copies of "delete the selection" would drift. `ripple` closes the gap the deletion leaves;
+ *  only the range form can ripple, since clip deletion has no single gap to close. */
+export function deleteSelection(ripple = false): void {
+  if (state.selection.kind === "clips") {
+    const ids = state.selection.clipIds;
+    state.selection = NO_SELECTION;
+    commit((p) => deleteClips(p, ids));
+    return;
+  }
+  if (state.selection.kind === "range") {
+    const r = state.selection.range;
+    commit((p) => deleteRange(p, r.trackIds, r.fromS, r.toS, ripple));
+  }
+}
+
+/** Copy, then paste at the playhead on the current track. Two undo entries, because that is what
+ *  the two operations genuinely are — and the paste is the one worth undoing. */
+export function duplicateSelection(): void {
+  copySelection();
+  pasteAtPlayhead();
 }

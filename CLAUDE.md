@@ -115,7 +115,7 @@ src/
 
   lib/               Svelte components — Toolbar, Ruler, TimelineViewport, TrackHeader, TrackLane,
                      ClipView, Waveform, Playhead, RangeOverlay, Inspector, NumberField, Fader,
-                     ExportDialog, KeyboardShortcuts, MixPanel, ShortcutHelp, ToolbarMenu; clip-drag.svelte.ts holds drag-gesture logic
+                     ContextMenu, ExportDialog, KeyboardShortcuts, MixPanel, ShortcutHelp, ToolbarMenu; clip-drag.svelte.ts holds drag-gesture logic
 ```
 
 ## Gotchas
@@ -400,10 +400,12 @@ spin forever.
     NOT verified, and not verifiable from this harness: single-finger clip dragging on a real
     touchscreen. Synthetic PointerEvents cannot satisfy `setPointerCapture`, which throws
     `NotFoundError` without a genuine active pointer — the drag path needs a real device. Also
-    unaddressed for iPad: every keyboard shortcut and every modifier-based action (⌘/Shift-click
-    multi-select, ⌘A), hover-only affordances (tooltips and the status-bar hint are inert on
-    touch), iOS IndexedDB eviction after ~7 days, and the memory ceiling from holding every source
-    decoded (~11.5 MB per minute of 48 kHz stereo float).
+    unaddressed for iPad: the remaining keyboard-only actions (nudge, jump-to-edit, select all,
+    zoom to fit) and every modifier-based action (⌘/Shift-click multi-select, Shift to override
+    snap), hover-only affordances (tooltips and the status-bar hint are inert on touch), iOS
+    IndexedDB eviction after ~7 days, and the memory ceiling from holding every source decoded
+    (~11.5 MB per minute of 48 kHz stereo float). Delete and the clipboard are no longer on that
+    list — see Gotcha 39.
 
 23. **Every clip edge without a fade gets a 5 ms declick ramp, added in `planSchedule` — it is
     NOT in the document.** Clips can never overlap (`overlap.ts` enforces drop-to-overwrite), so
@@ -628,7 +630,9 @@ command}` that `ShortcutHelp.svelte` renders. `resolveShortcut` was deliberately
     affordance was dead.
     The general rule: any module-level value a component reads THROUGH A FUNCTION must be
     `$state`, or the read is invisible to the tracker. A plain `let` is only safe for something no
-    component displays.
+    component displays. This has now bitten TWICE — `history` behind `canUndoNow()`, and
+    `clipboard` behind `canPaste()`, which left the context menu's Paste row greyed out after a
+    copy until something unrelated happened to invalidate the derived. Both are `$state` now.
 
 35. **Master EQ is the SAME three bands as a track's, built by the SAME function, and sits
     between the master fader and Glue.** `Project.masterEq` is an `EqBands` (the type is no longer
@@ -721,6 +725,27 @@ command}` that `ShortcutHelp.svelte` renders. `resolveShortcut` was deliberately
     clamp in `limitPeaks` (the release branch cannot overshoot, since `target >= g` there) and a
     silence guard in the loop (`normalisationGain` already returns a gain of 1 for a non-finite
     measurement, which trips the convergence break). Both removed.
+
+39. **The context menu exists because delete had NO pointer affordance at all**, and its actions
+    live in `appState` so the keyboard and the menu cannot drift. `deleteClips`/`deleteRange` were
+    reachable only from `KeyboardShortcuts.svelte`'s switch, which meant a clip could not be
+    deleted on a device without a keyboard — the app could import, arrange, mix and export, but not
+    remove anything. `deleteSelection` and `duplicateSelection` moved into `appState` FIRST, and
+    the keyboard path now calls them; a second implementation behind the menu is exactly the kind
+    of copy that drifts.
+    Items are DISABLED, never hidden: a menu that changes shape between openings moves its own
+    rows under the pointer, and a greyed row still teaches that the action exists — which on touch
+    is the only way to discover the clipboard at all. Cut/copy/duplicate need a CLIP selection
+    (the clipboard holds whole clips); a time range can be deleted but not copied.
+    Opening on a clip that is not in the selection selects it first; on one that is, the group is
+    kept, so "select three, right-click, delete" works. `contextItems` and `clampMenuPosition` are
+    pure and unit-tested; the menu FLIPS to the other side of the pointer at a viewport edge
+    rather than sliding along it, because sliding leaves it covering the clip that was clicked.
+    Long-press (500 ms, cancelled by 8 px of movement) opens it on touch. That same pointerdown
+    also starts a clip drag, which is deliberately left running: a drag that never moves commits
+    nothing, thanks to the exact-equality no-op guards in `edits.ts`, and a cancel path through
+    `clip-drag` could not be tested without real touch hardware. Right-click is verified; the
+    long-press path is NOT — `setPointerCapture` rejects synthetic pointer events.
 
 ## Testing
 

@@ -1,8 +1,9 @@
 <script lang="ts">
   import type { Clip } from "../doc/document";
   import { clipsInRange } from "../doc/selection";
-  import { pool, state as appState } from "../state/appState.svelte";
+  import { pool, setCurrentTrack, state as appState } from "../state/appState.svelte";
   import { startClipDrag } from "./clip-drag.svelte";
+  import { armLongPress, endLongPress, moveLongPress } from "./long-press";
   import { fadeInCurve, fadeOutCurve } from "../audio/fades";
   import type { DuckPoint } from "../audio/ducking";
   import {
@@ -61,6 +62,18 @@
     fadeOut: "nwse-resize",
   };
 
+  /** Opening a menu on a clip that is NOT part of the selection selects it first; on one that is,
+   *  the selection is kept so the action applies to the whole group. That is what makes "select
+   *  three, right-click, delete" work. */
+  function selectForMenu() {
+    const sel = appState.selection;
+    const covered =
+      (sel.kind === "clips" && sel.clipIds.includes(clip.id)) ||
+      (sel.kind === "range" && clipsInRange(appState.project, sel.range).includes(clip.id));
+    if (!covered) appState.selection = { kind: "clips", clipIds: [clip.id] };
+    setCurrentTrack(trackId);
+  }
+
   function onPointerDown(e: PointerEvent) {
     e.stopPropagation(); // a clip click must not start a range drag on the lane behind it
     const z = zoneAt(e);
@@ -109,8 +122,22 @@
          select-none {selected ? 'outline-accent' : 'outline-media-clip-border'}"
   title="{name} — {formatTime(clip.durS)}"
   data-hint="Drag to move · ⌘-click or Shift-click to add to the selection · ⌘A all · ⌘C copy, ⌘X cut, ⌘V paste at the playhead, ⌘D duplicate"
-  onpointerdown={onPointerDown}
-  onpointermove={(e) => (zone = zoneAt(e))}
+  onpointerdown={(e) => {
+    onPointerDown(e); // selects and starts the drag
+    armLongPress(e); // touch only; a press held still opens the menu over that selection
+  }}
+  onpointermove={(e) => {
+    zone = zoneAt(e);
+    moveLongPress(e);
+  }}
+  onpointerup={endLongPress}
+  onpointercancel={endLongPress}
+  oncontextmenu={(e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    selectForMenu();
+    appState.contextMenu = { x: e.clientX, y: e.clientY };
+  }}
   style="left: {x}px; width: {w}px; height: {heightPx - 8}px; cursor: {CURSORS[zone]}"
 >
   <Waveform

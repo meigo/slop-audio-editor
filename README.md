@@ -32,7 +32,8 @@ under the voice, and export a mastered file — all locally, with no upload and 
   same curves the engine plays
 - Multi-select with ⌘/Shift-click or a range drag; a whole group moves together
 - Snap to clip edges, the playhead and t=0 (hold Shift to override)
-- Copy / cut / paste — paste lands on the current track at the playhead
+- Copy / cut / paste / duplicate, from the keyboard or a right-click (long-press) menu —
+  paste lands on the current track at the playhead
 - Waveforms scaled by clip gain, so the picture shows what you will hear
 - In/out markers for looping a section, kept separate from the selection that bounds an export
 - Three track heights, adjustable zoom, and two-finger pan/pinch on a trackpad or touchscreen
@@ -78,7 +79,7 @@ A few decisions shape the whole codebase:
 ```bash
 npm install
 npm run dev       # Vite dev server
-npm test          # Vitest — 471 tests
+npm test          # Vitest — 479 tests
 npm run check     # svelte-check
 npm run lint      # ESLint
 npm run format    # Prettier
@@ -98,7 +99,7 @@ rather than becoming PCM.
 - One sample rate (48 kHz) — files are resampled on import
 - No crossfades between clips; butted clips get a short declick ramp instead
 - No sidechain input (Web Audio has none) — ducking is computed from clip positions
-- iPad and touch support covers pan and zoom; keyboard-only actions have no touch equivalent yet
+- Touch covers pan, zoom, and a long-press context menu; some actions are still keyboard-only
 - Browser storage can be evicted, so save a `.slopaudio` for anything you want to keep
 
 ## Credits
