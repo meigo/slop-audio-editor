@@ -38,6 +38,12 @@
   const toggleClass = (on: boolean): string =>
     "rounded px-2 py-0.5 text-xs " +
     (on ? "bg-accent font-medium text-ground" : "text-muted hover:bg-raised hover:text-text");
+  /** An ICON toggle, same on-state as the text ones. Built as one string rather than layering
+   *  `class:text-accent` over `BTN`: both are text-colour utilities of equal specificity, so which
+   *  one wins depends on the ORDER TAILWIND EMITS THEM, not on the markup. Loop looked dead for
+   *  exactly that reason — it was toggling all along, invisibly. */
+  const toggleIconClass = (on: boolean): string =>
+    "rounded p-1 " + (on ? "bg-accent text-ground" : "text-text hover:bg-raised");
 
   function onMasterGain(g: number) {
     if (!masterDragging) {
@@ -139,8 +145,8 @@
       <Square size={16} />
     </button>
     <button
-      class={BTN}
-      class:text-accent={appState.loop}
+      class={toggleIconClass(appState.loop)}
+      aria-pressed={appState.loop}
       title="Loop the in/out range, or the whole project (L)"
       onclick={() => (appState.loop = !appState.loop)}
     >
