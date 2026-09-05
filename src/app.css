@@ -2,24 +2,24 @@
 
 /* Shared slop timeline palette — see /Users/meigo/Projects/slop/SLOP-TIMELINE-UI.md.
    Roles, not hexes, are what component markup names: `bg-panel`, `border-line`, `text-muted`.
-   Chrome is Tailwind slate; the accent and semantic colours are Tailwind steps too. */
+   Chrome is Tailwind zinc; the accent and semantic colours are Tailwind steps too. */
 @theme {
-  /* Chrome is Tailwind SLATE — a blue-tinted grey, not a saturated blue. A blue chrome competed
-     with the accent and with the media; slate recedes and lets the accent carry the colour.
-     Accent, and every semantic colour, is a standard Tailwind step too: once the greys come from
-     the palette, mixing hand-mixed status colours in beside them reads as an accident. */
-  --color-ground: #020617; /* slate-950 — 0.21% luminance; clips are the brightest thing */
-  --color-panel: #0f172a; /* slate-900 */
-  --color-raised: #1e293b; /* slate-800 */
-  --color-line: #334155; /* slate-700 */
-  --color-text: #f1f5f9; /* slate-100 */
-  --color-muted: #94a3b8; /* slate-400 */
+  /* Chrome is Tailwind ZINC — very nearly neutral, +2 blue over red at the dark end. Slate was
+     tried first and read as too blue: its darkest step is +21 blue over red, so the whole
+     interface took on a colour of its own and competed with both the accent and the media.
+     Zinc keeps a faint cool cast, and blue then appears ONLY where it means something. */
+  --color-ground: #09090b; /* zinc-950 — 0.28% luminance; clips are the brightest thing */
+  --color-panel: #18181b; /* zinc-900 */
+  --color-raised: #27272a; /* zinc-800 */
+  --color-line: #3f3f46; /* zinc-700 */
+  --color-text: #f4f4f5; /* zinc-100 */
+  --color-muted: #a1a1aa; /* zinc-400 */
   --color-accent: #3b82f6; /* blue-500 */
   --color-accent-hover: #60a5fa; /* blue-400 */
   --color-danger: #f87171; /* red-400 — playhead and errors */
   --color-warn: #f59e0b; /* amber-500 — in/out markers */
   --color-ok: #34d399; /* emerald-400 */
-  --color-disabled: #475569; /* slate-600 */
+  --color-disabled: #52525b; /* zinc-600 */
 }
 
 /* Checkboxes, range thumbs and scrollbars are drawn by the BROWSER, not by our CSS: without
