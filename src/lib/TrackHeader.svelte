@@ -15,6 +15,21 @@
   let nameInput = $state<HTMLInputElement | null>(null);
   let dragging = false;
 
+  /** M / S / D share a fixed 20 px square so the row does not reflow as letters differ, and the
+   *  colour encodes WHAT KIND of state each one is, not which letter it is — the letter already
+   *  does that. `accent` = it is in the document and reaches the export (mute, duck). `warn` =
+   *  session-only monitoring that is never saved and never exported (solo), which is the same
+   *  colour the in/out markers use for the same reason. */
+  const FLAG_BASE =
+    "flex h-5 w-5 shrink-0 items-center justify-center rounded text-[10px] font-bold ";
+  const FLAG_OFF = "text-muted hover:bg-raised hover:text-text";
+  /** The on-colours are written out as LITERALS, never interpolated: Tailwind generates utilities
+   *  by scanning source text, so a `bg-${kind}` would only work while some other file happened to
+   *  use the same class. */
+  const flagClass = (on: boolean, onClass: string): string => FLAG_BASE + (on ? onClass : FLAG_OFF);
+  const FLAG_DOC = "bg-accent text-ground";
+  const FLAG_SESSION = "bg-warn text-ground";
+
   // `autofocus` is an a11y warning and the build gate is 0 warnings, so focus explicitly.
   $effect(() => {
     if (renaming) nameInput?.focus();
@@ -73,31 +88,22 @@
     {/if}
 
     <button
-      class="rounded px-1 text-[10px] font-bold"
-      class:bg-warn={track.muted}
-      class:text-black={track.muted}
-      class:text-muted={!track.muted}
-      title="Mute (saved with the project, silences the export)"
+      class={flagClass(track.muted, FLAG_DOC)}
+      title="Mute — saved with the project and silences the export"
       onclick={() => commit((p) => setTrackMuted(p, track.id, !track.muted))}
     >
       M
     </button>
     <button
-      class="rounded px-1 text-[10px] font-bold"
-      class:bg-accent={appState.soloed.has(track.id)}
-      class:text-black={appState.soloed.has(track.id)}
-      class:text-muted={!appState.soloed.has(track.id)}
-      title="Solo (preview only — never affects the export)"
+      class={flagClass(appState.soloed.has(track.id), FLAG_SESSION)}
+      title="Solo — preview only, never saved and never affects the export"
       onclick={() => toggleSolo(track.id)}
     >
       S
     </button>
     <button
-      class="rounded px-1 text-[10px] font-bold"
-      class:bg-ok={track.ducked}
-      class:text-black={track.ducked}
-      class:text-muted={!track.ducked}
-      title="Background: dip this track while any other track is playing (music under voice)"
+      class={flagClass(track.ducked, FLAG_DOC)}
+      title="Background — saved with the project; dips this track while any other track plays"
       onclick={() => commit((p) => setTrackDucked(p, track.id, !track.ducked))}
     >
       D
