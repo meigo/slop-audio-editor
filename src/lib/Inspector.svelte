@@ -1,11 +1,8 @@
 <script lang="ts">
-  import { EQ_HIGH_HZ, EQ_LOW_HZ, EQ_MAX_DB, EQ_MID_HZ, findClip, findTrack, type FadeShape, type EqBands } from "../doc/document";
-  import { setClipFade, setClipGain, setTrackEq, trimClipEnd, trimClipStart } from "../doc/edits";
-  import {
-    amend, beginGesture, commit, currentTrackId, endGesture, engine, pool, state as appState,
-  } from "../state/appState.svelte";
+  import { findClip, type FadeShape } from "../doc/document";
+  import { setClipFade, setClipGain, trimClipEnd, trimClipStart } from "../doc/edits";
+  import { commit, pool, state as appState } from "../state/appState.svelte";
   import { dbToGain, gainToDb } from "./geometry";
-  import BandSlider from "./BandSlider.svelte";
   import NumberField from "./NumberField.svelte";
 
   /** The inspector edits ONE clip — it is for typing exact numbers, not for bulk operations. */
@@ -17,39 +14,16 @@
   const clip = $derived(selected?.clip);
   const source = $derived(clip ? pool.get(clip.sourceId) : undefined);
 
-  /** EQ is per TRACK, not per clip, so it follows the current track (the one you last touched)
-   *  rather than the selection — the same rule the M / solo shortcuts use. */
-  const track = $derived(findTrack(appState.project, currentTrackId()));
-
-  /** A MIX change, exactly like the track fader: applied live on the retained biquads so a band
-   *  can be swept while listening, and committed as ONE history entry on release that does not
-   *  reschedule. `dragging` is what collapses a whole sweep into one undo step. */
-  let dragging = false;
-
-  function onBand(patch: Partial<EqBands>) {
-    const id = currentTrackId();
-    if (!dragging) {
-      dragging = true;
-      beginGesture("mix");
-    }
-    amend((p) => setTrackEq(p, id, patch));
-    const next = findTrack(appState.project, id)?.eq;
-    if (next) engine.setTrackEq(id, next);
-  }
-
-  function onBandCommit() {
-    if (!dragging) return;
-    dragging = false;
-    endGesture();
-  }
-
   const SHAPES: FadeShape[] = ["linear", "equalPower", "exponential"];
   const SHAPE_LABELS: Record<FadeShape, string> = {
     linear: "Linear", equalPower: "Equal power", exponential: "Exponential",
   };
 </script>
 
-<!-- `overflow-x-auto` is the fallback for a genuinely narrow window: the controls keep their
+<!-- THE SELECTED CLIP, and nothing else. Track EQ used to sit on the right of this row and was
+     566 px of its 1271 px minimum — it moved to the mix panel, where it sits with the master EQ
+     it belongs beside.
+     `overflow-x-auto` is the fallback for a genuinely narrow window: the controls keep their
      natural size and the bar scrolls, rather than squeezing until labels wrap. -->
 <div class="flex h-10 shrink-0 items-center gap-3 overflow-x-auto border-t border-line bg-panel px-3">
   {#if clip}
@@ -108,38 +82,4 @@
     <span class="text-xs text-muted">Select a clip to edit its exact values</span>
   {/if}
 
-  {#if track}
-    <!-- Right-aligned and always present: EQ belongs to the current track, so unlike the clip
-         fields it has something to show even when nothing is selected. -->
-    <div
-      class="ml-auto flex items-center gap-1.5"
-      data-hint="Three-band tone control for the current track ({EQ_LOW_HZ} Hz, {EQ_MID_HZ} Hz, {EQ_HIGH_HZ} Hz). Click a track header to switch tracks."
-    >
-      <span class="max-w-24 truncate text-[11px] text-muted">{track.name} EQ</span>
-      <BandSlider
-        label="low"
-        db={track.eq.lowDb}
-        maxDb={EQ_MAX_DB}
-        title="Low shelf at {EQ_LOW_HZ} Hz — cut to tame boom, boost for weight"
-        onInput={(v) => onBand({ lowDb: v })}
-        onCommit={onBandCommit}
-      />
-      <BandSlider
-        label="mid"
-        db={track.eq.midDb}
-        maxDb={EQ_MAX_DB}
-        title="Peaking band at {EQ_MID_HZ} Hz — cut to reduce boxiness, boost for presence"
-        onInput={(v) => onBand({ midDb: v })}
-        onCommit={onBandCommit}
-      />
-      <BandSlider
-        label="high"
-        db={track.eq.highDb}
-        maxDb={EQ_MAX_DB}
-        title="High shelf at {EQ_HIGH_HZ} Hz — cut to soften sibilance, boost for air"
-        onInput={(v) => onBand({ highDb: v })}
-        onCommit={onBandCommit}
-      />
-    </div>
-  {/if}
 </div>

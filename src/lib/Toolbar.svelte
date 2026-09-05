@@ -1,10 +1,10 @@
 <script lang="ts">
   import {
-    ArrowLeftToLine, ArrowRightToLine, Download, FilePlus2, FolderOpen, Pause, Play,
-    Keyboard, Redo2, Repeat, Save, Scale, Scissors, Square, Undo2, Upload, X,
+    ArrowLeftToLine, ArrowRightToLine, Keyboard, Pause, Play, Redo2, Repeat, Scale, Scissors,
+    Square, Undo2, X,
   } from "@lucide/svelte";
   import { createProject } from "../doc/document";
-  import { setDuckDepth, setMasterGain, splitAt } from "../doc/edits";
+  import { setMasterGain, splitAt } from "../doc/edits";
   import { openProjectFile, pruneUnreferencedSources, saveProjectFile } from "../persist/project-io.svelte";
   import {
     amend, beginGesture, canRedoNow, canUndoNow, clearPlayRange, commit, currentTrackId,
@@ -13,8 +13,8 @@
     setPlayIn, setPlayOut, state as appState, togglePlay, undoEdit,
   } from "../state/appState.svelte";
   import ExportDialog from "./ExportDialog.svelte";
+  import ToolbarMenu from "./ToolbarMenu.svelte";
   import ShortcutHelp from "./ShortcutHelp.svelte";
-  import NumberField from "./NumberField.svelte";
   import Meter from "./Meter.svelte";
   import Fader from "./Fader.svelte";
   import { formatTime } from "./geometry";
@@ -35,6 +35,8 @@
     `${CONTROL_H} w-6 text-text hover:bg-raised disabled:opacity-30 disabled:hover:bg-transparent`;
   /** A 1px rule between toolbar groups. Whitespace alone reads as accidental at this size. */
   const DIVIDER = "mx-1 h-5 w-px shrink-0 bg-line";
+  const MENU_ITEM =
+    "flex w-full items-center px-3 py-1 text-left text-xs text-text hover:bg-raised";
   /** Toggle buttons, not checkboxes: the track headers already say "on" by FILLING (M / S / D),
    *  and two idioms for the same idea in one window is one too many. Text rather than an icon
    *  because "Snap" has no glyph anyone would read correctly — a cryptic icon would trade a
@@ -61,59 +63,48 @@
 </script>
 
 <div class="flex h-11 items-center gap-3 border-b border-line bg-panel px-2 text-text">
-  <div class="flex items-center gap-1">
-    <button
-      class={BTN}
-      title="New project"
-      onclick={() => {
-        commit(() => createProject());
-        // New project is an undoable commit, so the previous document is still reachable —
-        // prune only what NO reachable document references, or undo comes back to dead audio.
-        void pruneUnreferencedSources(reachableProjects(), pool.records().map((s) => s.id));
-      }}
-    >
-      <FilePlus2 size={16} />
-    </button>
-    <button class={BTN} title="Open project" onclick={() => projectInput?.click()}>
-      <FolderOpen size={16} />
-    </button>
-    <!-- Unsaved state recolours the glyph and adds a badge that is positioned OUT OF FLOW. The
-         dot used to sit in the flow beside the icon, so every save/edit nudged this button and its
-         neighbours sideways.
-         A broken autosave takes over the same glyph in `warn` rather than adding an indicator of
-         its own: this is the button the user needs to press, so the warning belongs ON it. -->
-    <button
-      class="{BTN} relative"
-      title={appState.autosaveBroken
-        ? "Autosave unavailable — this session could not be written to browser storage, so it will NOT survive a reload. Save to a file (⌘S)."
-        : appState.dirty
-          ? "Save project — unsaved changes (⌘S)"
-          : "Save project (⌘S)"}
-      onclick={saveProjectFile}
-    >
-      <Save
-        size={16}
-        class={appState.autosaveBroken ? "text-warn" : appState.dirty ? "text-accent" : undefined}
-      />
-      {#if appState.dirty}
-        <span
-          class="absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full {appState.autosaveBroken
-            ? 'bg-warn'
-            : 'bg-accent'}"
-        ></span>
-      {/if}
-    </button>
-    <!-- Import is a file action too. Left in the toolbar ROOT it inherited the root's `gap-3`,
-         so it sat 12 px from Save where New/Open/Save are 4 px apart, and read as a group of
-         one. -->
-    <button
-      class={BTN}
-      title="Import audio into the current track at the playhead — any format this browser can decode (MP3, WAV, M4A/AAC, FLAC, OGG, WebM)"
-      onclick={() => fileInput?.click()}
-    >
-      <Download size={16} />
-    </button>
-  </div>
+  <!-- A File MENU rather than five icon buttons. Those needed ~132 px of a toolbar that wanted
+       1190 px minimum, and none of them is pressed while actually editing — unlike the transport
+       and undo, which stay as buttons. The unsaved mark moves onto the trigger: hiding Save
+       behind a menu must not also hide the fact that there is something to save. -->
+  <ToolbarMenu
+    label="File"
+    marked={appState.dirty || appState.autosaveBroken}
+    markClass={appState.autosaveBroken ? "bg-warn" : "bg-accent"}
+    title={appState.autosaveBroken
+      ? "Autosave unavailable — this session could not be written to browser storage, so it will NOT survive a reload. Save to a file (⌘S)."
+      : appState.dirty
+        ? "File — unsaved changes"
+        : "File"}
+  >
+    {#snippet children(close)}
+      <button
+        class={MENU_ITEM}
+        onclick={() => {
+          commit(() => createProject());
+          // New project is an undoable commit, so the previous document is still reachable —
+          // prune only what NO reachable document references, or undo comes back to dead audio.
+          void pruneUnreferencedSources(reachableProjects(), pool.records().map((s) => s.id));
+          close();
+        }}
+      >
+        New project
+      </button>
+      <button class={MENU_ITEM} onclick={() => { projectInput?.click(); close(); }}>
+        Open project…
+      </button>
+      <button class={MENU_ITEM} onclick={() => { saveProjectFile(); close(); }}>
+        Save project<span class="ml-auto pl-4 text-muted">⌘S</span>
+      </button>
+      <div class="my-1 border-t border-line"></div>
+      <button class={MENU_ITEM} onclick={() => { fileInput?.click(); close(); }}>
+        Import audio…
+      </button>
+      <button class={MENU_ITEM} onclick={() => { exporting = true; close(); }}>
+        Export…
+      </button>
+    {/snippet}
+  </ToolbarMenu>
   <input
     bind:this={projectInput}
     type="file"
@@ -227,22 +218,6 @@
   </button>
 
 
-  <!-- Always mounted, disabled until some track is marked D. It used to be `{#if}`-gated, which
-       meant marking a track D made a control appear IN the toolbar row and shoved its neighbours
-       sideways — state moving the layout, the one thing the shared timeline styling forbids.
-       Disabled still reads as "not for you yet" without the row twitching, and it keeps teaching
-       what the D toggle is for. -->
-  <div class="flex items-center text-xs">
-    <NumberField
-      label="Duck"
-      value={appState.project.duckDepthDb}
-      min={-40}
-      suffix="dB"
-      disabled={!appState.project.tracks.some((t) => t.ducked)}
-      title="How far background (D) tracks dip while another track plays. 0 dB turns ducking off."
-      onCommit={(v) => commit((p) => setDuckDepth(p, v))}
-    />
-  </div>
 
   <button class={BTN} title="Set every clip's gain so all clips play at the same loudness. Non-destructive: it only changes clip gain, and undo reverses it." onclick={matchLoudness}>
     <Scale size={16} />
@@ -250,9 +225,6 @@
 
   <div class={DIVIDER}></div>
 
-  <button class={BTN} title="Mix down to a file (WAV, MP3, M4A or WebM) — solo is ignored, mutes are honoured" onclick={() => (exporting = true)}>
-    <Upload size={16} />
-  </button>
 
   <!-- A button as well as the `?` key: the whole point of the overlay is to reach people who do
        not know the shortcuts, so reaching it can't require knowing one. -->

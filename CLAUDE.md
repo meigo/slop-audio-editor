@@ -112,7 +112,7 @@ src/
 
   lib/               Svelte components — Toolbar, Ruler, TimelineViewport, TrackHeader, TrackLane,
                      ClipView, Waveform, Playhead, RangeOverlay, Inspector, NumberField, Fader,
-                     ExportDialog, KeyboardShortcuts, MasterPanel, ShortcutHelp; clip-drag.svelte.ts holds drag-gesture logic
+                     ExportDialog, KeyboardShortcuts, MixPanel, ShortcutHelp, ToolbarMenu; clip-drag.svelte.ts holds drag-gesture logic
 ```
 
 ## Gotchas
@@ -641,12 +641,34 @@ src/
     `engine.setMasterEq` onto the retained biquads, so a band can be swept while listening. A
     whole sweep is one undo entry — verified through the UI, five input events and one release.
     **The meter and the master fader deliberately stay in the toolbar**, outside the collapsible
-    panel. The meter is a safety device and the fader gets ridden during playback; neither should
+    mix panel. The meter is a safety device and the fader gets ridden during playback; neither should
     be reachable only by expanding something. The panel holds what you set and leave — EQ and
     Glue. Its toggle is pinned to the panel's RIGHT edge: the panel grows leftwards, so its left
     edge moves by the full width it opens by while the right edge does not move at all, and the
     collapsed rail is 30 px rather than 28 so flex cannot shrink the button and shift it by a
     pixel or two.
+
+36. **The toolbar and the inspector were both over budget, and the fix was to sort controls by
+    HOW OFTEN they are pressed.** Measured in a 1235 px window: the toolbar needed 1190 px and the
+    inspector row needed 1271 px — the inspector was already scrolling horizontally with a clip
+    selected. Two moves, no controls removed:
+    (a) **A `File ▾` menu** (`ToolbarMenu.svelte`, borrowed from slop-animator along with the
+    `clickOutside` action) replaces five icon buttons — New, Open, Save, Import, Export. None of
+    them is pressed mid-edit, unlike the transport and undo, which stay as buttons. Hiding Save
+    behind a menu would also hide that there is something to save, so the unsaved mark moved onto
+    the File trigger, still out of flow (Gotcha 25a) — verified as 0 px of movement when it
+    appears.
+    (b) **Track EQ moved from the inspector into the mix panel**, next to the master EQ. It was
+    566 px of the inspector's 1271 — 45% of the row — and it never belonged beside the clip
+    fields: it follows the CURRENT TRACK while everything else in that row describes the SELECTED
+    CLIP. Duck depth moved to the same panel, being a project-wide mix parameter. The inspector
+    now describes only the selected clip, which is what its name promises.
+    Result: toolbar 1005 px, inspector 802 px, both measured. The cost is that track EQ is hidden
+    while the panel is collapsed — accepted, because it is a set-and-leave control like every
+    other control in there.
+    `clickOutside` attaches to a wrapper holding BOTH the trigger and the dropdown, or clicking
+    the trigger to dismiss counts as "outside" and the menu closes and instantly reopens; it
+    listens in the CAPTURE phase because the timeline's own pointer handlers stop propagation.
 
 ## Testing
 
