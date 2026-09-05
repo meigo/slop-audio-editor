@@ -1,10 +1,11 @@
 <script lang="ts">
   import type { Track } from "../doc/document";
-  import { renameTrack, setTrackDucked, setTrackGain, setTrackMuted } from "../doc/edits";
+  import { removeTrack, renameTrack, setTrackDucked, setTrackGain, setTrackMuted } from "../doc/edits";
   import {
     amend, beginGesture, commit, currentTrackId, endGesture, engine, setCurrentTrack,
     state as appState, toggleSolo,
   } from "../state/appState.svelte";
+  import { X } from "@lucide/svelte";
   import Fader from "./Fader.svelte";
 
   const { track }: { track: Track } = $props();
@@ -46,6 +47,11 @@
     engine.setTrackGain(track.id, g);
   }
 
+  /** A project always has at least one track — `resolveTrackId` and `currentTrackId()` rely on it,
+   *  which is why `removeTrack` refuses to remove the last one. Disable the control rather than
+   *  offering a click that silently does nothing. */
+  const isOnlyTrack = $derived(appState.project.tracks.length <= 1);
+
   function onGainCommit() {
     if (!dragging) return;
     dragging = false;
@@ -59,7 +65,7 @@
      double-clicking the name to rename it would otherwise highlight the word as it opens the
      editor. The rename input takes `select-text` back, because there selecting IS the point. -->
 <div
-  class="flex select-none flex-col justify-between border-b border-l-2 border-line px-2 py-1"
+  class="group flex select-none flex-col justify-between border-b border-l-2 border-line px-2 py-1"
   class:border-l-transparent={!isCurrent}
   class:border-l-accent={isCurrent}
   style="height: {appState.trackHeightPx}px"
@@ -107,6 +113,23 @@
       onclick={() => commit((p) => setTrackDucked(p, track.id, !track.ducked))}
     >
       D
+    </button>
+
+    <!-- Revealed on hover: a destructive control does not need permanent residence next to
+         M / S / D, where it would be one mis-click from losing a track's clips. `group-hover`
+         keys off the header, not this button, so it appears as soon as the pointer is anywhere
+         over the track. Undo restores it — deletion goes through `commit` like any edit. -->
+    <button
+      class="ml-0.5 hidden h-5 w-5 shrink-0 items-center justify-center rounded text-muted
+             group-hover:flex hover:bg-raised hover:text-danger disabled:opacity-30
+             disabled:hover:bg-transparent disabled:hover:text-muted"
+      disabled={isOnlyTrack}
+      title={isOnlyTrack
+        ? "Delete track — a project must keep at least one track"
+        : `Delete "${track.name}" and its clips (undoable)`}
+      onclick={() => commit((p) => removeTrack(p, track.id))}
+    >
+      <X size={12} />
     </button>
   </div>
 
