@@ -1,160 +1,118 @@
-# slop-audio-editor
+# Slop Audio Editor
 
-A browser-based multitrack audio editor for voice/narration assembly, quick soundtrack builds, and
-general audio scratchwork. Import audio onto tracks, arrange it, trim and cut it, mix it with gain
-and fades, and export a mixdown — entirely client-side. No server, no upload: audio never leaves
-the browser.
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![GitHub](https://img.shields.io/badge/github-meigo%2Fslop--audio--editor-181717?logo=github)](https://github.com/meigo/slop-audio-editor)
+[![Live demo](https://img.shields.io/badge/demo-slop--audio--editor.meigo.workers.dev-5b8cff)](https://slop-audio-editor.meigo.workers.dev)
 
-This is not a music production tool. There is no tempo, bar/beat grid, metronome, or quantise —
-time is seconds throughout.
+Browser-based **multitrack audio editor**: drop in voice and music, cut and fade, duck the bed
+under the voice, and export a mastered file — all locally, with no upload and no server.
 
-## Stack
+**→ [slop-audio-editor.meigo.workers.dev](https://slop-audio-editor.meigo.workers.dev)**
 
-Svelte 5 (runes mode) + TypeScript + Vite + Tailwind 4, tested with Vitest. Audio decode, playback,
-and mixdown are native Web Audio API. Non-WAV export encoding uses
-[mediabunny](https://github.com/Vanilagy/mediabunny) + WebCodecs. Project files are zipped with
-[fflate](https://github.com/101arrowz/fflate). Deployed as static assets on Cloudflare Workers.
+![Slop Audio Editor — four tracks with waveforms, a ducked music bed, and the clip inspector](docs/screenshot.webp)
 
-## Running it
+**Stack:** Svelte 5 (runes) + TypeScript + Vite + Tailwind 4, on the Web Audio API.
 
-```bash
-npm install
-npm run dev      # Vite dev server
-npm test         # Vitest — 306 tests across 28 files
-npm run build    # svelte-check && tsc --noEmit && vite build — 0 errors, 0 warnings
-npm run deploy   # build, then wrangler deploy
-```
+|                 |                                                                   |
+| --------------- | ----------------------------------------------------------------- |
+| **License**     | MIT                                                               |
+| **Runs**        | In the browser. Nothing is uploaded; audio never leaves the tab   |
+| **Import**      | Anything the browser decodes — MP3, WAV, M4A/AAC, FLAC, OGG, WebM |
+| **Export**      | WAV (16-bit / 32-bit float), MP3, M4A, WebM                       |
+| **Sample rate** | 48 kHz throughout                                                 |
+| **Storage**     | Autosave to IndexedDB; `.slopaudio` project files                 |
 
 ## Features
 
-- **Import** local audio files (anything the browser's `decodeAudioData` accepts — mp3, wav, flac,
-  m4a, ogg, …) onto tracks, via a file picker or drag-and-drop onto the window. The file picker
-  and the toolbar import button target the **current track**; dropping files onto a lane targets
-  the track under the cursor instead, falling back to the current track when the drop lands
-  outside any lane.
-- **Multiple tracks, multiple clips per track.** Clips on a track never overlap; dropping one onto
-  occupied time trims or removes what it lands on. Clicking a track's header, a clip on it, or
-  starting a range-select drag on its lane makes it the **current track** (a thin accent stripe on
-  the header marks it) — the target for import and for the mute/solo keyboard shortcuts. It's
-  session state: not saved, not undoable.
-- **Move, trim, split.** Drag a clip's body to move it or its edges to trim; split every selected
-  track at the playhead.
-- **Cut a time range**, with or without closing the gap (ripple). Ripple is scoped to the tracks the
-  range selection covers, so cutting a flub from the narration never slides the music bed out of
-  sync.
-- **Copy / cut / paste / duplicate** clips.
-- **Per-track and per-clip gain**, mute, and solo. Solo is monitoring only — it is never saved and
-  never affects an export. Faders (−60 dB to +12 dB) are piecewise-linear in dB rather than
-  straight-line, so the middle of the fader's travel is −12 dB and unity sits at three-quarter
-  travel, not buried at the halfway/83% marks a straight dB scale would put them at.
-- **Per-clip fade in/out** with a selectable curve: linear, equal-power, or exponential.
-- **Match loudness**, a one-click button that sets every clip's gain so all clips sit at the same
-  perceived loudness (ITU-R BS.1770 integrated LUFS, measured once per source at import time, target
-  is the median across the project, corrections clamped to ±12 dB). Clips whose source is silent
-  are left alone rather than boosted into noise.
-- **Glue**, a toolbar toggle that band-limits (100 Hz–7.5 kHz) and gently compresses the master bus
-  (3:1, −18 dB threshold) to help audio from different sources cohere, with a fixed −6 dB trim after
-  the compressor to cancel the below-threshold makeup gain the Web Audio spec builds into
-  `DynamicsCompressorNode` (it is not a pure attenuator). It's a document setting, so it's saved
-  with the project and applied on export, same as mute.
-- **Transport:** play, pause, seek, and loop.
-- **In/out play-range markers** bound (and, with loop on, repeat) playback over part of the
-  project, independent of the clip/time-range selection. They are session-only: not part of the
-  document, never saved, never undoable, and never affect export — export continues to use the
-  time-range selection.
-- **Undo / redo**, capped at 100 entries.
-- **Waveform display**, zoom (wheel, `+`/`-`, fit-to-window), and edge/playhead snapping (hold
-  Shift to disable while dragging).
-- **Project save/open** as a self-contained `.slopaudio` file, plus automatic IndexedDB autosave
-  that restores your last session on reload.
-- **Export a mixdown** of the whole project or the selected time range.
+### Timeline
 
-## Keyboard shortcuts
+- Multi-track: import, move, trim in/out, split at the playhead, delete, ripple delete
+- Clips can never overlap — a dragged clip **overwrites** what it lands on
+- Fades in and out with three shapes: **linear**, **equal power**, **exponential**, drawn from the
+  same curves the engine plays
+- Multi-select with ⌘/Shift-click or a range drag; a whole group moves together
+- Snap to clip edges, the playhead and t=0 (hold Shift to override)
+- Copy / cut / paste — paste lands on the current track at the playhead
+- Waveforms scaled by clip gain, so the picture shows what you will hear
+- In/out markers for looping a section, kept separate from the selection that bounds an export
+- Three track heights, adjustable zoom, and two-finger pan/pinch on a trackpad or touchscreen
 
-| Key                       | Action                                                                      |
-| ------------------------- | --------------------------------------------------------------------------- |
-| `Space`                   | Play / pause from the playhead                                              |
-| `S`                       | Split selected tracks at the playhead                                       |
-| `⌘X` / `⌘C` / `⌘V` / `⌘D` | Cut / copy / paste / duplicate                                              |
-| `Delete` / `Backspace`    | Delete selection (clips, or a range leaving a gap)                          |
-| `⇧Delete`                 | Delete a time-range selection and ripple                                    |
-| `⌘Z` / `⇧⌘Z`              | Undo / redo                                                                 |
-| `⌘S`                      | Save project                                                                |
-| `←` / `→`                 | Nudge by 100 ms — the selected clip, or the playhead if nothing is selected |
-| `⇧←` / `⇧→`               | Nudge by 10 ms                                                              |
-| `⌘←` / `⌘→`               | Jump to the previous / next edit point                                      |
-| `+` / `-`                 | Zoom in / out                                                               |
-| `⇧F`                      | Zoom to fit                                                                 |
-| `m`                       | Toggle mute on the current track                                            |
-| `⇧S`                      | Toggle solo on the current track                                            |
-| `l`                       | Toggle loop                                                                 |
-| `i`                       | Set the play-range IN marker at the playhead                                |
-| `o`                       | Set the play-range OUT marker at the playhead                               |
-| `⌘I` / `Ctrl+I`           | Clear the play-range markers                                                |
+### Mixing
 
-Shortcuts are suppressed while typing into an input field.
+- Per-track gain, mute, solo, and a three-band EQ (150 Hz shelf, 1.2 kHz peak, 6 kHz shelf)
+- **Ducking**: mark a track `D` and it dips under any other track that has audio playing.
+  Derived from clip positions, not a sidechain, so the dip is already at full depth on the voice's
+  first consonant — and it is drawn on the clip
+- **Match loudness**: sets clip gains so everything sits at the group's median LUFS
+- Master gain, master EQ, and **Glue** — a fixed band-limit and gentle bus compressor
+- Live peak meter, per channel, so a hard-panned mix cannot read low
+- Undo/redo across every edit, 100 steps deep
 
-## Export formats
+### Export
 
-| Format                           | Availability                                                              |
-| -------------------------------- | ------------------------------------------------------------------------- |
-| WAV (16-bit PCM or 32-bit float) | Always — a small in-repo encoder, no codec support required               |
-| MP3 (192 kbps)                   | Wherever the browser can encode it (mediabunny ships its own MP3 encoder) |
-| M4A / AAC (192 kbps)             | Chromium-class browsers with WebCodecs AAC support                        |
-| WebM / Opus (192 kbps)           | Chromium-class browsers with WebCodecs Opus support                       |
+- **Loudness normalisation** to −14 (streaming), −16 (podcast) or −23 LUFS (EBU R128), measured
+  with a compliant ITU-R BS.1770 meter
+- Optional **brick-wall limiter** so a target can be reached rather than fallen short of — it
+  reports how much it pulled down, because 1 dB is transparent and 8 dB is not
+- **TPDF dither** on 16-bit output
+- Peak check that stops before writing a clipped file
+- Export the whole project, or just a selected time range
 
-The export dialog only lists formats the current browser actually reports as encodable — an
-unsupported format is hidden, never offered and failed.
+## How it works
 
-## Project file format — `.slopaudio`
+A few decisions shape the whole codebase:
 
-A `.slopaudio` file is a zip containing:
+- **Preview and export run the same code.** One scheduler plans the timeline and one builder turns
+  that plan into a Web Audio graph, against a live `AudioContext` for playback and an
+  `OfflineAudioContext` for export. Anything that would apply to only one of them is kept out of
+  both, so what you hear is what you get.
+- **The document holds no audio.** Decoded buffers, waveform peaks and original bytes live in a
+  pool outside the document, which is what makes undo a plain snapshot instead of command objects.
+- **Solo and the in/out markers are session state**, deliberately unreachable from an export —
+  auditioning one track must never silently produce a mixdown missing every other one.
+- **Editing is pure functions.** Every operation is `(project, args) => project` with no DOM and no
+  audio, which is why most of the behaviour is covered by fast unit tests.
 
-```
-project.json          the document (tracks, clips, gain, fades) + a source manifest
-sources/<id>.<ext>    each imported source's ORIGINAL encoded bytes
+## Development
+
+```bash
+npm install
+npm run dev       # Vite dev server
+npm test          # Vitest — 471 tests
+npm run check     # svelte-check
+npm run lint      # ESLint
+npm run format    # Prettier
+npm run build     # svelte-check && tsc --noEmit && vite build
 ```
 
-Sources are stored as their original encoded bytes, not decoded PCM, so a project built from
-30 MB of MP3s stays close to 30 MB. Opening a project decodes each source back into memory; there
-is no relinking step and no missing-media dialog because the audio always travels with the project.
+The build gate is **0 errors and 0 warnings**.
 
-## Browser requirements
+## Project files
 
-Built and verified against a **Chromium-based browser** (Chrome/Edge). WAV export always works
-everywhere the app runs. MP3/M4A/WebM export depend on the browser's WebCodecs/encoder support and
-are simply not offered where unsupported. Audio decodes fully into memory at import — roughly
-11.5 MB of RAM per minute of stereo 48 kHz audio — so very long imports (tens of minutes) can use
-a large amount of memory.
+`.slopaudio` is a zip holding `project.json` plus the original, unmodified source files. Opening
+one restores the session exactly; the audio is stored as imported, so a 30 MB MP3 stays 30 MB
+rather than becoming PCM.
 
-## Known limitations
+## Limitations
 
-- **No UI to remove or reorder a track.** Both underlying operations exist and are tested, but
-  nothing in the interface exposes either. An accidental "Add track" is undoable, at least.
-- **Inspector number fields work at 10 ms granularity** — values display and commit at two decimal
-  places, matching the nudge step, not full sample precision.
-- **`⇧Delete` (delete-and-ripple) only ripples a time-range selection**, not a selection of clips.
-- **Splitting or range-cutting a clip that has fades carries both fades onto each fragment** —
-  a cut can introduce an audible dip at the new join, since neither fragment loses the fade it
-  didn't "keep" from the original clip.
-- **A saved `.slopaudio` embeds every source imported in the session**, not only those the
-  document still references, so a file can be larger than the audio it actually uses.
-- **The export format you last chose does not persist** between sessions — the export dialog
-  always opens back on WAV.
-- **Chromium-first.** WAV export is guaranteed everywhere; MP3, M4A, and WebM depend on the
-  browser's own encoder support and are hidden, not offered, where it's missing.
-- **Long files decode fully into RAM** rather than streaming — about 11.5 MB per minute of stereo
-  48 kHz audio, so very long sessions can add up.
-- **Match loudness measures the whole decoded source, not the trimmed region a clip actually
-  plays.** Two clips cut from different, differently-loud parts of the same imported file get the
-  same correction, since loudness is measured once per source at import time.
-- **The in/out play-range markers are not saved with the project** (or by autosave) — they're
-  session state, cleared on reload, and never affect export.
+- One sample rate (48 kHz) — files are resampled on import
+- No crossfades between clips; butted clips get a short declick ramp instead
+- No sidechain input (Web Audio has none) — ducking is computed from clip positions
+- iPad and touch support covers pan and zoom; keyboard-only actions have no touch equivalent yet
+- Browser storage can be evicted, so save a `.slopaudio` for anything you want to keep
 
-## Design notes
+## Credits
 
-The full design spec, including the data model and the reasoning behind non-obvious decisions
-(why solo isn't part of the document, why `trimStart` moves two fields by one clamped delta, why
-preview and export share one scheduling function), lives in
-`docs/superpowers/specs/2026-09-03-slop-audio-editor-design.md`. `CLAUDE.md` is the shorter,
-code-facing index for picking this project back up.
+Built by [Meigo Kukk](https://github.com/meigo), with [Claude](https://claude.ai/code) (Anthropic)
+as co-author. Commits include:
+
+```text
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+```
+
+Encoding by [mediabunny](https://github.com/Vanilagy/mediabunny), zip handling by
+[fflate](https://github.com/101arrowz/fflate), icons by [Lucide](https://lucide.dev).
+
+## License
+
+MIT — see [LICENSE](LICENSE).
