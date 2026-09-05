@@ -93,8 +93,14 @@ export function formatDb(gain: number): string {
   return `${sign}${Math.abs(db).toFixed(1)} dB`;
 }
 
-/** Roughly one tick per 80 px, chosen from a 1-2-5 ladder so the labels are always round numbers.
- *  Every fifth tick is major (labelled). */
+/** Target spacing between ruler ticks. 80 px put a tick every ~1.3 s at the default zoom and a
+ *  LABEL only every ~600 px, which reads as an empty strip with three numbers on it. 40 px gives
+ *  twice the ticks and a label roughly every 300 px — still far wider than a `00:00.000` label,
+ *  so nothing crowds. */
+const TICK_TARGET_PX = 40;
+
+/** Steps come from a 1-2-5 ladder so the labels are always round numbers. Every fifth tick is
+ *  major (labelled). */
 const TICK_STEPS = [0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600];
 
 export function rulerTicks(
@@ -103,7 +109,7 @@ export function rulerTicks(
   pxPerSecond: number,
 ): { s: number; major: boolean }[] {
   if (!(toS > fromS)) return [];
-  const targetS = 80 / pxPerSecond;
+  const targetS = TICK_TARGET_PX / pxPerSecond;
   const step = TICK_STEPS.find((s) => s >= targetS) ?? TICK_STEPS[TICK_STEPS.length - 1];
   const out: { s: number; major: boolean }[] = [];
   const first = Math.floor(fromS / step);

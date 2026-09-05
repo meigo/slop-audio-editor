@@ -137,6 +137,23 @@ describe("rulerTicks", () => {
   it("returns nothing for an inverted window", () => {
     expect(rulerTicks(10, 5, 60)).toEqual([]);
   });
+
+  // The ladder keeps labels on round numbers; the target spacing decides how many. These pin the
+  // density that was chosen, so a change to either is deliberate rather than accidental.
+  it("puts ticks about 40 px apart at the default zoom", () => {
+    const ticks = rulerTicks(0, 30, 60); // 60 px/s
+    const gapPx = (ticks[1].s - ticks[0].s) * 60;
+    expect(gapPx).toBeGreaterThanOrEqual(30);
+    expect(gapPx).toBeLessThanOrEqual(80);
+  });
+
+  it("labels a round number often enough to read, but not so often they collide", () => {
+    const ticks = rulerTicks(0, 60, 60);
+    const majors = ticks.filter((t) => t.major);
+    const labelGapPx = (majors[1].s - majors[0].s) * 60;
+    expect(labelGapPx).toBeGreaterThanOrEqual(150); // a "00:00.000" label is ~55 px
+    expect(labelGapPx).toBeLessThanOrEqual(400);
+  });
 });
 
 describe("fadeCurveXY", () => {

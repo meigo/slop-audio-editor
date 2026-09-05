@@ -93,7 +93,7 @@
     {@const x = timeToPx(tick.s, appState.scrollS, appState.pxPerSecond)}
     <div
       class="absolute bottom-0 w-px bg-line"
-      class:h-2={!tick.major}
+      class:h-1.5={!tick.major}
       class:h-3={tick.major}
       style="left: {x}px"
     ></div>
