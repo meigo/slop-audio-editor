@@ -5,6 +5,8 @@ export interface Preferences {
   snap: boolean;
   trackHeightPx: number;
   lastFormat: string;
+  /** Loudness target for export, LUFS. `null` means no normalisation. */
+  normaliseLufs: number | null;
 }
 
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -12,6 +14,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   snap: true,
   trackHeightPx: 88,
   lastFormat: "wav16",
+  normaliseLufs: null,
 };
 
 /** The three track heights the UI offers. The MIDDLE one is the long-standing default, so the
@@ -41,6 +44,10 @@ export function sanitisePreferences(raw: unknown): Preferences {
     trackHeightPx: clamp(r.trackHeightPx, 40, 300, DEFAULT_PREFERENCES.trackHeightPx),
     lastFormat:
       typeof r.lastFormat === "string" ? r.lastFormat : DEFAULT_PREFERENCES.lastFormat,
+    normaliseLufs:
+      typeof r.normaliseLufs === "number" && Number.isFinite(r.normaliseLufs)
+        ? Math.max(-40, Math.min(0, r.normaliseLufs))
+        : null,
   };
 }
 

@@ -12,9 +12,9 @@ describe("sanitisePreferences", () => {
 
   it("keeps valid values", () => {
     const p = sanitisePreferences({
-      pxPerSecond: 120, snap: false, trackHeightPx: 64, lastFormat: "m4a",
+      pxPerSecond: 120, snap: false, trackHeightPx: 64, lastFormat: "m4a", normaliseLufs: -16,
     });
-    expect(p).toEqual({ pxPerSecond: 120, snap: false, trackHeightPx: 64, lastFormat: "m4a" });
+    expect(p).toEqual({ pxPerSecond: 120, snap: false, trackHeightPx: 64, lastFormat: "m4a", normaliseLufs: -16 });
   });
 
   it("clamps out-of-range numbers rather than trusting them", () => {
@@ -56,5 +56,23 @@ describe("track height presets", () => {
     for (const h of TRACK_HEIGHTS) {
       expect(sanitisePreferences({ trackHeightPx: h }).trackHeightPx).toBe(h);
     }
+  });
+});
+
+describe("normaliseLufs", () => {
+  it("defaults to no normalisation, so exports are unchanged unless asked", () => {
+    expect(DEFAULT_PREFERENCES.normaliseLufs).toBeNull();
+    expect(sanitisePreferences({}).normaliseLufs).toBeNull();
+  });
+
+  it("keeps a sane target and rejects anything else", () => {
+    expect(sanitisePreferences({ normaliseLufs: -16 }).normaliseLufs).toBe(-16);
+    expect(sanitisePreferences({ normaliseLufs: "loud" }).normaliseLufs).toBeNull();
+    expect(sanitisePreferences({ normaliseLufs: NaN }).normaliseLufs).toBeNull();
+  });
+
+  it("clamps a hand-edited target into range", () => {
+    expect(sanitisePreferences({ normaliseLufs: 12 }).normaliseLufs).toBe(0);
+    expect(sanitisePreferences({ normaliseLufs: -99 }).normaliseLufs).toBe(-40);
   });
 });

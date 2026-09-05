@@ -108,7 +108,7 @@ src/
     project-io.svelte.ts   save/open/restore-autosave orchestration; owns loadInto (Gotcha 7)
     autosave.ts      IndexedDB: source bytes once on import, document on a 3 s debounce
                      (Gotcha 6)
-    preferences.ts   localStorage: zoom, snap, track height, last export format
+    preferences.ts   localStorage: zoom, snap, track height, export format, loudness target
 
   lib/               Svelte components — Toolbar, Ruler, TimelineViewport, TrackHeader, TrackLane,
                      ClipView, Waveform, Playhead, RangeOverlay, Inspector, NumberField, Fader,
@@ -488,6 +488,25 @@ src/
     chunk and the UI stays live, so an import started while the loading banner is up minted an id
     the loading project already used — and `putSource` is a keyed put, which overwrote that
     source's bytes in IndexedDB.
+
+28. **Loudness normalisation is applied to the RENDERED BUFFER, never to the node graph — it is
+    the one deliberate difference between what you monitor and what you export.** `normalise.ts`
+    measures the finished mixdown and scales it; `planSchedule` and `renderPlan` know nothing
+    about it, because a gain stage in there would break the preview/export identity every other
+    gotcha protects. Applied post-render it is a constant scale, so the mix itself is unchanged —
+    and the dialog always shows the achieved LUFS, so the difference is visible rather than
+    surprising.
+    **Gain only, no limiter.** When the peak ceiling (`NORMALISE_CEILING_DBFS`, −1 dBFS) stops the
+    target being reached, the export lands short and says so. A limiter would always hit the
+    number by changing the dynamics — the file would stop being the mix that was monitored. It
+    also turns a mix DOWN when its peak already exceeds the ceiling, even though the loudness
+    target asked for more.
+    `measureMix` calls `integratedLoudness` DIRECTLY, not `computeLoudnessChunked`: the
+    dual-mono correction in Gotcha 11 applies to single-channel SOURCES, and a mixdown is always
+    stereo — routing a mix through it would bias every export by ~3 dB.
+    Verified end to end: −22.72 LUFS renders to exactly −16.00 with peak −15.22; a
+    high-crest-factor mix stops at exactly −1.00 dBFS peak and reports falling short; silence is
+    left alone rather than multiplied by infinity.
 
 ## Testing
 

@@ -40,6 +40,10 @@ export const state = $state({
   scrollS: 0,
   trackHeightPx: prefs.trackHeightPx,
   snap: prefs.snap,
+  /** Export settings live in session state and persist through `preferences` — they are a
+   *  property of how you work, not of the document. */
+  lastFormat: prefs.lastFormat,
+  normaliseLufs: prefs.normaliseLufs,
   importing: null as { name: string; fraction: number } | null,
   dirty: false,
 });
@@ -73,7 +77,8 @@ $effect.root(() => {
       pxPerSecond: state.pxPerSecond,
       snap: state.snap,
       trackHeightPx: state.trackHeightPx,
-      lastFormat: prefs.lastFormat,
+      lastFormat: state.lastFormat,
+      normaliseLufs: state.normaliseLufs,
     });
   });
 });

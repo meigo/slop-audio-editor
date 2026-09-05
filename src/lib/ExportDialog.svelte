@@ -3,7 +3,9 @@
   import {
     exportFilename, exportWindow, FORMAT_EXT, FORMAT_LABELS, type ExportFormat,
   } from "../export/formats";
-  import { amplitudeToDbfs, peakAmplitude } from "../audio/peak";
+  import {
+    applyGain, measureMix, NORMALISE_TARGETS, normalisationGain,
+  } from "../export/normalise";
   import { mixdown } from "../export/mixdown";
   import { pool, state as appState } from "../state/appState.svelte";
   import { formatTime } from "./geometry";
@@ -11,7 +13,7 @@
   const { onClose }: { onClose: () => void } = $props();
 
   let formats = $state<ExportFormat[]>(["wav16", "wav32"]);
-  let format = $state<ExportFormat>("wav16");
+  let format = $state<ExportFormat>(appState.lastFormat as ExportFormat);
   let busy = $state(false);
   let error = $state<string | null>(null);
   /** The rendered mix, kept between the level check and the actual write so acknowledging an over
@@ -23,6 +25,9 @@
   let rendered: AudioBuffer | null = null;
   let peakDb = $state<number | null>(null);
   let acknowledgedOver = $state(false);
+  /** What the last render actually measured, once normalisation has been applied. */
+  let achievedLufs = $state<number | null>(null);
+  let fellShort = $state(false);
 
   /** 32-bit float WAV stores values above 1.0 unchanged, so an over is not clipping there — it is
    *  only a problem once something quantises it. Every other format we write does. */
@@ -57,10 +62,20 @@
     error = null;
     try {
       rendered ??= await mixdown(appState.project, pool, range.fromS, range.toS);
-      const channels = Array.from({ length: rendered.numberOfChannels }, (_, i) =>
-        rendered!.getChannelData(i),
-      );
-      peakDb = amplitudeToDbfs(peakAmplitude(channels));
+      // Normalisation is applied to the RENDERED BUFFER, never to the node graph: the graph is
+      // shared by preview and export, and a gain stage in it would make the two drift.
+      const target = appState.normaliseLufs;
+      if (target !== null) {
+        const before = measureMix(rendered);
+        const n = normalisationGain(before.lufs, before.peak, target);
+        applyGain(rendered, n.gain);
+        achievedLufs = Number.isFinite(n.achievedLufs) ? n.achievedLufs : null;
+        fellShort = n.limitedByPeak;
+      } else {
+        achievedLufs = null;
+        fellShort = false;
+      }
+      peakDb = measureMix(rendered).peakDbfs;
       // Stop on an over rather than silently writing a clipped file. The buffer is kept, so
       // confirming costs only the encode.
       if (peakDb > 0 && format !== "wav32" && !acknowledgedOver) {
@@ -102,13 +117,47 @@
         class="flex-1 rounded bg-raised px-1 py-1"
         bind:value={format}
         disabled={busy}
-        onchange={() => (acknowledgedOver = false)}
+        onchange={(e) => {
+          acknowledgedOver = false;
+          appState.lastFormat = e.currentTarget.value;
+        }}
       >
         {#each formats as f (f)}
           <option value={f}>{FORMAT_LABELS[f]}</option>
         {/each}
       </select>
     </label>
+
+    <label class="mb-3 flex items-center gap-2">
+      Loudness
+      <select
+        class="flex-1 rounded bg-raised px-1 py-1"
+        disabled={busy}
+        value={String(appState.normaliseLufs)}
+        onchange={(e) => {
+          const v = e.currentTarget.value;
+          appState.normaliseLufs = v === "null" ? null : Number(v);
+          // The measured figures describe the PREVIOUS settings; drop them rather than show a
+          // number that no longer matches what the next click will produce.
+          rendered = null;
+          peakDb = null;
+          achievedLufs = null;
+          acknowledgedOver = false;
+        }}
+      >
+        {#each NORMALISE_TARGETS as t (t.label)}
+          <option value={String(t.lufs)}>{t.label}</option>
+        {/each}
+      </select>
+    </label>
+
+    {#if achievedLufs !== null}
+      <p class="mb-2 text-xs text-muted">
+        Normalised to {achievedLufs.toFixed(1)} LUFS{fellShort
+          ? " — as close as the peak ceiling allows"
+          : ""}
+      </p>
+    {/if}
 
     {#if peakDb !== null}
       <p class="mb-3 text-xs {clipsAtWrite ? 'text-danger' : 'text-muted'}">
