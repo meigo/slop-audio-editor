@@ -6,7 +6,7 @@
   import { fadeInCurve, fadeOutCurve } from "../audio/fades";
   import type { DuckPoint } from "../audio/ducking";
   import {
-    envelopeMaskPolygon, FADE_MASK_POINTS, fadeMaskPolygon, formatTime, timeToPx,
+    envelopeMaskPolygon, FADE_MASK_POINTS, fadeAreaPoints, fadeCurvePoints, formatTime, timeToPx,
   } from "./geometry";
   import { hitTestClip, MOUSE_ZONES, TOUCH_ZONES, type ClipZone } from "./hit-test";
   import Waveform from "./Waveform.svelte";
@@ -18,8 +18,8 @@
   const duckMask = $derived(envelopeMaskPolygon(duck, clip.durS));
 
   // Sampled from the engine's own fade curves, so the overlay shows the shape that will play.
-  const fadeInMask = $derived(fadeMaskPolygon(fadeInCurve(clip.fadeShape, FADE_MASK_POINTS)));
-  const fadeOutMask = $derived(fadeMaskPolygon(fadeOutCurve(clip.fadeShape, FADE_MASK_POINTS)));
+  const fadeIn = $derived(fadeInCurve(clip.fadeShape, FADE_MASK_POINTS));
+  const fadeOut = $derived(fadeOutCurve(clip.fadeShape, FADE_MASK_POINTS));
 
   const x = $derived(timeToPx(clip.startS, appState.scrollS, appState.pxPerSecond));
   const w = $derived(clip.durS * appState.pxPerSecond);
@@ -109,22 +109,31 @@
     ></div>
   {/if}
 
-  <!-- Fade overlays: the shaded area is what the fade takes away, traced from the real gain
-       curve — linear stays a triangle, equal-power bows, exponential sags. -->
-  {#if clip.fadeInS > 0}
-    <div
-      class="pointer-events-none absolute inset-y-0 left-0 bg-ground/60"
-      style="width: {clip.fadeInS * appState.pxPerSecond}px;
-             clip-path: {fadeInMask}"
-    ></div>
-  {/if}
-  {#if clip.fadeOutS > 0}
-    <div
-      class="pointer-events-none absolute inset-y-0 right-0 bg-ground/60"
-      style="width: {clip.fadeOutS * appState.pxPerSecond}px;
-             clip-path: {fadeOutMask}"
-    ></div>
-  {/if}
+  <!-- Fade overlays. The shaded area is what the fade takes away; the stroked line ON TOP is the
+       curve itself, which is what actually makes the SHAPE readable — a wash alone only shows its
+       own edge, and against a dark clip that edge is nearly invisible. `viewBox` is a unit box
+       with `preserveAspectRatio="none"` so the same 0-100 points work at any clip width, and
+       `vector-effect` keeps the stroke 1px however far the box is stretched. -->
+  {#each [{ on: clip.fadeInS > 0, curve: fadeIn, w: clip.fadeInS, side: "left" }, { on: clip.fadeOutS > 0, curve: fadeOut, w: clip.fadeOutS, side: "right" }] as f (f.side)}
+    {#if f.on}
+      <svg
+        class="pointer-events-none absolute inset-y-0 {f.side === 'left' ? 'left-0' : 'right-0'}"
+        style="width: {f.w * appState.pxPerSecond}px"
+        viewBox="0 0 100 100"
+        preserveAspectRatio="none"
+        aria-hidden="true"
+      >
+        <polygon points={fadeAreaPoints(f.curve)} class="fill-ground/70" />
+        <polyline
+          points={fadeCurvePoints(f.curve)}
+          class="stroke-text/70"
+          fill="none"
+          stroke-width="1"
+          vector-effect="non-scaling-stroke"
+        />
+      </svg>
+    {/if}
+  {/each}
 
   <span class="pointer-events-none absolute left-1 top-0.5 truncate text-[10px] text-white/80">
     {name}

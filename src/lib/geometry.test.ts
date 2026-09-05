@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  dbToGain, dbToPosition, envelopeMaskPolygon, fadeMaskPolygon, formatDb, formatTime, gainToDb,
+  dbToGain, dbToPosition, envelopeMaskPolygon, fadeAreaPoints, fadeCurvePoints, fadeCurveXY, formatDb, formatTime, gainToDb,
   formatSignedDb, METER_FLOOR_DB, meterFillPct, pinchUpdate, positionToDb, pxToTime,
   rulerTicks, snapBandDb, snapTime, timeToPx,
 } from "./geometry";
@@ -139,50 +139,48 @@ describe("rulerTicks", () => {
   });
 });
 
-describe("fadeMaskPolygon", () => {
-  /** The y of the mask edge at normalised x, parsed back out of the polygon string. */
-  const edgeAt = (poly: string, x: number): number => {
-    const pts = poly
-      .slice("polygon(".length, -1)
-      .split(", ")
-      .map((p) => p.split(" ").map((v) => parseFloat(v)) as [number, number]);
-    // Skip the two anchor points that form the y = 0 base; the traced curve edge follows them,
-    // and shares x values with them at both ends.
-    const hit = pts.slice(2).find(([px]) => Math.abs(px - x * 100) < 0.01);
-    if (!hit) throw new Error(`no point at x=${x * 100}% in ${poly}`);
-    return hit[1];
+describe("fadeCurveXY", () => {
+  /** The y of the curve at a normalised x, from the points the clip actually draws. */
+  const yAt = (curve: Float32Array, x: number): number => {
+    const hit = fadeCurveXY(curve).find((p) => Math.abs(p.x - x * 100) < 0.01);
+    if (!hit) throw new Error(`no point at x=${x * 100}%`);
+    return hit.y;
   };
 
-  it("reduces to today's straight triangle for a linear fade in", () => {
-    // Every sampled point must sit on the diagonal y = 100 - x.
-    const poly = fadeMaskPolygon(fadeInCurve("linear", 5));
-    for (const x of [0, 0.25, 0.5, 0.75, 1]) {
-      expect(edgeAt(poly, x)).toBeCloseTo(100 - x * 100, 4);
-    }
+  it("is a straight diagonal for a linear fade in", () => {
+    const c = fadeInCurve("linear", 5);
+    for (const x of [0, 0.25, 0.5, 0.75, 1]) expect(yAt(c, x)).toBeCloseTo(100 - x * 100, 4);
   });
 
   it("bows away from the diagonal for equal power", () => {
-    // gain = sin(pi/4) = 0.7071 at the midpoint, so the mask edge sits at 29.29%, not 50%.
-    expect(edgeAt(fadeMaskPolygon(fadeInCurve("equalPower", 5)), 0.5)).toBeCloseTo(29.29, 1);
+    expect(yAt(fadeInCurve("equalPower", 5), 0.5)).toBeCloseTo(29.29, 1);
   });
 
   it("sags below the diagonal for exponential", () => {
-    // gain = 0.5^2 = 0.25 at the midpoint, so the mask edge sits at 75%.
-    expect(edgeAt(fadeMaskPolygon(fadeInCurve("exponential", 5)), 0.5)).toBeCloseTo(75, 1);
+    expect(yAt(fadeInCurve("exponential", 5), 0.5)).toBeCloseTo(75, 1);
   });
 
   it("gives the three shapes visibly different midpoints", () => {
-    const mid = (sh: "linear" | "equalPower" | "exponential") =>
-      edgeAt(fadeMaskPolygon(fadeInCurve(sh, 5)), 0.5);
-    const [lin, eq, exp] = [mid("linear"), mid("equalPower"), mid("exponential")];
-    expect(eq).toBeLessThan(lin);
-    expect(exp).toBeGreaterThan(lin);
+    const mid = (sh: "linear" | "equalPower" | "exponential") => yAt(fadeInCurve(sh, 5), 0.5);
+    expect(mid("equalPower")).toBeLessThan(mid("linear"));
+    expect(mid("exponential")).toBeGreaterThan(mid("linear"));
   });
 
   it("mirrors for a fade out: full attenuation at the clip's end", () => {
-    const poly = fadeMaskPolygon(fadeOutCurve("linear", 5));
-    expect(edgeAt(poly, 0)).toBeCloseTo(0, 4);
-    expect(edgeAt(poly, 1)).toBeCloseTo(100, 4);
+    const c = fadeOutCurve("linear", 5);
+    expect(yAt(c, 0)).toBeCloseTo(0, 4);
+    expect(yAt(c, 1)).toBeCloseTo(100, 4);
+  });
+});
+
+describe("fadeAreaPoints / fadeCurvePoints", () => {
+  it("share the curve, so the shaded area and the stroked edge cannot disagree", () => {
+    const c = fadeInCurve("equalPower", 5);
+    const edge = fadeCurvePoints(c);
+    // The area is the same points reversed, behind the two anchors that close it along the top.
+    const area = fadeAreaPoints(c);
+    expect(area.startsWith("0,0 100,0 ")).toBe(true);
+    expect(area.slice("0,0 100,0 ".length).split(" ").reverse().join(" ")).toBe(edge);
   });
 });
 

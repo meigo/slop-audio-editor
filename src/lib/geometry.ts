@@ -115,24 +115,8 @@ export function rulerTicks(
 }
 
 /** Points sampled into a fade's `clip-path`. Enough that equal-power's bow reads as a curve, few
- *  enough that the inline style stays small — the audio curve uses `FADE_CURVE_POINTS` (128). */
+ *  enough that the inline SVG stays small — the audio curve uses `FADE_CURVE_POINTS` (128). */
 export const FADE_MASK_POINTS = 24;
-
-/** CSS `polygon()` shading the part of a clip a fade attenuates: the region under `1 - gain`.
- *
- *  Takes the gain curve rather than a shape name so the overlay is sampled from the SAME function
- *  the engine hands to `setValueCurveAtTime` — the picture cannot drift from the audio, the way
- *  preview and export cannot drift because both run `planSchedule`. A linear fade reduces to the
- *  plain triangle this replaced, so that case is unchanged by construction. */
-export function fadeMaskPolygon(curve: Float32Array): string {
-  const n = curve.length;
-  const pts = ["0% 0%", "100% 0%"];
-  for (let i = n - 1; i >= 0; i--) {
-    const x = n === 1 ? 0 : (i / (n - 1)) * 100;
-    pts.push(`${x.toFixed(2)}% ${((1 - curve[i]) * 100).toFixed(2)}%`);
-  }
-  return `polygon(${pts.join(", ")})`;
-}
 
 /** Bottom of the master meter's scale, dBFS. A narrow range keeps the part where mixing decisions
  *  actually happen — the top few dozen dB — from being squeezed into a sliver of the bar. */
@@ -146,7 +130,7 @@ export function meterFillPct(db: number, floorDb: number = METER_FLOOR_DB): numb
 }
 
 /** CSS `polygon()` shading how much an arbitrary gain envelope takes away across a clip, given
- *  breakpoints in seconds from the clip's start. Same convention as `fadeMaskPolygon` — the
+ *  breakpoints in seconds from the clip's start. Same convention as the fade curves — the
  *  shaded region is the area under `1 - gain` — but for irregularly spaced points rather than an
  *  evenly sampled curve. Returns "" when there is nothing to draw. */
 export function envelopeMaskPolygon(
@@ -219,4 +203,34 @@ export function snapBandDb(db: number, detentDb: number = BAND_DETENT_DB): numbe
 export function formatSignedDb(db: number): string {
   if (db === 0) return "0.0 dB";
   return `${db > 0 ? "+" : "−"}${Math.abs(db).toFixed(1)} dB`;
+}
+
+/** The fade's gain curve as points in a 0-100 box: x across the fade, y as the amount the fade
+ *  TAKES AWAY (`1 - gain`), so y=0 is untouched and y=100 is silence.
+ *
+ *  Shared by the shaded area and the stroked edge drawn over it, so the two cannot disagree about
+ *  where the curve runs. */
+export function fadeCurveXY(curve: Float32Array): { x: number; y: number }[] {
+  const n = curve.length;
+  return Array.from(curve, (g, i) => ({
+    x: n === 1 ? 0 : (i / (n - 1)) * 100,
+    y: (1 - g) * 100,
+  }));
+}
+
+/** `points` for an SVG polyline: the curve edge alone. */
+export function fadeCurvePoints(curve: Float32Array): string {
+  return fadeCurveXY(curve)
+    .map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`)
+    .join(" ");
+}
+
+/** `points` for an SVG polygon: the region the fade removes, closed along the top edge. */
+export function fadeAreaPoints(curve: Float32Array): string {
+  const xy = fadeCurveXY(curve);
+  return `0,0 100,0 ${xy
+    .slice()
+    .reverse()
+    .map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`)
+    .join(" ")}`;
 }
