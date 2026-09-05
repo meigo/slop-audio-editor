@@ -1,6 +1,9 @@
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import {
-  DEFAULT_DUCK_DEPTH_DB, referencedSourceIdsAcross, type Project, type EqBands,
+  DEFAULT_DUCK_DEPTH_DB,
+  referencedSourceIdsAcross,
+  type Project,
+  type EqBands,
 } from "../doc/document";
 
 export const PROJECT_FILE_VERSION = 1;
@@ -100,10 +103,14 @@ export function unpackProject(zip: Uint8Array): { project: Project; sources: Sou
   // `loadInto` assume.
   const project = manifest.project;
   if (
-    typeof project !== "object" || project === null ||
-    !Array.isArray(project.tracks) || typeof project.masterGain !== "number"
+    typeof project !== "object" ||
+    project === null ||
+    !Array.isArray(project.tracks) ||
+    typeof project.masterGain !== "number"
   ) {
-    throw new ProjectFileError("Project file is corrupt — the project data has an unexpected shape.");
+    throw new ProjectFileError(
+      "Project file is corrupt — the project data has an unexpected shape.",
+    );
   }
 
   const sources = (manifest.sources ?? []).map((s) => {
@@ -124,10 +131,10 @@ export function unpackProject(zip: Uint8Array): { project: Project; sources: Sou
  *  put audio the user had removed inside a file they might share, and inflated it for no benefit.
  *  Nothing in the file can ever need those bytes: undo history is not saved (`loadInto` resets
  *  it), so no reachable document references them. */
-export function packCurrentProject(
-  project: Project,
-  records: readonly SourceRecord[],
-): Uint8Array {
+export function packCurrentProject(project: Project, records: readonly SourceRecord[]): Uint8Array {
   const referenced = referencedSourceIdsAcross([project]);
-  return packProject(project, records.filter((r) => referenced.has(r.id)));
+  return packProject(
+    project,
+    records.filter((r) => referenced.has(r.id)),
+  );
 }

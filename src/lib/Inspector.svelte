@@ -16,7 +16,9 @@
 
   const SHAPES: FadeShape[] = ["linear", "equalPower", "exponential"];
   const SHAPE_LABELS: Record<FadeShape, string> = {
-    linear: "Linear", equalPower: "Equal power", exponential: "Exponential",
+    linear: "Linear",
+    equalPower: "Equal power",
+    exponential: "Exponential",
   };
 </script>
 
@@ -25,7 +27,9 @@
      it belongs beside.
      `overflow-x-auto` is the fallback for a genuinely narrow window: the controls keep their
      natural size and the bar scrolls, rather than squeezing until labels wrap. -->
-<div class="flex h-10 shrink-0 items-center gap-3 overflow-x-auto border-t border-line bg-panel px-3">
+<div
+  class="flex h-10 shrink-0 items-center gap-3 overflow-x-auto border-t border-line bg-panel px-3"
+>
   {#if clip}
     <span class="w-32 shrink-0 truncate text-xs text-text">{source?.name ?? "missing audio"}</span>
 
@@ -42,7 +46,9 @@
       suffix="s"
       title="Clip end on the timeline (seconds)"
       onCommit={(v) =>
-        commit((p) => trimClipEnd(p, clip.id, v - (clip.startS + clip.durS), source?.durationS ?? Infinity))}
+        commit((p) =>
+          trimClipEnd(p, clip.id, v - (clip.startS + clip.durS), source?.durationS ?? Infinity),
+        )}
     />
     <NumberField
       label="gain"
@@ -81,5 +87,4 @@
   {:else}
     <span class="text-xs text-muted">Select a clip to edit its exact values</span>
   {/if}
-
 </div>

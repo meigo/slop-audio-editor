@@ -4,7 +4,11 @@
 
   /** `children` receives `close()`, so an item can dismiss the menu after acting. */
   const {
-    label, title = undefined, marked = false, markClass = "bg-accent", children,
+    label,
+    title = undefined,
+    marked = false,
+    markClass = "bg-accent",
+    children,
   }: {
     label: string;
     title?: string;
@@ -30,12 +34,12 @@
   >
     {label}<span class="text-[9px] opacity-70">▾</span>
     {#if marked}
-      <span class="absolute right-0.5 top-0.5 size-1.5 rounded-full {markClass}"></span>
+      <span class="absolute top-0.5 right-0.5 size-1.5 rounded-full {markClass}"></span>
     {/if}
   </button>
   {#if open}
     <div
-      class="absolute left-0 top-full z-30 mt-1 min-w-44 rounded border border-line bg-panel py-1
+      class="absolute top-full left-0 z-30 mt-1 min-w-44 rounded border border-line bg-panel py-1
              shadow-lg"
       role="menu"
     >

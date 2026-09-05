@@ -25,7 +25,11 @@ describe("limitPeaks", () => {
 
   it("never exceeds the ceiling, whatever the material", () => {
     const cases: Record<string, Float32Array> = {
-      isolatedSpike: (() => { const a = new Float32Array(4800); a[2400] = 4; return a; })(),
+      isolatedSpike: (() => {
+        const a = new Float32Array(4800);
+        a[2400] = 4;
+        return a;
+      })(),
       densePeaks: (() => {
         const a = new Float32Array(4800);
         for (let i = 0; i < a.length; i += 50) a[i] = i % 100 === 0 ? 3 : -2.5;
@@ -62,8 +66,18 @@ describe("limitPeaks", () => {
     limitPeaks([ch], SR, CEILING_DB);
 
     const gainAt = (i: number) => ch[i] / 0.1;
-    const attackSamples = spike - (() => { let i = spike; while (i > 0 && gainAt(i - 1) < 0.999) i--; return i; })();
-    const releaseSamples = (() => { let i = spike; while (i < ch.length - 1 && gainAt(i + 1) < 0.999) i++; return i - spike; })();
+    const attackSamples =
+      spike -
+      (() => {
+        let i = spike;
+        while (i > 0 && gainAt(i - 1) < 0.999) i--;
+        return i;
+      })();
+    const releaseSamples = (() => {
+      let i = spike;
+      while (i < ch.length - 1 && gainAt(i + 1) < 0.999) i++;
+      return i - spike;
+    })();
     expect(releaseSamples).toBeGreaterThan(attackSamples * 5);
   });
 

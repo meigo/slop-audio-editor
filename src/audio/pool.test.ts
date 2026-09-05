@@ -6,9 +6,13 @@ import { computeLoudnessChunked, computePeaksChunked, SourcePool, type Source } 
 
 function fakeSource(id: string, name: string): Source {
   return {
-    id, name, bytes: new Uint8Array([1, 2]),
+    id,
+    name,
+    bytes: new Uint8Array([1, 2]),
     buffer: null as unknown as AudioBuffer, // the pool never touches the buffer
-    peaks: new Float32Array([0, 0]), durationS: 1.5, loudnessLufs: -20,
+    peaks: new Float32Array([0, 0]),
+    durationS: 1.5,
+    loudnessLufs: -20,
   };
 }
 
@@ -30,9 +34,7 @@ describe("SourcePool", () => {
   it("produces SourceRecords carrying only what a project file needs", () => {
     const pool = new SourcePool();
     pool.add(fakeSource("a", "a.wav"));
-    expect(pool.records()).toEqual([
-      { id: "a", name: "a.wav", bytes: new Uint8Array([1, 2]) },
-    ]);
+    expect(pool.records()).toEqual([{ id: "a", name: "a.wav", bytes: new Uint8Array([1, 2]) }]);
   });
 
   it("clears on project open", () => {
@@ -111,7 +113,9 @@ describe("computeLoudnessChunked", () => {
   });
 
   it("returns -Infinity rather than throwing for input shorter than one 400 ms block", async () => {
-    expect(await computeLoudnessChunked([sine(997, 0.5, 0.1)], PROJECT_SAMPLE_RATE)).toBe(-Infinity);
+    expect(await computeLoudnessChunked([sine(997, 0.5, 0.1)], PROJECT_SAMPLE_RATE)).toBe(
+      -Infinity,
+    );
   });
 
   it("upmixes mono to dual-mono before measuring, matching Web Audio's own mono->stereo playback upmix (duplication, not attenuation) — removing that upmix would reopen the naked BS.1770 gap and make a mono measurement read 10*log10(2) (~3.01 dB) quieter than its dual-mono equivalent", async () => {

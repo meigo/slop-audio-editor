@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createProject, type Project } from "../doc/document";
 import { addClip, addTrack, makeClip, setTrackDucked, setTrackMuted } from "../doc/edits";
-import {
-  DUCK_ATTACK_S, DUCK_GAIN, DUCK_RELEASE_S, foregroundSpans, planDucking,
-} from "./ducking";
+import { DUCK_ATTACK_S, DUCK_GAIN, DUCK_RELEASE_S, foregroundSpans, planDucking } from "./ducking";
 
 /** Track 0 = "music" (ducked), track 1 = "voice" (foreground). */
 function project(voice: [number, number][], music: [number, number][] = [[0, 30]]): Project {
@@ -23,19 +21,38 @@ describe("foregroundSpans", () => {
   });
 
   it("merges overlapping spans", () => {
-    expect(foregroundSpans(project([[0, 4], [2, 4]]))).toEqual([{ fromS: 0, toS: 6 }]);
+    expect(
+      foregroundSpans(
+        project([
+          [0, 4],
+          [2, 4],
+        ]),
+      ),
+    ).toEqual([{ fromS: 0, toS: 6 }]);
   });
 
   it("merges spans separated by less than the recovery time, so the bed does not pump", () => {
     // A 0.2 s breath between two sentences is shorter than attack + release: bringing the music
     // back up and straight down again is worse than staying down.
-    const spans = foregroundSpans(project([[0, 2], [2.2, 2]]));
+    const spans = foregroundSpans(
+      project([
+        [0, 2],
+        [2.2, 2],
+      ]),
+    );
     expect(spans).toEqual([{ fromS: 0, toS: 4.2 }]);
   });
 
   it("keeps spans apart when the gap is comfortably longer than the recovery", () => {
     const gap = DUCK_ATTACK_S + DUCK_RELEASE_S + 1;
-    expect(foregroundSpans(project([[0, 2], [2 + gap, 2]]))).toHaveLength(2);
+    expect(
+      foregroundSpans(
+        project([
+          [0, 2],
+          [2 + gap, 2],
+        ]),
+      ),
+    ).toHaveLength(2);
   });
 
   it("ignores muted foreground tracks — a muted voice is not in the mix to duck against", () => {

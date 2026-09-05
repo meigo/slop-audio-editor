@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  HISTORY_LIMIT, canRedo, canUndo, createHistory, record, redo, undo,
-} from "./history";
+import { HISTORY_LIMIT, canRedo, canUndo, createHistory, record, redo, undo } from "./history";
 
 describe("createHistory", () => {
   it("starts empty with nothing to undo or redo", () => {

@@ -6,13 +6,22 @@
   import { fadeInCurve, fadeOutCurve } from "../audio/fades";
   import type { DuckPoint } from "../audio/ducking";
   import {
-    envelopeAreaPoints, envelopeCurvePoints, FADE_MASK_POINTS, fadeAreaPoints, fadeCurvePoints, formatTime, timeToPx,
+    envelopeAreaPoints,
+    envelopeCurvePoints,
+    FADE_MASK_POINTS,
+    fadeAreaPoints,
+    fadeCurvePoints,
+    formatTime,
+    timeToPx,
   } from "./geometry";
   import { hitTestClip, MOUSE_ZONES, TOUCH_ZONES, type ClipZone } from "./hit-test";
   import Waveform from "./Waveform.svelte";
 
   const {
-    clip, trackId, heightPx, duck,
+    clip,
+    trackId,
+    heightPx,
+    duck,
   }: { clip: Clip; trackId: string; heightPx: number; duck: DuckPoint[] } = $props();
 
   const duckArea = $derived(envelopeAreaPoints(duck, clip.durS));
@@ -36,14 +45,20 @@
   function zoneAt(e: PointerEvent): ClipZone {
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
     return hitTestClip(
-      e.clientX - r.left, e.clientY - r.top, r.width, r.height,
+      e.clientX - r.left,
+      e.clientY - r.top,
+      r.width,
+      r.height,
       e.pointerType === "touch" ? TOUCH_ZONES : MOUSE_ZONES,
     );
   }
 
   const CURSORS: Record<ClipZone, string> = {
-    body: "grab", trimStart: "ew-resize", trimEnd: "ew-resize",
-    fadeIn: "nesw-resize", fadeOut: "nwse-resize",
+    body: "grab",
+    trimStart: "ew-resize",
+    trimEnd: "ew-resize",
+    fadeIn: "nesw-resize",
+    fadeOut: "nwse-resize",
   };
 
   function onPointerDown(e: PointerEvent) {
@@ -57,7 +72,11 @@
     // move every clip the range covers. Overwriting it here would collapse the selection to this
     // one clip before `startClipDrag` ever sees it, and the box you drew would move one clip.
     const sel = appState.selection;
-    if (!additive && sel.kind === "range" && clipsInRange(appState.project, sel.range).includes(clip.id)) {
+    if (
+      !additive &&
+      sel.kind === "range" &&
+      clipsInRange(appState.project, sel.range).includes(clip.id)
+    ) {
       startClipDrag(e, clip.id, trackId, z);
       return;
     }
@@ -86,8 +105,8 @@
      without taking any layout. -->
 <div
   data-clip-id={clip.id}
-  class="absolute top-1 touch-none select-none overflow-hidden rounded bg-media-clip outline
-         -outline-offset-1 {selected ? 'outline-accent' : 'outline-media-clip-border'}"
+  class="absolute top-1 touch-none overflow-hidden rounded bg-media-clip outline -outline-offset-1
+         select-none {selected ? 'outline-accent' : 'outline-media-clip-border'}"
   title="{name} — {formatTime(clip.durS)}"
   data-hint="Drag to move · ⌘-click or Shift-click to add to the selection · ⌘A all · ⌘C copy, ⌘X cut, ⌘V paste at the playhead, ⌘D duplicate"
   onpointerdown={onPointerDown}
@@ -156,7 +175,7 @@
     {/if}
   {/each}
 
-  <span class="pointer-events-none absolute left-1 top-0.5 truncate text-[10px] text-white/80">
+  <span class="pointer-events-none absolute top-0.5 left-1 truncate text-[10px] text-white/80">
     {name}
   </span>
 </div>

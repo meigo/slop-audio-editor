@@ -191,7 +191,6 @@ export function envelopeAreaPoints(
   return edge === "" ? "" : `0,0 100,0 ${edge.split(" ").reverse().join(" ")}`;
 }
 
-
 /** Timeline scale limits, shared by the wheel handler and the pinch gesture. */
 export const MIN_PX_PER_S = 2;
 export const MAX_PX_PER_S = 2000;

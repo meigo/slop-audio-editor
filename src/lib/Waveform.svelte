@@ -4,9 +4,19 @@
   import { pool } from "../state/appState.svelte";
 
   const {
-    sourceId, inS, durS, widthPx, heightPx, gain,
+    sourceId,
+    inS,
+    durS,
+    widthPx,
+    heightPx,
+    gain,
   }: {
-    sourceId: string; inS: number; durS: number; widthPx: number; heightPx: number; gain: number;
+    sourceId: string;
+    inS: number;
+    durS: number;
+    widthPx: number;
+    heightPx: number;
+    gain: number;
   } = $props();
 
   let canvas = $state<HTMLCanvasElement | null>(null);
@@ -31,7 +41,12 @@
     // One [min, max] pair per pixel column, re-aggregated from the source's full-resolution peaks
     // on every redraw — this is what makes zooming in reveal detail rather than stretch pixels.
     const peaks = aggregatePeaks(
-      source.peaks, PROJECT_SAMPLE_RATE, PEAK_SAMPLES_PER_PAIR, inS, inS + durS, w,
+      source.peaks,
+      PROJECT_SAMPLE_RATE,
+      PEAK_SAMPLES_PER_PAIR,
+      inS,
+      inS + durS,
+      w,
     );
     const mid = h / 2;
     // Slate ink, not white: the clip's NAME is drawn over this, and white-on-white left the

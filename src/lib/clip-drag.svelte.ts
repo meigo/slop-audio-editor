@@ -2,7 +2,12 @@ import { findClip, projectDurationS, type Project } from "../doc/document";
 import { moveClips, setClipFade, trimClipEnd, trimClipStart } from "../doc/edits";
 import { clipsInRange, editPoints, NO_SELECTION } from "../doc/selection";
 import {
-  amend, beginGesture, endGesture, pool, setCurrentTrack, state as appState,
+  amend,
+  beginGesture,
+  endGesture,
+  pool,
+  setCurrentTrack,
+  state as appState,
 } from "../state/appState.svelte";
 import { pxToTime, snapTime } from "./geometry";
 import type { ClipZone } from "./hit-test";
@@ -13,7 +18,10 @@ function snapCandidates(p: Project, movingIds: readonly string[]): number[] {
   const moving = new Set(movingIds);
   const ids = p.tracks.map((t) => t.id);
   const all = editPoints(
-    { ...p, tracks: p.tracks.map((t) => ({ ...t, clips: t.clips.filter((c) => !moving.has(c.id)) })) },
+    {
+      ...p,
+      tracks: p.tracks.map((t) => ({ ...t, clips: t.clips.filter((c) => !moving.has(c.id)) })),
+    },
     ids,
   );
   return [...all, appState.playheadS, projectDurationS(p)];
@@ -48,7 +56,12 @@ function grabbedGroup(p: Project, clipId: string): string[] {
   return [clipId];
 }
 
-export function startClipDrag(e: PointerEvent, clipId: string, trackId: string, zone: ClipZone): void {
+export function startClipDrag(
+  e: PointerEvent,
+  clipId: string,
+  trackId: string,
+  zone: ClipZone,
+): void {
   const target = e.currentTarget as HTMLElement;
   const pointerId = e.pointerId;
   target.setPointerCapture(pointerId);

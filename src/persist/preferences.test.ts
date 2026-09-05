@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
-  DEFAULT_PREFERENCES, TRACK_HEIGHTS, nextTrackHeight, sanitisePreferences,
+  DEFAULT_PREFERENCES,
+  TRACK_HEIGHTS,
+  nextTrackHeight,
+  sanitisePreferences,
 } from "./preferences";
 
 describe("sanitisePreferences", () => {
@@ -12,11 +15,19 @@ describe("sanitisePreferences", () => {
 
   it("keeps valid values", () => {
     const p = sanitisePreferences({
-      pxPerSecond: 120, snap: false, trackHeightPx: 64, lastFormat: "m4a", normaliseLufs: -16,
+      pxPerSecond: 120,
+      snap: false,
+      trackHeightPx: 64,
+      lastFormat: "m4a",
+      normaliseLufs: -16,
       masterPanelOpen: true,
     });
     expect(p).toEqual({
-      pxPerSecond: 120, snap: false, trackHeightPx: 64, lastFormat: "m4a", normaliseLufs: -16,
+      pxPerSecond: 120,
+      snap: false,
+      trackHeightPx: 64,
+      lastFormat: "m4a",
+      normaliseLufs: -16,
       masterPanelOpen: true,
     });
   });

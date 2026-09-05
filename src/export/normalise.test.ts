@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { NORMALISE_CEILING_DBFS, normalisationGain, normaliseChannels,
-} from "./normalise";
+import { NORMALISE_CEILING_DBFS, normalisationGain, normaliseChannels } from "./normalise";
 
 const at = (measured: number, peak: number, target: number) =>
   normalisationGain(measured, peak, target);

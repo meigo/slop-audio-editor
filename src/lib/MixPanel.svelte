@@ -1,11 +1,22 @@
 <script lang="ts">
   import { PanelRightClose, PanelRightOpen } from "@lucide/svelte";
   import {
-    EQ_HIGH_HZ, EQ_LOW_HZ, EQ_MAX_DB, EQ_MID_HZ, findTrack, type EqBands,
+    EQ_HIGH_HZ,
+    EQ_LOW_HZ,
+    EQ_MAX_DB,
+    EQ_MID_HZ,
+    findTrack,
+    type EqBands,
   } from "../doc/document";
   import { setDuckDepth, setGlue, setMasterEq, setTrackEq } from "../doc/edits";
   import {
-    amend, beginGesture, commit, currentTrackId, endGesture, engine, state as appState,
+    amend,
+    beginGesture,
+    commit,
+    currentTrackId,
+    endGesture,
+    engine,
+    state as appState,
   } from "../state/appState.svelte";
   import BandSlider from "./BandSlider.svelte";
   import NumberField from "./NumberField.svelte";
@@ -83,7 +94,7 @@
           class="flex flex-col gap-1.5"
           data-hint="Three-band tone control for the current track. Click a track header to switch tracks."
         >
-          <h3 class="truncate text-[11px] uppercase tracking-wide text-muted">{track.name}</h3>
+          <h3 class="truncate text-[11px] tracking-wide text-muted uppercase">{track.name}</h3>
           <BandSlider
             label="low"
             db={track.eq.lowDb}
@@ -112,7 +123,7 @@
       {/if}
 
       <section class="flex flex-col gap-1.5 border-t border-line pt-2">
-        <h3 class="text-[11px] uppercase tracking-wide text-muted">Master</h3>
+        <h3 class="text-[11px] tracking-wide text-muted uppercase">Master</h3>
         <BandSlider
           label="low"
           db={appState.project.masterEq.lowDb}
@@ -151,7 +162,7 @@
       </section>
 
       <section class="flex flex-col gap-1.5 border-t border-line pt-2">
-        <h3 class="text-[11px] uppercase tracking-wide text-muted">Duck</h3>
+        <h3 class="text-[11px] tracking-wide text-muted uppercase">Duck</h3>
         <!-- Always mounted, disabled until some track is marked D — the same reason it is not
              `{#if}`-gated: state must not move the layout. -->
         <NumberField

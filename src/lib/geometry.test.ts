@@ -1,8 +1,26 @@
 import { describe, expect, it } from "vitest";
 import {
-  dbToGain, dbToPosition, envelopeAreaPoints, envelopeCurvePoints, envelopeXY, fadeAreaPoints, fadeCurvePoints, fadeCurveXY, formatDb, formatTime, gainToDb,
-  formatSignedDb, METER_FLOOR_DB, meterFillPct, pinchUpdate, positionToDb, pxToTime,
-  rulerTicks, snapBandDb, snapTime, timeToPx,
+  dbToGain,
+  dbToPosition,
+  envelopeAreaPoints,
+  envelopeCurvePoints,
+  envelopeXY,
+  fadeAreaPoints,
+  fadeCurvePoints,
+  fadeCurveXY,
+  formatDb,
+  formatTime,
+  gainToDb,
+  formatSignedDb,
+  METER_FLOOR_DB,
+  meterFillPct,
+  pinchUpdate,
+  positionToDb,
+  pxToTime,
+  rulerTicks,
+  snapBandDb,
+  snapTime,
+  timeToPx,
 } from "./geometry";
 import { fadeInCurve, fadeOutCurve } from "../audio/fades";
 
@@ -274,7 +292,16 @@ describe("envelopeXY", () => {
   });
 
   it("maps time to x as a fraction of the clip's duration", () => {
-    expect(yAt([{ t: 0, gain: 1 }, { t: 2, gain: 0.5 }], 8, 25)).toBeCloseTo(50, 6);
+    expect(
+      yAt(
+        [
+          { t: 0, gain: 1 },
+          { t: 2, gain: 0.5 },
+        ],
+        8,
+        25,
+      ),
+    ).toBeCloseTo(50, 6);
   });
 
   // The envelope holds its last value to the end of the clip; without this the shading would stop
@@ -286,7 +313,10 @@ describe("envelopeXY", () => {
 
 describe("envelopeAreaPoints", () => {
   it("closes the removed region along the top edge, from the same points as the stroked edge", () => {
-    const pts = [{ t: 0, gain: 1 }, { t: 2, gain: 0.25 }];
+    const pts = [
+      { t: 0, gain: 1 },
+      { t: 2, gain: 0.25 },
+    ];
     const edge = envelopeCurvePoints(pts, 8);
     const area = envelopeAreaPoints(pts, 8);
     expect(area.startsWith("0,0 100,0 ")).toBe(true);

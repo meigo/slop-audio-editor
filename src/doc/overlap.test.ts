@@ -4,8 +4,16 @@ import { clampFades, insertClip, sliceClip } from "./overlap";
 
 function clip(over: Partial<Clip> = {}): Clip {
   return {
-    id: newId("clip"), sourceId: "src-1", startS: 0, inS: 0, durS: 10,
-    gain: 1, fadeInS: 0, fadeOutS: 0, fadeShape: "linear", ...over,
+    id: newId("clip"),
+    sourceId: "src-1",
+    startS: 0,
+    inS: 0,
+    durS: 10,
+    gain: 1,
+    fadeInS: 0,
+    fadeOutS: 0,
+    fadeShape: "linear",
+    ...over,
   };
 }
 
@@ -115,6 +123,10 @@ describe("insertClip", () => {
     const c = clip({ startS: 8, durS: 4 });
     const incoming = clip({ startS: 2, durS: 8 });
     const out = insertClip([a, b, c], incoming);
-    expect(out.map((x) => [x.startS, x.durS])).toEqual([[0, 2], [2, 8], [10, 2]]);
+    expect(out.map((x) => [x.startS, x.durS])).toEqual([
+      [0, 2],
+      [2, 8],
+      [10, 2],
+    ]);
   });
 });

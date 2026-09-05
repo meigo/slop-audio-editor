@@ -2,11 +2,20 @@ import { decodeSource, type Source } from "../audio/pool";
 import { adoptIds, referencedSourceIdsAcross, type Project } from "../doc/document";
 import { pool, resetHistory, state as appState } from "../state/appState.svelte";
 import {
-  deleteSource, disableDocumentSaves, listSourceIds, putDocument, putSources, readAutosave,
+  deleteSource,
+  disableDocumentSaves,
+  listSourceIds,
+  putDocument,
+  putSources,
+  readAutosave,
 } from "./autosave";
 import {
   applyDocumentDefaults,
-  PROJECT_FILE_EXT, ProjectFileError, packCurrentProject, unpackProject, type SourceRecord,
+  PROJECT_FILE_EXT,
+  ProjectFileError,
+  packCurrentProject,
+  unpackProject,
+  type SourceRecord,
 } from "./project-file";
 import { exportFilename } from "../export/formats";
 
@@ -101,7 +110,10 @@ export async function openProjectFile(file: File): Promise<void> {
     await putSources(sources);
     await putDocument(project);
     const written = new Set(sources.map((s) => s.id));
-    await pruneUnreferencedSources(project, previousIds.filter((id) => !written.has(id)));
+    await pruneUnreferencedSources(
+      project,
+      previousIds.filter((id) => !written.has(id)),
+    );
   } catch (err) {
     // The in-memory session has ALREADY been swapped by `loadInto` — deliberately, so a corrupt
     // file cannot destroy the open project. That leaves the app showing a document whose audio

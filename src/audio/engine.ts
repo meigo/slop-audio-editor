@@ -76,8 +76,14 @@ export class AudioEngine {
     void ctx.resume();
     const startAt = ctx.currentTime + SCHEDULE_LEAD_S;
 
-    this.#graph = renderPlan(ctx, planSchedule(project, fromS, end, soloed), pool, project, startAt,
-      { fromS, toS: end });
+    this.#graph = renderPlan(
+      ctx,
+      planSchedule(project, fromS, end, soloed),
+      pool,
+      project,
+      startAt,
+      { fromS, toS: end },
+    );
     // One analyser PER CHANNEL, fed through a splitter. A single AnalyserNode down-mixes its
     // input to mono before filling the buffer, so a hard-panned mix reads up to 6 dB quieter
     // than it is: full scale in one channel and silence in the other averages to half, and the

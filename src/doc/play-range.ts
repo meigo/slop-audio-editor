@@ -31,7 +31,11 @@ export function setIn(range: PlayRange | null, atS: number, projectEndS: number)
 
 /** Move (or create) the OUT marker to `atS`. Symmetric to `setIn`: only `toS` moves, clamped to at
  *  least `fromS + MIN_PLAY_RANGE_S`, never swapping the ends. */
-export function setOut(range: PlayRange | null, atS: number, projectEndS: number): PlayRange | null {
+export function setOut(
+  range: PlayRange | null,
+  atS: number,
+  projectEndS: number,
+): PlayRange | null {
   const at = Math.max(0, Math.min(atS, projectEndS));
   if (range === null) {
     if (at < MIN_PLAY_RANGE_S) return null;

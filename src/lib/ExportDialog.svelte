@@ -1,7 +1,11 @@
 <script lang="ts">
   import { encodeBuffer, availableFormats } from "../export/encode";
   import {
-    exportFilename, exportWindow, FORMAT_EXT, FORMAT_LABELS, type ExportFormat,
+    exportFilename,
+    exportWindow,
+    FORMAT_EXT,
+    FORMAT_LABELS,
+    type ExportFormat,
   } from "../export/formats";
   import { measureMix, normaliseBuffer, NORMALISE_TARGETS } from "../export/normalise";
   import { limitBuffer } from "../export/limiter";
@@ -161,7 +165,10 @@
       </select>
     </label>
 
-    <label class="mb-3 flex items-center gap-2 text-xs" title="Brick-wall limiter on the finished mix, so a loudness target can be reached instead of falling short. It changes the dynamics — that is the trade.">
+    <label
+      class="mb-3 flex items-center gap-2 text-xs"
+      title="Brick-wall limiter on the finished mix, so a loudness target can be reached instead of falling short. It changes the dynamics — that is the trade."
+    >
       <input
         type="checkbox"
         checked={limit}

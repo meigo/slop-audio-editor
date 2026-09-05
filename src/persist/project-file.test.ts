@@ -3,8 +3,13 @@ import { unzipSync, zipSync, strToU8 } from "fflate";
 import { __resetIds, createProject } from "../doc/document";
 import { addClip, makeClip } from "../doc/edits";
 import {
-  applyDocumentDefaults, PROJECT_FILE_VERSION, ProjectFileError, packCurrentProject,
-  packProject, unpackProject, type SourceRecord,
+  applyDocumentDefaults,
+  PROJECT_FILE_VERSION,
+  ProjectFileError,
+  packCurrentProject,
+  packProject,
+  unpackProject,
+  type SourceRecord,
 } from "./project-file";
 
 const SOURCES: SourceRecord[] = [
@@ -23,7 +28,9 @@ describe("packProject", () => {
   it("writes project.json and one file per source", () => {
     const files = unzipSync(packProject(scene(), SOURCES));
     expect(Object.keys(files).sort()).toEqual([
-      "project.json", "sources/src-1.wav", "sources/src-2.mp3",
+      "project.json",
+      "sources/src-1.wav",
+      "sources/src-2.mp3",
     ]);
   });
 
@@ -34,8 +41,9 @@ describe("packProject", () => {
 
   it("stamps the file version", () => {
     const files = unzipSync(packProject(scene(), SOURCES));
-    expect(JSON.parse(new TextDecoder().decode(files["project.json"])).version)
-      .toBe(PROJECT_FILE_VERSION);
+    expect(JSON.parse(new TextDecoder().decode(files["project.json"])).version).toBe(
+      PROJECT_FILE_VERSION,
+    );
   });
 });
 
@@ -66,9 +74,13 @@ describe("round trip", () => {
   it("defaults glue to false for a file saved before glue existed", () => {
     const { glue: _glue, ...oldProject } = createProject();
     const bad = zipSync({
-      "project.json": strToU8(JSON.stringify({
-        version: PROJECT_FILE_VERSION, project: oldProject, sources: [],
-      })),
+      "project.json": strToU8(
+        JSON.stringify({
+          version: PROJECT_FILE_VERSION,
+          project: oldProject,
+          sources: [],
+        }),
+      ),
     });
     expect(unpackProject(bad).project.glue).toBe(false);
   });
@@ -77,9 +89,13 @@ describe("round trip", () => {
 describe("errors", () => {
   it("rejects a future file version rather than half-loading", () => {
     const bad = zipSync({
-      "project.json": strToU8(JSON.stringify({
-        version: PROJECT_FILE_VERSION + 1, project: createProject(), sources: [],
-      })),
+      "project.json": strToU8(
+        JSON.stringify({
+          version: PROJECT_FILE_VERSION + 1,
+          project: createProject(),
+          sources: [],
+        }),
+      ),
     });
     expect(() => unpackProject(bad)).toThrow(ProjectFileError);
     expect(() => unpackProject(bad)).toThrow(/newer version/i);
@@ -97,22 +113,26 @@ describe("errors", () => {
 
   it("rejects a manifest whose source file is missing from the zip", () => {
     const bad = zipSync({
-      "project.json": strToU8(JSON.stringify({
-        version: PROJECT_FILE_VERSION,
-        project: createProject(),
-        sources: [{ id: "src-1", name: "a.wav", file: "sources/src-1.wav" }],
-      })),
+      "project.json": strToU8(
+        JSON.stringify({
+          version: PROJECT_FILE_VERSION,
+          project: createProject(),
+          sources: [{ id: "src-1", name: "a.wav", file: "sources/src-1.wav" }],
+        }),
+      ),
     });
     expect(() => unpackProject(bad)).toThrow(/missing/i);
   });
 
   it("rejects a manifest whose project has no tracks array", () => {
     const bad = zipSync({
-      "project.json": strToU8(JSON.stringify({
-        version: PROJECT_FILE_VERSION,
-        project: { name: "x", masterGain: 1 }, // tracks missing entirely
-        sources: [],
-      })),
+      "project.json": strToU8(
+        JSON.stringify({
+          version: PROJECT_FILE_VERSION,
+          project: { name: "x", masterGain: 1 }, // tracks missing entirely
+          sources: [],
+        }),
+      ),
     });
     expect(() => unpackProject(bad)).toThrow(ProjectFileError);
     expect(() => unpackProject(bad)).toThrow(/shape/i);
@@ -120,11 +140,13 @@ describe("errors", () => {
 
   it("rejects a manifest whose project's masterGain is not a number", () => {
     const bad = zipSync({
-      "project.json": strToU8(JSON.stringify({
-        version: PROJECT_FILE_VERSION,
-        project: { name: "x", tracks: [], masterGain: "loud" },
-        sources: [],
-      })),
+      "project.json": strToU8(
+        JSON.stringify({
+          version: PROJECT_FILE_VERSION,
+          project: { name: "x", tracks: [], masterGain: "loud" },
+          sources: [],
+        }),
+      ),
     });
     expect(() => unpackProject(bad)).toThrow(ProjectFileError);
   });
@@ -199,7 +221,9 @@ describe("applyDocumentDefaults", () => {
   it("survives a round trip through the file format", () => {
     const p = { ...createProject(), masterEq: { lowDb: -2, midDb: 5, highDb: 0 } };
     expect(unpackProject(packProject(p, [])).project.masterEq).toEqual({
-      lowDb: -2, midDb: 5, highDb: 0,
+      lowDb: -2,
+      midDb: 5,
+      highDb: 0,
     });
   });
 });

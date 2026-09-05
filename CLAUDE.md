@@ -21,7 +21,7 @@ an unused import or a type-only import written as a value import fails the build
 ## Development workflow
 
 - All editing logic lives as **pure functions** in `src/doc/edits.ts`: `(project, args) =>
-  Project`. No DOM, no Web Audio, no `$state` in that file. Test new operations there first — it's
+Project`. No DOM, no Web Audio, no `$state` in that file. Test new operations there first — it's
   the cheapest place to get a bug wrong before it reaches the UI.
 - Preview and export share one scheduler, `planSchedule` (`src/audio/schedule.ts`). If you're
   adding behavior that should differ between playback and export, it does **not** belong in
@@ -147,7 +147,7 @@ src/
    `SvelteSet` from `svelte/reactivity` specifically for this field.
 
 5. **A component using the `$state` rune must import the store as `import { state as appState }
-   from "./state/appState.svelte"`.** Importing it as bare `state` collides with the `$state` rune
+from "./state/appState.svelte"`.** Importing it as bare `state` collides with the `$state` rune
    identifier and trips Svelte's `store_rune_conflict` compiler error. Every component and
    `.svelte.ts` module in this codebase follows the `as appState` convention — keep new files
    consistent with it rather than rediscovering the error.
@@ -193,7 +193,7 @@ src/
     (that's `mediabunny` itself; the MP3 encoder extension is a separate ~311 kB chunk). The build's
     default 500 kB warning threshold would flag that as a problem it can't be reduced, so the limit
     is raised just above it — high enough to silence that specific unactionable warning, low enough
-    that a real regression (the *entry* chunk ballooning past 700 kB) still gets caught.
+    that a real regression (the _entry_ chunk ballooning past 700 kB) still gets caught.
 
 11. **`integratedLoudness` (`src/audio/loudness.ts`) is a faithful, uncorrected BS.1770 meter; the
     mono/stereo playback correction lives one layer up, in `pool.ts`'s `computeLoudnessChunked`.**
@@ -228,14 +228,14 @@ src/
     in an `OfflineAudioContext`, sweep input peak level, read the output) rather than guessing.
 
 13b. **A loop always restarts at something VISIBLE: the IN marker, or 0 — never where playback
-    began.** `loopStartS()` in `appState.svelte.ts` returns `playRange.fromS` or `0`. It used to
-    return the press-play position, which made the loop point invisible state that moved silently
-    whenever playback started somewhere new, with nothing on screen saying where it would jump
-    back to. Every DAW cycles a visible region; the in/out markers are drawn on the ruler and the
-    whole project is self-evident. `onEnded` also checks `playEndS() > restartAt` before
-    restarting: `engine.play` signals an empty window by calling `onEnded` on a zero-delay timer,
-    so looping an empty project (or a zero-length range) would otherwise restart instantly and
-    spin forever.
+began.** `loopStartS()` in `appState.svelte.ts` returns `playRange.fromS` or `0`. It used to
+return the press-play position, which made the loop point invisible state that moved silently
+whenever playback started somewhere new, with nothing on screen saying where it would jump
+back to. Every DAW cycles a visible region; the in/out markers are drawn on the ruler and the
+whole project is self-evident. `onEnded` also checks `playEndS() > restartAt` before
+restarting: `engine.play` signals an empty window by calling `onEnded` on a zero-delay timer,
+so looping an empty project (or a zero-length range) would otherwise restart instantly and
+spin forever.
 
 13. **The in/out play-range (`state.playRange`) is session state, like solo — it is never part of
     `Project` and `exportWindow` (`src/export/formats.ts`) never looks at it.** Setting IN or OUT
@@ -593,7 +593,7 @@ src/
 
 33. **The shortcut overlay's list is checked against the parser by tests, not maintained beside
     it.** `SHORTCUTS` (`src/lib/shortcuts.ts`) is a table of `{group, keys, label, event,
-    command}` that `ShortcutHelp.svelte` renders. `resolveShortcut` was deliberately NOT
+command}` that `ShortcutHelp.svelte` renders. `resolveShortcut` was deliberately NOT
     refactored to consume it: that parser is small, pure and well tested, and turning it into a
     data-driven dispatcher so it could generate its own documentation would put the riskier code
     in the more important place. Two tests join them instead:

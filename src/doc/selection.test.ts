@@ -42,7 +42,12 @@ describe("clipsInRange", () => {
 describe("editPoints", () => {
   it("collects sorted unique boundaries across the given tracks, starting at 0", () => {
     const p = scene();
-    expect(editPoints(p, p.tracks.map((t) => t.id))).toEqual([0, 2, 3, 4, 5, 8]);
+    expect(
+      editPoints(
+        p,
+        p.tracks.map((t) => t.id),
+      ),
+    ).toEqual([0, 2, 3, 4, 5, 8]);
   });
 
   it("only looks at the tracks it is given", () => {

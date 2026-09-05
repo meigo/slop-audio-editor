@@ -1,9 +1,7 @@
 import { SvelteSet } from "svelte/reactivity";
 import { AudioEngine } from "../audio/engine";
 import { SourcePool, sourceFromFile } from "../audio/pool";
-import {
-  copyClips, cutClips, pasteClips, type ClipboardData,
-} from "../doc/clipboard";
+import { copyClips, cutClips, pasteClips, type ClipboardData } from "../doc/clipboard";
 import { createProject, projectDurationS, resolveTrackId, type Project } from "../doc/document";
 import { addClip, makeClip, setClipGain } from "../doc/edits";
 import { matchLoudnessGains, type LoudnessEntry } from "../doc/loudness-match";

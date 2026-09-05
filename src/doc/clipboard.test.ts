@@ -25,7 +25,11 @@ describe("copyClips", () => {
   it("records each clip's track offset relative to the topmost copied track", () => {
     const p = scene();
     const ids = [p.tracks[1].clips[0].id, p.tracks[0].clips[0].id];
-    expect(copyClips(p, ids).entries.map((e) => e.trackOffset).sort()).toEqual([0, 1]);
+    expect(
+      copyClips(p, ids)
+        .entries.map((e) => e.trackOffset)
+        .sort(),
+    ).toEqual([0, 1]);
   });
 
   it("does not mutate or remove anything", () => {
@@ -62,7 +66,10 @@ describe("cutClips", () => {
 describe("pasteClips", () => {
   it("places clips at atS, preserving their relative spacing", () => {
     const p = scene();
-    const data = copyClips(p, p.tracks[0].clips.map((c) => c.id));
+    const data = copyClips(
+      p,
+      p.tracks[0].clips.map((c) => c.id),
+    );
     const next = pasteClips(p, data, p.tracks[1].id, 30);
     expect(next.tracks[1].clips.map((c) => c.startS)).toEqual([10, 30, 34]);
   });
@@ -106,7 +113,10 @@ describe("pasteClips", () => {
     const p = scene();
     const data = copyClips(p, [p.tracks[0].clips[0].id]);
     const next = pasteClips(p, data, p.tracks[1].id, 11);
-    expect(next.tracks[1].clips.map((c) => [c.startS, c.durS])).toEqual([[10, 1], [11, 2]]);
+    expect(next.tracks[1].clips.map((c) => [c.startS, c.durS])).toEqual([
+      [10, 1],
+      [11, 2],
+    ]);
   });
 
   it("is a no-op for an empty clipboard or unknown track", () => {

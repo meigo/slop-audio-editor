@@ -145,7 +145,10 @@ export function scheduleDocumentSave(project: Project): void {
   }, DEBOUNCE_MS);
 }
 
-export async function readAutosave(): Promise<{ project: Project; sources: SourceRecord[] } | null> {
+export async function readAutosave(): Promise<{
+  project: Project;
+  sources: SourceRecord[];
+} | null> {
   const db = await open();
   const project = await new Promise<Project | undefined>((resolve) => {
     const r = tx(db, DOC_STORE, "readonly").get("project");

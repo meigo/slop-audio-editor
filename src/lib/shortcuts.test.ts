@@ -18,7 +18,8 @@ describe("resolveShortcut", () => {
     expect(resolveShortcut(key("Backspace"))).toEqual({ kind: "delete", ripple: false });
     expect(resolveShortcut(key("Delete"))).toEqual({ kind: "delete", ripple: false });
     expect(resolveShortcut(key("Delete", { shiftKey: true }))).toEqual({
-      kind: "delete", ripple: true,
+      kind: "delete",
+      ripple: true,
     });
   });
 
@@ -38,16 +39,19 @@ describe("resolveShortcut", () => {
     expect(resolveShortcut(key("ArrowRight"))).toEqual({ kind: "nudge", deltaS: 0.1 });
     expect(resolveShortcut(key("ArrowLeft"))).toEqual({ kind: "nudge", deltaS: -0.1 });
     expect(resolveShortcut(key("ArrowRight", { shiftKey: true }))).toEqual({
-      kind: "nudge", deltaS: 0.01,
+      kind: "nudge",
+      deltaS: 0.01,
     });
   });
 
   it("jumps between edit points with meta+arrow", () => {
     expect(resolveShortcut(key("ArrowRight", { metaKey: true }))).toEqual({
-      kind: "jumpEdit", direction: 1,
+      kind: "jumpEdit",
+      direction: 1,
     });
     expect(resolveShortcut(key("ArrowLeft", { metaKey: true }))).toEqual({
-      kind: "jumpEdit", direction: -1,
+      kind: "jumpEdit",
+      direction: -1,
     });
   });
 
@@ -105,8 +109,9 @@ describe("the documented shortcut list", () => {
   // hand-written shortcut list.
   it("only lists keys that really resolve to the command they claim", () => {
     for (const entry of SHORTCUTS) {
-      expect(resolveShortcut(entry.event)?.kind, `${entry.keys} (${entry.label})`)
-        .toBe(entry.command);
+      expect(resolveShortcut(entry.event)?.kind, `${entry.keys} (${entry.label})`).toBe(
+        entry.command,
+      );
     }
   });
 
@@ -115,8 +120,22 @@ describe("the documented shortcut list", () => {
   // reflected over.
   it("documents every command the parser can produce", () => {
     const keys = [
-      " ", "Delete", "Backspace", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown",
-      "=", "+", "-", "_", "?", "/", "Escape", "Enter", "Tab",
+      " ",
+      "Delete",
+      "Backspace",
+      "ArrowLeft",
+      "ArrowRight",
+      "ArrowUp",
+      "ArrowDown",
+      "=",
+      "+",
+      "-",
+      "_",
+      "?",
+      "/",
+      "Escape",
+      "Enter",
+      "Tab",
       ...Array.from({ length: 26 }, (_, i) => String.fromCharCode(97 + i)),
       ...Array.from({ length: 10 }, (_, i) => String(i)),
     ];

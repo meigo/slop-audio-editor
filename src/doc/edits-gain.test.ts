@@ -43,8 +43,9 @@ describe("setClipFade", () => {
 
   it("sets the curve shape", () => {
     const { p, clipId } = oneClip();
-    expect(setClipFade(p, clipId, { fadeShape: "equalPower" }).tracks[0].clips[0].fadeShape)
-      .toBe("equalPower");
+    expect(setClipFade(p, clipId, { fadeShape: "equalPower" }).tracks[0].clips[0].fadeShape).toBe(
+      "equalPower",
+    );
   });
 
   it("pushes the other fade back rather than rejecting an overlong drag", () => {

@@ -16,7 +16,11 @@
   import { PROJECT_FILE_EXT } from "./persist/project-file";
   import { openProjectFile, restoreAutosave, saveProjectFile } from "./persist/project-io.svelte";
   import {
-    commit, currentTrackId, cycleTrackHeight, importFiles, markRestoreSettled,
+    commit,
+    currentTrackId,
+    cycleTrackHeight,
+    importFiles,
+    markRestoreSettled,
     state as appState,
   } from "./state/appState.svelte";
 

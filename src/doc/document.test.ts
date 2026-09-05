@@ -1,15 +1,34 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
-  __resetIds, adoptIds, clipEndS, createProject, createTrack, findClip, findTrack,
-  newId, projectDurationS, referencedSourceIdsAcross, resolveTrackId, trackDurationS,
-  type Clip, type Project,
+  __resetIds,
+  adoptIds,
+  clipEndS,
+  createProject,
+  createTrack,
+  findClip,
+  findTrack,
+  newId,
+  projectDurationS,
+  referencedSourceIdsAcross,
+  resolveTrackId,
+  trackDurationS,
+  type Clip,
+  type Project,
 } from "./document";
 import { addClip, addTrack, makeClip, removeTrack } from "./edits";
 
 function clip(over: Partial<Clip> = {}): Clip {
   return {
-    id: newId("clip"), sourceId: "src-1", startS: 0, inS: 0, durS: 1,
-    gain: 1, fadeInS: 0, fadeOutS: 0, fadeShape: "linear", ...over,
+    id: newId("clip"),
+    sourceId: "src-1",
+    startS: 0,
+    inS: 0,
+    durS: 1,
+    gain: 1,
+    fadeInS: 0,
+    fadeOutS: 0,
+    fadeShape: "linear",
+    ...over,
   };
 }
 
@@ -169,8 +188,17 @@ describe("referencedSourceIdsAcross", () => {
             ...p.tracks[0],
             clips: [
               ...p.tracks[0].clips,
-              { id: newId("clip"), sourceId: sid, startS: 0, inS: 0, durS: 1,
-                gain: 1, fadeInS: 0, fadeOutS: 0, fadeShape: "linear" as const },
+              {
+                id: newId("clip"),
+                sourceId: sid,
+                startS: 0,
+                inS: 0,
+                durS: 1,
+                gain: 1,
+                fadeInS: 0,
+                fadeOutS: 0,
+                fadeShape: "linear" as const,
+              },
             ],
           },
         ],

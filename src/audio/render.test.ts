@@ -95,21 +95,40 @@ function fakeProject(trackIds: string[]): Project {
     glue: false,
     duckDepthDb: -12,
     masterEq: { lowDb: 0, midDb: 0, highDb: 0 },
-    tracks: trackIds.map((id) => ({ id, name: id, clips: [], gain: 1, muted: false, ducked: false, eq: { lowDb: 0, midDb: 0, highDb: 0 } })),
+    tracks: trackIds.map((id) => ({
+      id,
+      name: id,
+      clips: [],
+      gain: 1,
+      muted: false,
+      ducked: false,
+      eq: { lowDb: 0, midDb: 0, highDb: 0 },
+    })),
   };
 }
 
 function fakeSource(id: string): Source {
   return {
-    id, name: id, bytes: new Uint8Array(),
-    buffer: {} as AudioBuffer, peaks: new Float32Array(), durationS: 10, loudnessLufs: -20,
+    id,
+    name: id,
+    bytes: new Uint8Array(),
+    buffer: {} as AudioBuffer,
+    peaks: new Float32Array(),
+    durationS: 10,
+    loudnessLufs: -20,
   };
 }
 
 function fakeScheduledClip(overrides: Partial<ScheduledClip> = {}): ScheduledClip {
   return {
-    trackId: "t1", sourceId: "s1", when: 0, sourceOffset: 0, duration: 1, gain: 1,
-    fadeIn: null, fadeOut: null,
+    trackId: "t1",
+    sourceId: "s1",
+    when: 0,
+    sourceOffset: 0,
+    duration: 1,
+    gain: 1,
+    fadeIn: null,
+    fadeOut: null,
     ...overrides,
   };
 }
@@ -136,7 +155,10 @@ describe("renderPlan", () => {
     const { ctx, bufferSources } = makeFakeCtx(2);
     const plan = [
       fakeScheduledClip({ fadeIn: { atS: 0, durS: 1, shape: "linear", fromT: 0, toT: 1 } }),
-      fakeScheduledClip({ when: 2, fadeIn: { atS: 2, durS: 1, shape: "linear", fromT: 0, toT: 1 } }),
+      fakeScheduledClip({
+        when: 2,
+        fadeIn: { atS: 2, durS: 1, shape: "linear", fromT: 0, toT: 1 },
+      }),
     ];
     expect(() => renderPlan(ctx, plan, NO_SOLO_POOL, fakeProject(["t1"]), 0, WINDOW)).toThrow();
     // Nothing was started — including the FIRST clip's already-built node — because starting is
@@ -146,7 +168,9 @@ describe("renderPlan", () => {
 
   it("disconnects the graph built so far before rethrowing", () => {
     const { ctx, destination } = makeFakeCtx(1);
-    const plan = [fakeScheduledClip({ fadeIn: { atS: 0, durS: 1, shape: "linear", fromT: 0, toT: 1 } })];
+    const plan = [
+      fakeScheduledClip({ fadeIn: { atS: 0, durS: 1, shape: "linear", fromT: 0, toT: 1 } }),
+    ];
     expect(() => renderPlan(ctx, plan, NO_SOLO_POOL, fakeProject(["t1"]), 0, WINDOW)).toThrow();
     expect(destination.disconnectCalls).toBe(0); // destination itself is never touched
   });

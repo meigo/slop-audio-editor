@@ -4,10 +4,16 @@ import { integratedLoudness } from "./loudness";
 const SAMPLE_RATE = 48000;
 
 /** A pure sine tone at the given amplitude (peak), used for BS.1770 calibration checks. */
-function sine(freqHz: number, amplitude: number, seconds: number, sampleRate = SAMPLE_RATE): Float32Array {
+function sine(
+  freqHz: number,
+  amplitude: number,
+  seconds: number,
+  sampleRate = SAMPLE_RATE,
+): Float32Array {
   const n = Math.round(seconds * sampleRate);
   const out = new Float32Array(n);
-  for (let i = 0; i < n; i++) out[i] = amplitude * Math.sin((2 * Math.PI * freqHz * i) / sampleRate);
+  for (let i = 0; i < n; i++)
+    out[i] = amplitude * Math.sin((2 * Math.PI * freqHz * i) / sampleRate);
   return out;
 }
 

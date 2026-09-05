@@ -2,8 +2,15 @@
   import type { Track } from "../doc/document";
   import { renameTrack, setTrackDucked, setTrackGain, setTrackMuted } from "../doc/edits";
   import {
-    amend, beginGesture, commit, currentTrackId, endGesture, engine, setCurrentTrack,
-    state as appState, toggleSolo,
+    amend,
+    beginGesture,
+    commit,
+    currentTrackId,
+    endGesture,
+    engine,
+    setCurrentTrack,
+    state as appState,
+    toggleSolo,
   } from "../state/appState.svelte";
   import Fader from "./Fader.svelte";
 
@@ -59,7 +66,7 @@
      double-clicking the name to rename it would otherwise highlight the word as it opens the
      editor. The rename input takes `select-text` back, because there selecting IS the point. -->
 <div
-  class="flex select-none flex-col justify-between border-b border-l-2 border-line px-2 py-1"
+  class="flex flex-col justify-between border-b border-l-2 border-line px-2 py-1 select-none"
   class:border-l-transparent={!isCurrent}
   class:border-l-accent={isCurrent}
   style="height: {appState.trackHeightPx}px"
@@ -69,7 +76,7 @@
     {#if renaming}
       <input
         bind:this={nameInput}
-        class="w-full select-text bg-panel px-1 text-xs"
+        class="w-full bg-panel px-1 text-xs select-text"
         value={track.name}
         onblur={(e) => {
           commit((p) => renameTrack(p, track.id, e.currentTarget.value.trim() || track.name));
@@ -111,7 +118,6 @@
     >
       D
     </button>
-
   </div>
 
   <Fader gain={track.gain} onInput={onGain} onCommit={onGainCommit} label="Track volume (dB)" />

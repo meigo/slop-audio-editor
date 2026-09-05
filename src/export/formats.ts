@@ -12,12 +12,19 @@ export const FORMAT_LABELS: Record<ExportFormat, string> = {
 };
 
 export const FORMAT_EXT: Record<ExportFormat, string> = {
-  wav16: "wav", wav32: "wav", mp3: "mp3", m4a: "m4a", webm: "webm",
+  wav16: "wav",
+  wav32: "wav",
+  mp3: "mp3",
+  m4a: "m4a",
+  webm: "webm",
 };
 
 export const FORMAT_MIME: Record<ExportFormat, string> = {
-  wav16: "audio/wav", wav32: "audio/wav",
-  mp3: "audio/mpeg", m4a: "audio/mp4", webm: "audio/webm",
+  wav16: "audio/wav",
+  wav32: "audio/wav",
+  mp3: "audio/mpeg",
+  m4a: "audio/mp4",
+  webm: "audio/webm",
 };
 
 /** The export range: the time-range selection if there is one, otherwise the whole project.

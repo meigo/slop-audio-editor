@@ -25,10 +25,7 @@ let mediabunnyPromise: Promise<typeof import("mediabunny")> | null = null;
 
 function loadMediabunny(): Promise<typeof import("mediabunny")> {
   mediabunnyPromise ??= (async () => {
-    const [mb, mp3] = await Promise.all([
-      import("mediabunny"),
-      import("@mediabunny/mp3-encoder"),
-    ]);
+    const [mb, mp3] = await Promise.all([import("mediabunny"), import("@mediabunny/mp3-encoder")]);
     // WebCodecs ships no MP3 encoder; this extension supplies one. Idempotent, and now paid for
     // only by users who export.
     mp3.registerMp3Encoder();
@@ -40,11 +37,16 @@ function loadMediabunny(): Promise<typeof import("mediabunny")> {
 function formatFor(
   mb: Awaited<ReturnType<typeof loadMediabunny>>,
   format: MediabunnyFormat,
-): InstanceType<typeof mb.Mp3OutputFormat | typeof mb.Mp4OutputFormat | typeof mb.WebMOutputFormat> {
+): InstanceType<
+  typeof mb.Mp3OutputFormat | typeof mb.Mp4OutputFormat | typeof mb.WebMOutputFormat
+> {
   switch (format) {
-    case "mp3": return new mb.Mp3OutputFormat();
-    case "m4a": return new mb.Mp4OutputFormat();
-    case "webm": return new mb.WebMOutputFormat();
+    case "mp3":
+      return new mb.Mp3OutputFormat();
+    case "m4a":
+      return new mb.Mp4OutputFormat();
+    case "webm":
+      return new mb.WebMOutputFormat();
   }
 }
 

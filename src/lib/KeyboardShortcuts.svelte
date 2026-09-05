@@ -1,13 +1,23 @@
 <script lang="ts">
   import { projectDurationS } from "../doc/document";
-  import {
-    deleteClips, deleteRange, moveClips, setTrackMuted, splitAt,
-  } from "../doc/edits";
+  import { deleteClips, deleteRange, moveClips, setTrackMuted, splitAt } from "../doc/edits";
   import { editPoints, nextEditPoint, prevEditPoint, NO_SELECTION } from "../doc/selection";
   import {
-    clearPlayRange, commit, copySelection, currentTrackId, cutSelection, pasteAtPlayhead,
-    redoEdit, seekTo, selectedTrackIds, setPlayIn, setPlayOut, state as appState, toggleSolo,
-    togglePlay, undoEdit,
+    clearPlayRange,
+    commit,
+    copySelection,
+    currentTrackId,
+    cutSelection,
+    pasteAtPlayhead,
+    redoEdit,
+    seekTo,
+    selectedTrackIds,
+    setPlayIn,
+    setPlayOut,
+    state as appState,
+    toggleSolo,
+    togglePlay,
+    undoEdit,
   } from "../state/appState.svelte";
   import { resolveShortcut } from "./shortcuts";
 

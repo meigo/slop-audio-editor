@@ -2,5 +2,5 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "slop-audio-editor",
   "compatibility_date": "2026-09-01",
-  "assets": { "directory": "./dist" }
+  "assets": { "directory": "./dist" },
 }

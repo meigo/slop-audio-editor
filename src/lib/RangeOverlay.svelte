@@ -2,9 +2,7 @@
   import { state as appState } from "../state/appState.svelte";
   import { timeToPx } from "./geometry";
 
-  const range = $derived(
-    appState.selection.kind === "range" ? appState.selection.range : null,
-  );
+  const range = $derived(appState.selection.kind === "range" ? appState.selection.range : null);
   const tracks = $derived(new Set(range?.trackIds ?? []));
 </script>
 

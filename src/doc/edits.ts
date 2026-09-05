@@ -2,8 +2,17 @@
  *  No DOM, no Web Audio, no $state. This module is the heart of the test suite. */
 
 import {
-  EQ_MAX_DB, MIN_CLIP_S, clipEndS, createTrack, findClip, newId,
-  type Clip, type FadeShape, type Project, type Track, type EqBands,
+  EQ_MAX_DB,
+  MIN_CLIP_S,
+  clipEndS,
+  createTrack,
+  findClip,
+  newId,
+  type Clip,
+  type FadeShape,
+  type Project,
+  type Track,
+  type EqBands,
 } from "./document";
 import { clampFades, insertClip, sliceClip } from "./overlap";
 
@@ -104,8 +113,15 @@ export function setGlue(p: Project, glue: boolean): Project {
 
 export function makeClip(sourceId: string, startS: number, durS: number, inS = 0): Clip {
   return {
-    id: newId("clip"), sourceId, startS, inS, durS,
-    gain: 1, fadeInS: 0, fadeOutS: 0, fadeShape: "linear",
+    id: newId("clip"),
+    sourceId,
+    startS,
+    inS,
+    durS,
+    gain: 1,
+    fadeInS: 0,
+    fadeOutS: 0,
+    fadeShape: "linear",
   };
 }
 
@@ -162,7 +178,10 @@ export function moveClips(
   if (dt === 0 && dTrack === 0) return p;
 
   // Strip the movers out of every track first.
-  const tracks: Track[] = p.tracks.map((t) => ({ ...t, clips: t.clips.filter((c) => !ids.has(c.id)) }));
+  const tracks: Track[] = p.tracks.map((t) => ({
+    ...t,
+    clips: t.clips.filter((c) => !ids.has(c.id)),
+  }));
   for (const { clip, fromTrackIndex } of moving) {
     const target = tracks[fromTrackIndex + dTrack];
     target.clips = insertClip(target.clips, { ...clip, startS: clip.startS + dt });

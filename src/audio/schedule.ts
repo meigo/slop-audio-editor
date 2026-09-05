@@ -1,4 +1,10 @@
-import { clipEndS, PROJECT_SAMPLE_RATE, type Clip, type FadeShape, type Project } from "../doc/document";
+import {
+  clipEndS,
+  PROJECT_SAMPLE_RATE,
+  type Clip,
+  type FadeShape,
+  type Project,
+} from "../doc/document";
 
 /** The minimum gap enforced between a fade-in's end and a fade-out's start (see `scheduleClip`). */
 const MIN_FADE_GAP_S = 1 / PROJECT_SAMPLE_RATE;
@@ -122,8 +128,7 @@ function scheduleClip(
   const declickIn = joinedAtStart && s === start ? null : declickSpec(s, e, fromS, true);
   const declickOut = joinedAtEnd && e === end ? null : declickSpec(s, e, fromS, false);
   let fadeIn = fadeSpec(start, c.fadeInS, c.fadeShape, s, e, fromS) ?? declickIn;
-  const fadeOut =
-    fadeSpec(end - c.fadeOutS, c.fadeOutS, c.fadeShape, s, e, fromS) ?? declickOut;
+  const fadeOut = fadeSpec(end - c.fadeOutS, c.fadeOutS, c.fadeShape, s, e, fromS) ?? declickOut;
   // clampFades scales a colliding fade-in/fade-out pair to fill the clip EXACTLY, so the spans
   // built above can end up overlapping by a float ulp or abutting exactly. setValueCurveAtTime
   // throws on the former and is implementation-defined (observed to throw in Chromium) on the
@@ -138,7 +143,11 @@ function scheduleClip(
         fadeIn = null;
       } else {
         const scale = newDurS / fadeIn.durS;
-        fadeIn = { ...fadeIn, durS: newDurS, toT: fadeIn.fromT + (fadeIn.toT - fadeIn.fromT) * scale };
+        fadeIn = {
+          ...fadeIn,
+          durS: newDurS,
+          toT: fadeIn.fromT + (fadeIn.toT - fadeIn.fromT) * scale,
+        };
       }
     }
   }

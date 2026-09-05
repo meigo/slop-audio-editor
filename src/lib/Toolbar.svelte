@@ -1,16 +1,47 @@
 <script lang="ts">
   import {
-    ArrowLeftToLine, ArrowRightToLine, Keyboard, Pause, Play, Redo2, Repeat, Scale, Scissors,
-    Square, Undo2, X,
+    ArrowLeftToLine,
+    ArrowRightToLine,
+    Keyboard,
+    Pause,
+    Play,
+    Redo2,
+    Repeat,
+    Scale,
+    Scissors,
+    Square,
+    Undo2,
+    X,
   } from "@lucide/svelte";
   import { createProject } from "../doc/document";
   import { setMasterGain, splitAt } from "../doc/edits";
-  import { openProjectFile, pruneUnreferencedSources, saveProjectFile } from "../persist/project-io.svelte";
   import {
-    amend, beginGesture, canRedoNow, canUndoNow, clearPlayRange, commit, currentTrackId,
-    endGesture, engine, importFiles, matchLoudness, pool, reachableProjects, redoEdit, seekTo,
+    openProjectFile,
+    pruneUnreferencedSources,
+    saveProjectFile,
+  } from "../persist/project-io.svelte";
+  import {
+    amend,
+    beginGesture,
+    canRedoNow,
+    canUndoNow,
+    clearPlayRange,
+    commit,
+    currentTrackId,
+    endGesture,
+    engine,
+    importFiles,
+    matchLoudness,
+    pool,
+    reachableProjects,
+    redoEdit,
+    seekTo,
     selectedTrackIds,
-    setPlayIn, setPlayOut, state as appState, togglePlay, undoEdit,
+    setPlayIn,
+    setPlayOut,
+    state as appState,
+    togglePlay,
+    undoEdit,
   } from "../state/appState.svelte";
   import ExportDialog from "./ExportDialog.svelte";
   import ToolbarMenu from "./ToolbarMenu.svelte";
@@ -31,8 +62,7 @@
   /** Every toolbar control is 24 px tall. Padding alone gave icon buttons 24 px and the text
    *  toggles 20 px, so the row read as two rows of slightly different things. */
   const CONTROL_H = "flex h-6 items-center justify-center rounded";
-  const BTN =
-    `${CONTROL_H} w-6 text-text hover:bg-raised disabled:opacity-30 disabled:hover:bg-transparent`;
+  const BTN = `${CONTROL_H} w-6 text-text hover:bg-raised disabled:opacity-30 disabled:hover:bg-transparent`;
   /** A 1px rule between toolbar groups. Whitespace alone reads as accidental at this size. */
   const DIVIDER = "mx-1 h-5 w-px shrink-0 bg-line";
   const MENU_ITEM =
@@ -84,23 +114,50 @@
           commit(() => createProject());
           // New project is an undoable commit, so the previous document is still reachable —
           // prune only what NO reachable document references, or undo comes back to dead audio.
-          void pruneUnreferencedSources(reachableProjects(), pool.records().map((s) => s.id));
+          void pruneUnreferencedSources(
+            reachableProjects(),
+            pool.records().map((s) => s.id),
+          );
           close();
         }}
       >
         New project
       </button>
-      <button class={MENU_ITEM} onclick={() => { projectInput?.click(); close(); }}>
+      <button
+        class={MENU_ITEM}
+        onclick={() => {
+          projectInput?.click();
+          close();
+        }}
+      >
         Open project…
       </button>
-      <button class={MENU_ITEM} onclick={() => { saveProjectFile(); close(); }}>
+      <button
+        class={MENU_ITEM}
+        onclick={() => {
+          saveProjectFile();
+          close();
+        }}
+      >
         Save project<span class="ml-auto pl-4 text-muted">⌘S</span>
       </button>
       <div class="my-1 border-t border-line"></div>
-      <button class={MENU_ITEM} onclick={() => { fileInput?.click(); close(); }}>
+      <button
+        class={MENU_ITEM}
+        onclick={() => {
+          fileInput?.click();
+          close();
+        }}
+      >
         Import audio…
       </button>
-      <button class={MENU_ITEM} onclick={() => { exporting = true; close(); }}>
+      <button
+        class={MENU_ITEM}
+        onclick={() => {
+          exporting = true;
+          close();
+        }}
+      >
         Export…
       </button>
     {/snippet}
@@ -157,7 +214,14 @@
     <button class={BTN} title="Play/pause (Space)" onclick={togglePlay}>
       {#if appState.playing}<Pause size={16} />{:else}<Play size={16} />{/if}
     </button>
-    <button class={BTN} title="Stop and return the playhead to the start" onclick={() => { if (appState.playing) togglePlay(); seekTo(0); }}>
+    <button
+      class={BTN}
+      title="Stop and return the playhead to the start"
+      onclick={() => {
+        if (appState.playing) togglePlay();
+        seekTo(0);
+      }}
+    >
       <Square size={16} />
     </button>
     <button
@@ -186,7 +250,7 @@
 
   <div class={DIVIDER}></div>
 
-  <span class="w-24 tabular-nums text-sm">{formatTime(appState.playheadS)}</span>
+  <span class="w-24 text-sm tabular-nums">{formatTime(appState.playheadS)}</span>
 
   <div class={DIVIDER}></div>
 
@@ -217,14 +281,15 @@
     Snap
   </button>
 
-
-
-  <button class={BTN} title="Set every clip's gain so all clips play at the same loudness. Non-destructive: it only changes clip gain, and undo reverses it." onclick={matchLoudness}>
+  <button
+    class={BTN}
+    title="Set every clip's gain so all clips play at the same loudness. Non-destructive: it only changes clip gain, and undo reverses it."
+    onclick={matchLoudness}
+  >
     <Scale size={16} />
   </button>
 
   <div class={DIVIDER}></div>
-
 
   <!-- A button as well as the `?` key: the whole point of the overlay is to reach people who do
        not know the shortcuts, so reaching it can't require knowing one. -->
@@ -238,7 +303,12 @@
     <Fader
       gain={appState.project.masterGain}
       onInput={onMasterGain}
-      onCommit={() => { if (masterDragging) { masterDragging = false; endGesture(); } }}
+      onCommit={() => {
+        if (masterDragging) {
+          masterDragging = false;
+          endGesture();
+        }
+      }}
       label="Master volume (dB)"
     />
   </div>

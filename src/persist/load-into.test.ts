@@ -5,14 +5,28 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  *  load path becomes reachable in the node environment. */
 vi.mock("../audio/pool", () => ({
   decodeSource: async (id: string, name: string, bytes: Uint8Array) => ({
-    id, name, bytes, buffer: null, peaks: new Float32Array(0), durationS: 1, loudnessLufs: -20,
+    id,
+    name,
+    bytes,
+    buffer: null,
+    peaks: new Float32Array(0),
+    durationS: 1,
+    loudnessLufs: -20,
   }),
   SourcePool: class {
     #m = new Map<string, unknown>();
-    clear() { this.#m.clear(); }
-    add(s: { id: string }) { this.#m.set(s.id, s); }
-    get(id: string) { return this.#m.get(id); }
-    records() { return [...this.#m.values()]; }
+    clear() {
+      this.#m.clear();
+    }
+    add(s: { id: string }) {
+      this.#m.set(s.id, s);
+    }
+    get(id: string) {
+      return this.#m.get(id);
+    }
+    records() {
+      return [...this.#m.values()];
+    }
   },
 }));
 /** Records the order of autosave writes and can be told to fail the source write, which is the
@@ -26,7 +40,9 @@ const auto = vi.hoisted(() => ({
   deleted: [] as string[],
 }));
 vi.mock("./autosave", () => ({
-  putSource: async () => { auto.calls.push("putSource"); },
+  putSource: async () => {
+    auto.calls.push("putSource");
+  },
   putSources: async () => {
     auto.calls.push("putSources");
     if (auto.failSources) throw new Error("QuotaExceededError");
@@ -35,9 +51,16 @@ vi.mock("./autosave", () => ({
     auto.calls.push("putDocument");
     auto.document = project;
   },
-  listSourceIds: async () => { auto.calls.push("listSourceIds"); return auto.existingIds; },
-  deleteSource: async (id: string) => { auto.calls.push("deleteSource"); auto.deleted.push(id); },
-  readAutosave: async () => null, scheduleDocumentSave: () => {},
+  listSourceIds: async () => {
+    auto.calls.push("listSourceIds");
+    return auto.existingIds;
+  },
+  deleteSource: async (id: string) => {
+    auto.calls.push("deleteSource");
+    auto.deleted.push(id);
+  },
+  readAutosave: async () => null,
+  scheduleDocumentSave: () => {},
 }));
 
 const { __resetIds, createProject, newId } = await import("../doc/document");
@@ -53,7 +76,9 @@ function packedFile(extraIds: string[] = []): File {
   let p = createProject();
   p = addClip(p, p.tracks[0].id, makeClip("src-1", 0, 1));
   const records = ["src-1", ...extraIds].map((id) => ({
-    id, name: `${id}.wav`, bytes: new Uint8Array([1]),
+    id,
+    name: `${id}.wav`,
+    bytes: new Uint8Array([1]),
   }));
   const bytes = packProject(p, records);
   return new File([bytes.slice()], "p.slopaudio");

@@ -2,7 +2,12 @@
   import { formatSignedDb, snapBandDb } from "./geometry";
 
   const {
-    label, db, maxDb, title, onInput, onCommit,
+    label,
+    db,
+    maxDb,
+    title,
+    onInput,
+    onCommit,
   }: {
     label: string;
     db: number;
@@ -34,7 +39,7 @@
     onpointerup={onCommit}
     onkeyup={onCommit}
   />
-  <span class="w-12 shrink-0 text-right text-[10px] tabular-nums text-muted">
+  <span class="w-12 shrink-0 text-right text-[10px] text-muted tabular-nums">
     {formatSignedDb(db)}
   </span>
 </div>

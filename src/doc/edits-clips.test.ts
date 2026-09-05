@@ -12,8 +12,14 @@ beforeEach(() => __resetIds());
 describe("makeClip", () => {
   it("builds a clip at unity gain with no fades", () => {
     expect(makeClip("src-1", 2, 5)).toMatchObject({
-      sourceId: "src-1", startS: 2, durS: 5, inS: 0,
-      gain: 1, fadeInS: 0, fadeOutS: 0, fadeShape: "linear",
+      sourceId: "src-1",
+      startS: 2,
+      durS: 5,
+      inS: 0,
+      gain: 1,
+      fadeInS: 0,
+      fadeOutS: 0,
+      fadeShape: "linear",
     });
   });
 });
@@ -31,7 +37,11 @@ describe("addClip", () => {
     const t = p.tracks[0].id;
     let next = addClip(p, t, makeClip("s", 0, 10));
     next = addClip(next, t, makeClip("s", 4, 2));
-    expect(next.tracks[0].clips.map((c) => [c.startS, c.durS])).toEqual([[0, 4], [4, 2], [6, 4]]);
+    expect(next.tracks[0].clips.map((c) => [c.startS, c.durS])).toEqual([
+      [0, 4],
+      [4, 2],
+      [6, 4],
+    ]);
   });
 
   it("is a no-op for an unknown track", () => {
@@ -110,7 +120,10 @@ describe("moveClips", () => {
     p = addClip(p, p.tracks[0].id, makeClip("s", 10, 4));
     const moving = p.tracks[0].clips[1].id;
     const next = moveClips(p, [moving], -8, 0);
-    expect(next.tracks[0].clips.map((c) => [c.startS, c.durS])).toEqual([[0, 2], [2, 4]]);
+    expect(next.tracks[0].clips.map((c) => [c.startS, c.durS])).toEqual([
+      [0, 2],
+      [2, 4],
+    ]);
     expectNoOverlaps(next);
   });
 
@@ -120,7 +133,10 @@ describe("moveClips", () => {
     p = addClip(p, p.tracks[0].id, makeClip("s", 4, 4));
     const ids = p.tracks[0].clips.map((c) => c.id);
     const next = moveClips(p, ids, 10, 0);
-    expect(next.tracks[0].clips.map((c) => [c.startS, c.durS])).toEqual([[10, 4], [14, 4]]);
+    expect(next.tracks[0].clips.map((c) => [c.startS, c.durS])).toEqual([
+      [10, 4],
+      [14, 4],
+    ]);
     expectNoOverlaps(next);
   });
 

@@ -71,37 +71,37 @@ npm run deploy   # build, then wrangler deploy
 
 ## Keyboard shortcuts
 
-| Key | Action |
-|---|---|
-| `Space` | Play / pause from the playhead |
-| `S` | Split selected tracks at the playhead |
-| `⌘X` / `⌘C` / `⌘V` / `⌘D` | Cut / copy / paste / duplicate |
-| `Delete` / `Backspace` | Delete selection (clips, or a range leaving a gap) |
-| `⇧Delete` | Delete a time-range selection and ripple |
-| `⌘Z` / `⇧⌘Z` | Undo / redo |
-| `⌘S` | Save project |
-| `←` / `→` | Nudge by 100 ms — the selected clip, or the playhead if nothing is selected |
-| `⇧←` / `⇧→` | Nudge by 10 ms |
-| `⌘←` / `⌘→` | Jump to the previous / next edit point |
-| `+` / `-` | Zoom in / out |
-| `⇧F` | Zoom to fit |
-| `m` | Toggle mute on the current track |
-| `⇧S` | Toggle solo on the current track |
-| `l` | Toggle loop |
-| `i` | Set the play-range IN marker at the playhead |
-| `o` | Set the play-range OUT marker at the playhead |
-| `⌘I` / `Ctrl+I` | Clear the play-range markers |
+| Key                       | Action                                                                      |
+| ------------------------- | --------------------------------------------------------------------------- |
+| `Space`                   | Play / pause from the playhead                                              |
+| `S`                       | Split selected tracks at the playhead                                       |
+| `⌘X` / `⌘C` / `⌘V` / `⌘D` | Cut / copy / paste / duplicate                                              |
+| `Delete` / `Backspace`    | Delete selection (clips, or a range leaving a gap)                          |
+| `⇧Delete`                 | Delete a time-range selection and ripple                                    |
+| `⌘Z` / `⇧⌘Z`              | Undo / redo                                                                 |
+| `⌘S`                      | Save project                                                                |
+| `←` / `→`                 | Nudge by 100 ms — the selected clip, or the playhead if nothing is selected |
+| `⇧←` / `⇧→`               | Nudge by 10 ms                                                              |
+| `⌘←` / `⌘→`               | Jump to the previous / next edit point                                      |
+| `+` / `-`                 | Zoom in / out                                                               |
+| `⇧F`                      | Zoom to fit                                                                 |
+| `m`                       | Toggle mute on the current track                                            |
+| `⇧S`                      | Toggle solo on the current track                                            |
+| `l`                       | Toggle loop                                                                 |
+| `i`                       | Set the play-range IN marker at the playhead                                |
+| `o`                       | Set the play-range OUT marker at the playhead                               |
+| `⌘I` / `Ctrl+I`           | Clear the play-range markers                                                |
 
 Shortcuts are suppressed while typing into an input field.
 
 ## Export formats
 
-| Format | Availability |
-|---|---|
-| WAV (16-bit PCM or 32-bit float) | Always — a small in-repo encoder, no codec support required |
-| MP3 (192 kbps) | Wherever the browser can encode it (mediabunny ships its own MP3 encoder) |
-| M4A / AAC (192 kbps) | Chromium-class browsers with WebCodecs AAC support |
-| WebM / Opus (192 kbps) | Chromium-class browsers with WebCodecs Opus support |
+| Format                           | Availability                                                              |
+| -------------------------------- | ------------------------------------------------------------------------- |
+| WAV (16-bit PCM or 32-bit float) | Always — a small in-repo encoder, no codec support required               |
+| MP3 (192 kbps)                   | Wherever the browser can encode it (mediabunny ships its own MP3 encoder) |
+| M4A / AAC (192 kbps)             | Chromium-class browsers with WebCodecs AAC support                        |
+| WebM / Opus (192 kbps)           | Chromium-class browsers with WebCodecs Opus support                       |
 
 The export dialog only lists formats the current browser actually reports as encodable — an
 unsupported format is hidden, never offered and failed.

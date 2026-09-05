@@ -16,10 +16,7 @@ export function statusSummary(
   selection: Selection,
   playRange: PlayRange | null,
 ): string {
-  const parts = [
-    plural(project.tracks.length, "track"),
-    formatTime(projectDurationS(project)),
-  ];
+  const parts = [plural(project.tracks.length, "track"), formatTime(projectDurationS(project))];
 
   if (selection.kind === "clips" && selection.clipIds.length > 0) {
     parts.push(`${plural(selection.clipIds.length, "clip")} selected`);

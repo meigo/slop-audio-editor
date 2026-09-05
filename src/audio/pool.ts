@@ -2,7 +2,11 @@ import { PEAK_SAMPLES_PER_PAIR, PROJECT_SAMPLE_RATE, newId } from "../doc/docume
 import type { SourceRecord } from "../persist/project-file";
 import { getAudioContext } from "./context";
 import {
-  BLOCK_S, HOP_S, createKWeightFilter, gatedLoudnessFromBlockPowers, weightedBlockPower,
+  BLOCK_S,
+  HOP_S,
+  createKWeightFilter,
+  gatedLoudnessFromBlockPowers,
+  weightedBlockPower,
 } from "./loudness";
 import { computePeaks } from "./peaks";
 
@@ -148,7 +152,9 @@ export async function decodeSource(
   // waveform peaks, one for loudness — so a long import never blocks the UI thread. Progress is
   // split across the two: the first half of the reported fraction is the peak scan, the second
   // half is the loudness pass.
-  const peaks = await computePeaksChunked(channels, PEAK_SAMPLES_PER_PAIR, (f) => onProgress?.(f * 0.5));
+  const peaks = await computePeaksChunked(channels, PEAK_SAMPLES_PER_PAIR, (f) =>
+    onProgress?.(f * 0.5),
+  );
   const loudnessLufs = await computeLoudnessChunked(channels, PROJECT_SAMPLE_RATE, (f) =>
     onProgress?.(0.5 + f * 0.5),
   );

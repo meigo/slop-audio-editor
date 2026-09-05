@@ -47,7 +47,12 @@ export function createKWeightFilter(): { process(chunk: Float32Array): Float32Ar
   const stage2: BiquadState = [0, 0];
   return {
     process(chunk: Float32Array): Float32Array {
-      return biquadChunk(biquadChunk(chunk, STAGE1_B, STAGE1_A, stage1), STAGE2_B, STAGE2_A, stage2);
+      return biquadChunk(
+        biquadChunk(chunk, STAGE1_B, STAGE1_A, stage1),
+        STAGE2_B,
+        STAGE2_A,
+        stage2,
+      );
     },
   };
 }
@@ -86,7 +91,9 @@ export function gatedLoudnessFromBlockPowers(blockPowers: readonly number[]): nu
   const meanPower = absoluteSurvivors.reduce((a, b) => a + b, 0) / absoluteSurvivors.length;
   const relativeThreshold = loudnessFromPower(meanPower) - RELATIVE_GATE_OFFSET_LU;
 
-  const relativeSurvivors = absoluteSurvivors.filter((p) => loudnessFromPower(p) >= relativeThreshold);
+  const relativeSurvivors = absoluteSurvivors.filter(
+    (p) => loudnessFromPower(p) >= relativeThreshold,
+  );
   if (relativeSurvivors.length === 0) return -Infinity;
 
   const finalMeanPower = relativeSurvivors.reduce((a, b) => a + b, 0) / relativeSurvivors.length;

@@ -20,7 +20,8 @@ export function copyClips(p: Project, clipIds: readonly string[]): ClipboardData
   const ids = new Set(clipIds);
   const found: { clip: Clip; trackIndex: number; trackId: string }[] = [];
   p.tracks.forEach((t, trackIndex) => {
-    for (const clip of t.clips) if (ids.has(clip.id)) found.push({ clip, trackIndex, trackId: t.id });
+    for (const clip of t.clips)
+      if (ids.has(clip.id)) found.push({ clip, trackIndex, trackId: t.id });
   });
   if (found.length === 0) return { entries: [], sourceTrackId: null };
 
@@ -45,12 +46,7 @@ export function cutClips(
 
 /** Paste at `atS` on `trackId`, spilling multi-track copies onto the tracks below (clamped at the
  *  last track). Every pasted clip gets a fresh id, so pasting onto the source track is safe. */
-export function pasteClips(
-  p: Project,
-  data: ClipboardData,
-  trackId: string,
-  atS: number,
-): Project {
+export function pasteClips(p: Project, data: ClipboardData, trackId: string, atS: number): Project {
   if (data.entries.length === 0) return p;
   const baseIndex = p.tracks.findIndex((t) => t.id === trackId);
   if (baseIndex < 0) return p;

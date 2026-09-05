@@ -66,8 +66,15 @@
   outline-offset: 2px;
 }
 
-html, body, #app { height: 100%; margin: 0; }
-body { overscroll-behavior: none; }
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+body {
+  overscroll-behavior: none;
+}
 
 /* Range inputs.
    `accent-color` alone cannot change the THUMB SIZE — that is browser-drawn — so these take over
@@ -132,4 +139,3 @@ input[type="range"].slider::-moz-range-thumb {
   background: var(--color-accent);
   border: none;
 }
-

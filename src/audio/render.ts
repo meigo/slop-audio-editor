@@ -1,5 +1,11 @@
 import {
-  EQ_HIGH_HZ, EQ_LOW_HZ, EQ_MID_HZ, EQ_MID_Q, isFlatEq, type Project, type EqBands,
+  EQ_HIGH_HZ,
+  EQ_LOW_HZ,
+  EQ_MID_HZ,
+  EQ_MID_Q,
+  isFlatEq,
+  type Project,
+  type EqBands,
 } from "../doc/document";
 import { planDucking } from "./ducking";
 import { FADE_CURVE_POINTS, fadeInCurve, fadeOutCurve } from "./fades";
@@ -165,7 +171,8 @@ export function renderPlan(
   }
 
   const sources: AudioBufferSourceNode[] = [];
-  const toStart: { node: AudioBufferSourceNode; when: number; offset: number; duration: number }[] = [];
+  const toStart: { node: AudioBufferSourceNode; when: number; offset: number; duration: number }[] =
+    [];
 
   try {
     for (const sc of plan) {
@@ -224,7 +231,12 @@ export function renderPlan(
       node.buffer = source.buffer;
       node.connect(clipGain);
       sources.push(node);
-      toStart.push({ node, when: startAt + sc.when, offset: sc.sourceOffset, duration: sc.duration });
+      toStart.push({
+        node,
+        when: startAt + sc.when,
+        offset: sc.sourceOffset,
+        duration: sc.duration,
+      });
     }
   } catch (err) {
     masterGain.disconnect();

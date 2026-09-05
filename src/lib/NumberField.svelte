@@ -1,9 +1,18 @@
 <script lang="ts">
   const {
-    label, value, min = 0, suffix = "", title = undefined, disabled = false,
+    label,
+    value,
+    min = 0,
+    suffix = "",
+    title = undefined,
+    disabled = false,
     onCommit,
   }: {
-    label: string; value: number; min?: number; suffix?: string; title?: string;
+    label: string;
+    value: number;
+    min?: number;
+    suffix?: string;
+    title?: string;
     disabled?: boolean;
     onCommit: (v: number) => void;
   } = $props();
@@ -30,7 +39,7 @@
 <!-- `whitespace-nowrap`: without it flex relieves a crowded row by WRAPPING the label, so
      "fade in" silently became two lines instead of the row admitting it was too full. -->
 <label
-  class="flex shrink-0 items-center gap-1 whitespace-nowrap text-[11px] {disabled
+  class="flex shrink-0 items-center gap-1 text-[11px] whitespace-nowrap {disabled
     ? 'text-disabled'
     : 'text-muted'}"
   {title}

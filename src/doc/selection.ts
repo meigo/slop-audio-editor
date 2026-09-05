@@ -8,9 +8,7 @@ export interface TimeRange {
 }
 
 export type Selection =
-  | { kind: "none" }
-  | { kind: "clips"; clipIds: string[] }
-  | { kind: "range"; range: TimeRange };
+  { kind: "none" } | { kind: "clips"; clipIds: string[] } | { kind: "range"; range: TimeRange };
 
 export const NO_SELECTION: Selection = { kind: "none" };
 

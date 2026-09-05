@@ -1,8 +1,17 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { EQ_MAX_DB, __resetIds, createProject, findTrack } from "./document";
 import {
-  addTrack, removeTrack, renameTrack, reorderTrack, setDuckDepth, setGlue, setMasterEq,
-  setMasterGain, setTrackEq, setTrackGain, setTrackMuted,
+  addTrack,
+  removeTrack,
+  renameTrack,
+  reorderTrack,
+  setDuckDepth,
+  setGlue,
+  setMasterEq,
+  setMasterGain,
+  setTrackEq,
+  setTrackGain,
+  setTrackMuted,
 } from "./edits";
 
 beforeEach(() => __resetIds());

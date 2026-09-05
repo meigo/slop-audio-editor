@@ -2,9 +2,15 @@
   import { dbToGain, dbToPosition, formatDb, gainToDb, positionToDb } from "./geometry";
 
   const {
-    gain, onInput, onCommit, label,
+    gain,
+    onInput,
+    onCommit,
+    label,
   }: {
-    gain: number; onInput: (g: number) => void; onCommit: () => void; label: string;
+    gain: number;
+    onInput: (g: number) => void;
+    onCommit: () => void;
+    label: string;
   } = $props();
 
   const MIN_DB = -60;
@@ -44,7 +50,7 @@
     onpointerup={onCommit}
     onkeyup={onCommit}
   />
-  <span class="w-16 shrink-0 text-right text-[10px] tabular-nums text-muted">
+  <span class="w-16 shrink-0 text-right text-[10px] text-muted tabular-nums">
     {formatDb(gain)}
   </span>
 </div>

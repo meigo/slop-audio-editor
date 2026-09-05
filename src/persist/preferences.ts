@@ -46,8 +46,7 @@ export function sanitisePreferences(raw: unknown): Preferences {
     pxPerSecond: clamp(r.pxPerSecond, 2, 2000, DEFAULT_PREFERENCES.pxPerSecond),
     snap: typeof r.snap === "boolean" ? r.snap : DEFAULT_PREFERENCES.snap,
     trackHeightPx: clamp(r.trackHeightPx, 40, 300, DEFAULT_PREFERENCES.trackHeightPx),
-    lastFormat:
-      typeof r.lastFormat === "string" ? r.lastFormat : DEFAULT_PREFERENCES.lastFormat,
+    lastFormat: typeof r.lastFormat === "string" ? r.lastFormat : DEFAULT_PREFERENCES.lastFormat,
     normaliseLufs:
       typeof r.normaliseLufs === "number" && Number.isFinite(r.normaliseLufs)
         ? Math.max(-40, Math.min(0, r.normaliseLufs))
