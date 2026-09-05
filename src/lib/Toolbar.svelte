@@ -103,6 +103,16 @@
         ></span>
       {/if}
     </button>
+    <!-- Import is a file action too. Left in the toolbar ROOT it inherited the root's `gap-3`,
+         so it sat 12 px from Save where New/Open/Save are 4 px apart, and read as a group of
+         one. -->
+    <button
+      class={BTN}
+      title="Import audio into the current track at the playhead — any format this browser can decode (MP3, WAV, M4A/AAC, FLAC, OGG, WebM)"
+      onclick={() => fileInput?.click()}
+    >
+      <Download size={16} />
+    </button>
   </div>
   <input
     bind:this={projectInput}
@@ -123,10 +133,6 @@
   {#if fileError}
     <span class="text-xs text-danger">{fileError}</span>
   {/if}
-
-  <button class={BTN} title="Import audio into the current track at the playhead — any format this browser can decode (MP3, WAV, M4A/AAC, FLAC, OGG, WebM)" onclick={() => fileInput?.click()}>
-    <Download size={16} />
-  </button>
 
   <input
     bind:this={fileInput}
