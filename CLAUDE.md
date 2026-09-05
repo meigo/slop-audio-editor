@@ -222,6 +222,16 @@ src/
     or `ratio` changes the makeup gain the trim needs to cancel, so re-measure it (build the chain
     in an `OfflineAudioContext`, sweep input peak level, read the output) rather than guessing.
 
+13b. **A loop always restarts at something VISIBLE: the IN marker, or 0 — never where playback
+    began.** `loopStartS()` in `appState.svelte.ts` returns `playRange.fromS` or `0`. It used to
+    return the press-play position, which made the loop point invisible state that moved silently
+    whenever playback started somewhere new, with nothing on screen saying where it would jump
+    back to. Every DAW cycles a visible region; the in/out markers are drawn on the ruler and the
+    whole project is self-evident. `onEnded` also checks `playEndS() > restartAt` before
+    restarting: `engine.play` signals an empty window by calling `onEnded` on a zero-delay timer,
+    so looping an empty project (or a zero-length range) would otherwise restart instantly and
+    spin forever.
+
 13. **The in/out play-range (`state.playRange`) is session state, like solo — it is never part of
     `Project` and `exportWindow` (`src/export/formats.ts`) never looks at it.** Setting IN or OUT
     (the `i`/`o` shortcuts, or dragging a handle on the `Ruler`) only ever assigns

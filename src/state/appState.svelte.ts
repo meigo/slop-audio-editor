@@ -183,6 +183,17 @@ function playEndS(): number {
   return state.playRange ? state.playRange.toS : projectDurationS(state.project);
 }
 
+/** Where a loop restarts: the IN marker when a play range is set, otherwise the START OF THE
+ *  PROJECT — never wherever playback happened to begin.
+ *
+ *  A loop cycles a region you can SEE, which is what every DAW does: the in/out markers are drawn
+ *  on the ruler, and the whole project is self-evident. Restarting at the press-play position
+ *  made the loop point invisible state that silently moved every time playback started somewhere
+ *  new, with nothing on screen to say where it would jump back to. */
+function loopStartS(): number {
+  return state.playRange ? state.playRange.fromS : 0;
+}
+
 export function togglePlay(): void {
   if (state.playing) {
     engine.stop();
@@ -195,8 +206,11 @@ export function togglePlay(): void {
     ? Math.max(range.fromS, Math.min(state.playheadS, range.toS))
     : state.playheadS;
   engine.onEnded = () => {
-    if (state.loop) {
-      const restartAt = state.playRange ? state.playRange.fromS : from;
+    const restartAt = loopStartS();
+    // The window check is what stops an empty project (or a zero-length play range) from
+    // restarting instantly and spinning: `engine.play` reports an empty window by calling
+    // `onEnded` on a zero-delay timer, which would land straight back here forever.
+    if (state.loop && playEndS() > restartAt) {
       state.playheadS = restartAt;
       engine.play(state.project, pool, restartAt, playEndS(), state.soloed);
       return;
