@@ -28,11 +28,12 @@
      slop-animator carries the same warning in its theme, and it is easy to walk into anyway.
      A CUSTOM value: it shares the ACCENT'S HUE (222°, a dark indigo) rather than slate's 215°,
      so the clip and the selection that outlines it are the same family instead of two blues that
-     nearly match. hsl(222 40% 21%), a long way down — 1.3:1 against the lane.
-     It can sit that close because the light BORDER does the separating (5.3:1 on the fill).
+     nearly match. hsl(222 40% 15%) — only 1.17:1 against the ground.
+     It can sit that close because the BORDER is what finds the clip — 2.2:1 against the ground,
+     nearly twice the fill's own contrast.
      Chasing contrast in the FILL is what made clips glow against the lane earlier; if a clip is
      hard to pick out, brighten the border or lift the lane, do not lift the fill. */
-  --color-media-clip: #202d4b;
+  --color-media-clip: #172036;
   /* Only slightly lighter than the fill: a bright border made the clip read as a chip with
      a rim rather than a block of audio. hsl(222 35% 34%), 1.58:1 on the fill. */
   --color-media-clip-border: #384b75;
