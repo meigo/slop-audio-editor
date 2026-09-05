@@ -2,10 +2,11 @@
   import { untrack } from "svelte";
 
   const {
-    label, value, min = 0, suffix = "", title = undefined,
+    label, value, min = 0, suffix = "", title = undefined, disabled = false,
     onCommit,
   }: {
     label: string; value: number; min?: number; suffix?: string; title?: string;
+    disabled?: boolean;
     onCommit: (v: number) => void;
   } = $props();
 
@@ -35,14 +36,22 @@
 
 <!-- `whitespace-nowrap`: without it flex relieves a crowded row by WRAPPING the label, so
      "fade in" silently became two lines instead of the row admitting it was too full. -->
-<label class="flex shrink-0 items-center gap-1 whitespace-nowrap text-[11px] text-muted" {title}>
+<label
+  class="flex shrink-0 items-center gap-1 whitespace-nowrap text-[11px] {disabled
+    ? 'text-disabled'
+    : 'text-muted'}"
+  {title}
+>
   {label}
   <!-- `raised`, not `panel`: the toolbar and the inspector ARE panel, so a panel-coloured input
        is invisible against them and the label reads as unrelated to its own value. -->
   <input
-    class="h-6 w-14 rounded bg-raised px-1 text-right tabular-nums text-text"
+    class="h-6 w-14 rounded bg-raised px-1 text-right tabular-nums {disabled
+      ? 'text-disabled'
+      : 'text-text'}"
     type="text"
     inputmode="decimal"
+    {disabled}
     bind:value={draft}
     onblur={commitDraft}
     onkeydown={(e) => {
@@ -54,5 +63,5 @@
       e.stopPropagation(); // keep the global shortcuts out of a text field
     }}
   />
-  {#if suffix}<span class="text-muted">{suffix}</span>{/if}
+  {#if suffix}<span class={disabled ? "text-disabled" : "text-muted"}>{suffix}</span>{/if}
 </label>

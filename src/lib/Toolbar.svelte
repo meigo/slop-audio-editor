@@ -213,21 +213,22 @@
     Glue
   </button>
 
-  <!-- Only while a track is actually marked D: an always-visible control for a feature nobody in
-       this project is using is just clutter, and its appearance next to the toggle teaches what
-       the toggle does. -->
-  {#if appState.project.tracks.some((t) => t.ducked)}
-    <div class="flex items-center text-xs">
-      <NumberField
-        label="Duck"
-        value={appState.project.duckDepthDb}
-        min={-40}
-        suffix="dB"
-        title="How far background (D) tracks dip while another track plays. 0 dB turns ducking off."
-        onCommit={(v) => commit((p) => setDuckDepth(p, v))}
-      />
-    </div>
-  {/if}
+  <!-- Always mounted, disabled until some track is marked D. It used to be `{#if}`-gated, which
+       meant marking a track D made a control appear IN the toolbar row and shoved its neighbours
+       sideways — state moving the layout, the one thing the shared timeline styling forbids.
+       Disabled still reads as "not for you yet" without the row twitching, and it keeps teaching
+       what the D toggle is for. -->
+  <div class="flex items-center text-xs">
+    <NumberField
+      label="Duck"
+      value={appState.project.duckDepthDb}
+      min={-40}
+      suffix="dB"
+      disabled={!appState.project.tracks.some((t) => t.ducked)}
+      title="How far background (D) tracks dip while another track plays. 0 dB turns ducking off."
+      onCommit={(v) => commit((p) => setDuckDepth(p, v))}
+    />
+  </div>
 
   <button class={BTN} title="Set every clip's gain so all clips play at the same loudness. Non-destructive: it only changes clip gain, and undo reverses it." onclick={matchLoudness}>
     <Scale size={16} />
