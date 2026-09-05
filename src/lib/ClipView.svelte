@@ -98,11 +98,13 @@
     gain={clip.gain}
   />
 
-  <!-- Ducking: how far this background track is pushed down by the foreground. Drawn in the same
-       green as the header's D toggle, so the cause and the effect are visibly the same thing. -->
+  <!-- Ducking: how far this background track is pushed down by the foreground. Drawn as the SAME
+       darkening wash as a fade, because it means the same thing — level removed here. It was
+       green (tied to the D toggle's badge) which read as a status colour rather than as
+       attenuation. The badge still identifies the track; the wash shows the effect. -->
   {#if duckMask}
     <div
-      class="pointer-events-none absolute inset-0 bg-ok/20"
+      class="pointer-events-none absolute inset-0 bg-ground/55"
       style="clip-path: {duckMask}"
     ></div>
   {/if}

@@ -22,10 +22,14 @@
      Named media-clip, NOT clip: `bg-clip-*` is Tailwind's own background-clip namespace, so a
      `--color-clip-border` token would collide with the real `bg-clip-border` utility.
      slop-animator carries the same warning in its theme, and it is easy to walk into anyway. */
-  --color-media-clip: #334155; /* slate-700 */
-  --color-media-clip-border: #64748b; /* slate-500 */
-  --color-accent: #3b82f6; /* blue-500 — selection and active state ONLY */
-  --color-accent-hover: #60a5fa; /* blue-400 */
+  --color-media-clip: #475569; /* slate-600 — 2.6:1 against ground, so a clip reads as an
+                                  object on the timeline rather than a hole in it */
+  --color-media-clip-border: #94a3b8; /* slate-400 */
+  /* blue-400, not blue-500: on a near-black ground the deeper blue reads as electric and
+     sits oddly against the neutral chrome. 400 is calmer and clears 3:1 against the clip
+     fill it has to outline (2.98:1 vs blue-500's 2.06:1). */
+  --color-accent: #60a5fa; /* blue-400 — selection and active state ONLY */
+  --color-accent-hover: #93c5fd; /* blue-300 */
   --color-danger: #f87171; /* red-400 — playhead and errors */
   --color-warn: #f59e0b; /* amber-500 — in/out markers */
   --color-ok: #34d399; /* emerald-400 */
