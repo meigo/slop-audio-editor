@@ -103,11 +103,31 @@ export async function deleteSource(id: string): Promise<void> {
 }
 
 let timer: ReturnType<typeof setTimeout> | null = null;
+let documentSavesDisabled = false;
+
+/** Stops document autosaving for the rest of the session AND cancels any save already queued.
+ *
+ *  The cancel is the part that is easy to miss. `openProjectFile` installs the new document
+ *  BEFORE it persists anything, which schedules a save on the debounce; if the source write then
+ *  fails, that already-queued timer fires 3 s later and writes the new document over a perfectly
+ *  good backup — leaving a document whose clips reference audio that was never stored. Gating
+ *  only FUTURE saves lets exactly that one through, which is the write that does the damage.
+ *
+ *  There is no matching enable: a source write failing means this session's audio is not on disk,
+ *  and only a reload can make autosave meaningful again. */
+export function disableDocumentSaves(): void {
+  documentSavesDisabled = true;
+  if (timer !== null) {
+    clearTimeout(timer);
+    timer = null;
+  }
+}
 
 /** `project` must ALREADY be a plain snapshot — this is a `.ts` module, so `$state.snapshot` is
  *  not available here, and IndexedDB cannot structured-clone a `$state` proxy. The caller in
  *  `appState.svelte.ts` takes the snapshot. */
 export function scheduleDocumentSave(project: Project): void {
+  if (documentSavesDisabled) return;
   if (timer !== null) clearTimeout(timer);
   timer = setTimeout(async () => {
     timer = null;

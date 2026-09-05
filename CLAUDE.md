@@ -538,13 +538,54 @@ src/
     consistent until then. Closing that needs a session-level "autosave unavailable" state and a
     way to tell the user — deliberately not done here.
 
+30. **A failed source write disables autosave for the session — and cancelling the save already
+    queued is the half that matters.** `openProjectFile` installs the new document BEFORE it
+    persists anything (Gotchas 7 and 29: a corrupt file must not destroy the open project), which
+    means `loadInto`'s swap has already scheduled a document save by the time the source write
+    fails. Gating only FUTURE saves lets that queued one through 3 s later — and it is precisely
+    the write that does the damage, replacing a consistent backup with a document whose clips
+    reference audio that was never stored. `disableDocumentSaves` (`autosave.ts`) sets the flag
+    AND clears the pending timer. There is deliberately no way to re-enable it: the session's
+    audio is not on disk, and only a reload can make autosave meaningful again.
+    `state.autosaveBroken` is the UI's half of the same event and nothing more — the mechanism
+    lives in `autosave.ts`. It recolours the SAVE button `warn` and rewrites its tooltip rather
+    than adding an indicator: that is the button the user now needs to press, so the warning
+    belongs on it, and reusing the glyph keeps the toolbar from shifting (Gotcha 25a).
+    The import path needs none of this: `importFiles` awaits `putSource` BEFORE the `commit` that
+    adds the clip, so a failed write leaves a document that never referenced the missing source.
+    Found only because the browser check looked at the document store after the failure rather
+    than stopping at "the open threw". Verified again after the fix by clicking the real Add-track
+    button — driving `commit` from an imported module instead hits a DUPLICATE module instance
+    (see the module-duplication trap) and proves nothing about the app's own store.
+
+31. **The master meter reads each channel through a ChannelSplitter — one `AnalyserNode` on the
+    output would DOWN-MIX to mono.** Measured in a browser: a 0.9 signal panned hard left reads
+    0.450 through a single analyser and 0.900 through per-channel ones. So the meter sat a full
+    6 dB low on the widest material and looked comfortable while one channel clipped.
+    `peakAmplitude` (`peak.ts`) already took an array of channels and was already tested for the
+    max across them; only the tap was wrong. `METER_CHANNELS` is 2 because this app always
+    renders stereo. `engine.test.ts`'s fake `AudioContext` models the down-mix — an analyser fed
+    a stereo node sees the channels averaged, one fed from a splitter output sees its channel
+    alone — because without that distinction no test can tell a per-channel meter from a
+    down-mixing one. Still sample peak, not true peak (Gotcha 18).
+
+32. **`saveProjectFile` packs only the audio the document references.** `packCurrentProject`
+    (`project-file.ts`), not `packProject` with `pool.records()` — the pool holds every source
+    imported this session, including ones whose clips were all deleted, so a shared `.slopaudio`
+    used to carry audio the user had removed. Nothing in the file can need those bytes: undo
+    history is not saved (`loadInto` resets it, Gotcha 16a), so no document reachable from the
+    file references them. Note this is the OPPOSITE of the pruning rule in Gotcha 16b — pruning
+    happens in a live session where undo can still reach a document, and packing does not.
+
 ## Testing
 
 Vitest, `node` environment, no DOM (`src/**/*.test.ts`, see `vite.config.ts`). Pure logic
 (`doc/edits.ts`, `doc/loudness-match.ts`, `doc/play-range.ts`, `audio/schedule.ts`, `audio/ducking.ts`,
 `audio/fades.ts`,
 `audio/peaks.ts`, `audio/loudness.ts`, `audio/pool.ts`'s `computeLoudnessChunked`/`computePeaksChunked`,
-`export/wav.ts`, `persist/project-file.ts`, `persist/preferences.ts`, `lib/geometry.ts`,
+`export/wav.ts`, `export/normalise.ts`, `persist/project-file.ts` (including
+`packCurrentProject`), `persist/autosave.ts`'s `disableDocumentSaves`, `persist/preferences.ts`,
+`lib/geometry.ts`,
 `lib/hit-test.ts` (including `hitTestRuler`), `lib/shortcuts.ts`, `lib/status.ts`, `state/history.ts`) is
 unit-tested. Canvas rendering, drag interactions (the `Ruler`'s in/out marker drag included), the master
 meter's animation (its scale mapping is `meterFillPct`, which IS tested; the `requestAnimationFrame`

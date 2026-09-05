@@ -46,6 +46,16 @@ export const state = $state({
   normaliseLufs: prefs.normaliseLufs,
   importing: null as { name: string; fraction: number } | null,
   dirty: false,
+  /** Set when a source write to IndexedDB has failed, which makes autosave unsafe for the rest
+   *  of the session: `openProjectFile` swaps the in-memory session BEFORE it persists (so a bad
+   *  file cannot destroy the open one), so a failed write leaves the app showing a project whose
+   *  audio was never stored. Continuing to autosave the document would replace a consistent
+   *  backup with one whose clips resolve to nothing — the failure this whole path exists to
+   *  avoid. Session state, cleared by a reload.
+   *
+   *  This flag is what the UI reads; the mechanism that actually stops the writes is
+   *  `disableDocumentSaves` in `autosave.ts`, so the two are set together. */
+  autosaveBroken: false,
 });
 
 /** Set once `restoreAutosave` (or its failure) has settled, from `App.svelte`'s `finally`. Until

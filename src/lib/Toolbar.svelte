@@ -77,15 +77,28 @@
     </button>
     <!-- Unsaved state recolours the glyph and adds a badge that is positioned OUT OF FLOW. The
          dot used to sit in the flow beside the icon, so every save/edit nudged this button and its
-         neighbours sideways. -->
+         neighbours sideways.
+         A broken autosave takes over the same glyph in `warn` rather than adding an indicator of
+         its own: this is the button the user needs to press, so the warning belongs ON it. -->
     <button
       class="{BTN} relative"
-      title={appState.dirty ? "Save project — unsaved changes (⌘S)" : "Save project (⌘S)"}
+      title={appState.autosaveBroken
+        ? "Autosave unavailable — this session could not be written to browser storage, so it will NOT survive a reload. Save to a file (⌘S)."
+        : appState.dirty
+          ? "Save project — unsaved changes (⌘S)"
+          : "Save project (⌘S)"}
       onclick={saveProjectFile}
     >
-      <Save size={16} class={appState.dirty ? "text-accent" : undefined} />
+      <Save
+        size={16}
+        class={appState.autosaveBroken ? "text-warn" : appState.dirty ? "text-accent" : undefined}
+      />
       {#if appState.dirty}
-        <span class="absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-accent"></span>
+        <span
+          class="absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full {appState.autosaveBroken
+            ? 'bg-warn'
+            : 'bg-accent'}"
+        ></span>
       {/if}
     </button>
   </div>

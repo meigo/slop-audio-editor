@@ -1,7 +1,9 @@
 import { decodeSource, type Source } from "../audio/pool";
 import { adoptIds, referencedSourceIdsAcross, type Project } from "../doc/document";
 import { pool, resetHistory, state as appState } from "../state/appState.svelte";
-import { deleteSource, listSourceIds, putDocument, putSources, readAutosave } from "./autosave";
+import {
+  deleteSource, disableDocumentSaves, listSourceIds, putDocument, putSources, readAutosave,
+} from "./autosave";
 import {
   applyDocumentDefaults,
   PROJECT_FILE_EXT, ProjectFileError, packCurrentProject, unpackProject, type SourceRecord,
@@ -94,11 +96,25 @@ export async function openProjectFile(file: File): Promise<void> {
   // failure here leaves the previous session exactly as it was; `putDocument` bypasses the
   // debounce so the two stores never describe different projects; and only then are the sources
   // the replaced session left behind pruned — never the ones just written, which the pool holds.
-  const previousIds = await listSourceIds();
-  await putSources(sources);
-  await putDocument(project);
-  const written = new Set(sources.map((s) => s.id));
-  await pruneUnreferencedSources(project, previousIds.filter((id) => !written.has(id)));
+  try {
+    const previousIds = await listSourceIds();
+    await putSources(sources);
+    await putDocument(project);
+    const written = new Set(sources.map((s) => s.id));
+    await pruneUnreferencedSources(project, previousIds.filter((id) => !written.has(id)));
+  } catch (err) {
+    // The in-memory session has ALREADY been swapped by `loadInto` — deliberately, so a corrupt
+    // file cannot destroy the open project. That leaves the app showing a document whose audio
+    // was never stored, so the next edit's debounce would overwrite a perfectly good backup with
+    // one whose clips resolve to nothing. Stop autosaving instead, and let the caller tell the
+    // user; the previous session stays restorable until they reload.
+    // Both halves matter: `disableDocumentSaves` also CANCELS the save `loadInto`'s swap has
+    // already queued, which would otherwise land 3 s from now and overwrite the still-good
+    // backup with this document.
+    disableDocumentSaves();
+    appState.autosaveBroken = true;
+    throw err;
+  }
 }
 
 export function referencedSourceIds(project: Project): Set<string> {
