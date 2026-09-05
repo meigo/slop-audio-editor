@@ -1,16 +1,14 @@
 <script lang="ts">
   import {
     ArrowLeftToLine, ArrowRightToLine, Download, FilePlus2, FolderOpen, Pause, Play,
-    Redo2, Rows2, Rows3, Rows4, Repeat, Save, Scale, Scissors, Square, Undo2, Upload, X,
+    Redo2, Repeat, Save, Scale, Scissors, Square, Undo2, Upload, X,
   } from "@lucide/svelte";
   import { createProject } from "../doc/document";
   import { setDuckDepth, setGlue, setMasterGain, splitAt } from "../doc/edits";
-  import { TRACK_HEIGHTS } from "../persist/preferences";
   import { openProjectFile, pruneUnreferencedSources, saveProjectFile } from "../persist/project-io.svelte";
   import {
     amend, beginGesture, canRedoNow, canUndoNow, clearPlayRange, commit, currentTrackId,
-    cycleTrackHeight, endGesture, engine, importFiles, matchLoudness, pool, reachableProjects,
-    redoEdit, seekTo,
+    endGesture, engine, importFiles, matchLoudness, pool, reachableProjects, redoEdit, seekTo,
     selectedTrackIds,
     setPlayIn, setPlayOut, state as appState, togglePlay, undoEdit,
   } from "../state/appState.svelte";
@@ -40,15 +38,6 @@
   const toggleClass = (on: boolean): string =>
     "rounded px-2 py-0.5 text-xs " +
     (on ? "bg-accent font-medium text-ground" : "text-muted hover:bg-raised hover:text-text");
-
-  const HEIGHT_LABEL = ["short", "medium", "tall"];
-  /** Which preset the current height is at or below. A restored value ABOVE the largest preset
-   *  (an older build, or a hand-edited pref) has no match, and must read as the tallest — falling
-   *  back to index 0 would label a 176 px track "short". */
-  const heightIndex = $derived.by(() => {
-    const i = TRACK_HEIGHTS.findIndex((h) => appState.trackHeightPx <= h);
-    return i === -1 ? TRACK_HEIGHTS.length - 1 : i;
-  });
 
   function onMasterGain(g: number) {
     if (!masterDragging) {
@@ -196,18 +185,6 @@
   </div>
 
   <div class={DIVIDER}></div>
-
-  <!-- One button that cycles, showing the density it is CURRENTLY at: three separate buttons for
-       three heights would cost more toolbar than the setting is worth. -->
-  <button
-    class={BTN}
-    title="Track height: {HEIGHT_LABEL[heightIndex]} — click for the next size"
-    onclick={cycleTrackHeight}
-  >
-    {#if heightIndex === 0}<Rows4 size={16} />
-    {:else if heightIndex === 1}<Rows3 size={16} />
-    {:else}<Rows2 size={16} />{/if}
-  </button>
 
   <button
     class={toggleClass(appState.snap)}

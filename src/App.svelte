@@ -1,6 +1,7 @@
 <script lang="ts">
-  import { Plus } from "@lucide/svelte";
+  import { Plus, Rows2, Rows3, Rows4 } from "@lucide/svelte";
   import { addTrack } from "./doc/edits";
+  import { TRACK_HEIGHTS } from "./persist/preferences";
   import Inspector from "./lib/Inspector.svelte";
   import KeyboardShortcuts from "./lib/KeyboardShortcuts.svelte";
   import Playhead from "./lib/Playhead.svelte";
@@ -14,11 +15,21 @@
   import { PROJECT_FILE_EXT } from "./persist/project-file";
   import { openProjectFile, restoreAutosave, saveProjectFile } from "./persist/project-io.svelte";
   import {
-    commit, currentTrackId, importFiles, markRestoreSettled, state as appState,
+    commit, currentTrackId, cycleTrackHeight, importFiles, markRestoreSettled,
+    state as appState,
   } from "./state/appState.svelte";
 
   /** Left column holding track headers. Fixed so the ruler and lanes share one x origin. */
   const HEADER_W = 176;
+
+  const HEIGHT_LABEL = ["short", "medium", "tall"];
+  /** Which preset the current height is at or below. A restored value ABOVE the largest preset
+   *  has no match, and must read as the tallest — falling back to index 0 would label a 176 px
+   *  track "short". */
+  const heightIndex = $derived.by(() => {
+    const i = TRACK_HEIGHTS.findIndex((h) => appState.trackHeightPx <= h);
+    return i === -1 ? TRACK_HEIGHTS.length - 1 : i;
+  });
 
   let timelineWidth = $state(0);
   let loadError = $state<string | null>(null);
@@ -84,19 +95,30 @@
 
   <div class="flex min-h-0 flex-1">
     <div class="shrink-0 border-r border-line bg-panel" style="width: {HEADER_W}px">
-      <!-- The strip that aligns with the ruler was dead space. Unlike a row under the last
-           header, this stays put however many tracks there are, and it sits at the head of the
-           column it adds to. It used to be a bare "+" in the toolbar's edit group, between
-           undo/redo and cut — nothing to do with its neighbours, and unreadable as "add track". -->
-      <button
-        class="flex h-7 w-full items-center gap-1.5 border-b border-line px-2 text-[11px]
-               text-muted hover:bg-raised hover:text-text"
-        title="Add an empty track below the last one"
-        onclick={() => commit((p) => addTrack(p))}
-      >
-        <Plus size={13} />
-        Add track
-      </button>
+      <!-- The strip that aligns with the ruler was dead space. Both controls here act on the
+           track COLUMN, so they live together rather than one of them being marooned in the
+           toolbar; and unlike a row under the last header, this does not move as tracks are
+           added. -->
+      <div class="flex h-7 items-center border-b border-line">
+        <button
+          class="flex flex-1 items-center gap-1.5 self-stretch px-2 text-left text-[11px]
+                 text-muted hover:bg-raised hover:text-text"
+          title="Add an empty track below the last one"
+          onclick={() => commit((p) => addTrack(p))}
+        >
+          <Plus size={13} />
+          Add track
+        </button>
+        <button
+          class="self-stretch px-2 text-muted hover:bg-raised hover:text-text"
+          title="Track height: {HEIGHT_LABEL[heightIndex]} — click for the next size"
+          onclick={cycleTrackHeight}
+        >
+          {#if heightIndex === 0}<Rows4 size={14} />
+          {:else if heightIndex === 1}<Rows3 size={14} />
+          {:else}<Rows2 size={14} />{/if}
+        </button>
+      </div>
       {#each appState.project.tracks as track (track.id)}
         <TrackHeader {track} />
       {/each}
