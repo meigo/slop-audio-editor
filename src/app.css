@@ -7,11 +7,15 @@
   /* Chrome is Tailwind ZINC — very nearly neutral, +2 blue over red at the dark end. Slate was
      tried first and read as too blue: its darkest step is +21 blue over red, so the whole
      interface took on a colour of its own and competed with both the accent and the media.
-     Zinc keeps a faint cool cast, and blue then appears ONLY where it means something. */
-  --color-ground: #09090b; /* zinc-950 — 0.28% luminance; clips are the brightest thing */
-  --color-panel: #18181b; /* zinc-900 */
-  --color-raised: #27272a; /* zinc-800 */
-  --color-line: #3f3f46; /* zinc-700 */
+     Zinc keeps a faint cool cast, and blue then appears ONLY where it means something.
+     The ramp is zinc shifted one step lighter and kept custom: zinc-950 was near-black enough
+     that clips had to be bright to register at all. Lifting `ground` alone would have collapsed
+     ground->panel from 1.12 to 1.04, so the whole ramp moves together and the steps come out
+     slightly WIDER than stock zinc (1.14 / 1.21 / 1.44). */
+  --color-ground: #101013; /* 0.53% luminance — still near-black, one step off the floor */
+  --color-panel: #1e1e22;
+  --color-raised: #2d2d33;
+  --color-line: #45454e;
   --color-text: #f4f4f5; /* zinc-100 */
   --color-muted: #a1a1aa; /* zinc-400 */
   /* Media clips are SLATE, not the accent: a clip painted in the selection colour looks
@@ -22,12 +26,13 @@
      Named media-clip, NOT clip: `bg-clip-*` is Tailwind's own background-clip namespace, so a
      `--color-clip-border` token would collide with the real `bg-clip-border` utility.
      slop-animator carries the same warning in its theme, and it is easy to walk into anyway.
-     A CUSTOM step, not a slate one: slate-700 (1.92:1) read as a hole in the near-black lane and
-     slate-600 (2.63:1) as too light, and slate has no step between them. This is hsl(215 30% 30%)
-     — landing at 2.17:1, midway — with saturation lifted from slate's 19-25% to 30%, so the clip
-     holds a little colour of its own instead of going grey at this lightness. */
-  --color-media-clip: #364963;
-  --color-media-clip-border: #94a3b8; /* slate-400 — 3.6:1 on the fill */
+     A CUSTOM step, not a slate one — slate has nothing usable between 700 (a hole in the lane)
+     and 600 (washed out). This is hsl(215 30% 26%): 1.77:1 against the lifted ground, with
+     saturation held at 30% so it keeps some colour of its own rather than going grey.
+     The fill can sit this close to the ground because the light BORDER does the separating —
+     4.2:1 on the fill. Chasing contrast in the fill instead is what made clips glow. */
+  --color-media-clip: #2e3f56;
+  --color-media-clip-border: #94a3b8; /* slate-400 — 4.2:1 on the fill */
   /* blue-400, not blue-500: on a near-black ground the deeper blue reads as electric and
      sits oddly against the neutral chrome. 400 is calmer and clears 3:1 against the clip
      fill it has to outline (2.98:1 vs blue-500's 2.06:1). */
