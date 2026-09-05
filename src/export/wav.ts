@@ -5,10 +5,24 @@ function writeAscii(v: DataView, offset: number, s: string): void {
   for (let i = 0; i < s.length; i++) v.setUint8(offset + i, s.charCodeAt(i));
 }
 
+/** Is every sample exactly zero? A wholly silent export is left bit-exact rather than filled with
+ *  dither noise — the theory says dither silence too, but a file that should be empty coming back
+ *  as hiss is the kind of surprise this app avoids. Checked over the WHOLE buffer, never per
+ *  sample: skipping quiet samples individually would reintroduce precisely the correlation
+ *  between signal and error that dither exists to remove. */
+function isSilent(channels: readonly Float32Array[]): boolean {
+  for (const ch of channels) {
+    for (let i = 0; i < ch.length; i++) if (ch[i] !== 0) return false;
+  }
+  return true;
+}
+
 export function encodeWav(
   channels: readonly Float32Array[],
   sampleRate: number,
   bitDepth: 16 | 32,
+  /** Injectable so the dither tests can assert exact codes rather than statistics. */
+  random: () => number = Math.random,
 ): ArrayBuffer {
   const numChannels = Math.max(1, channels.length);
   const frames = channels[0]?.length ?? 0;
@@ -33,6 +47,10 @@ export function encodeWav(
   writeAscii(v, 36, "data");
   v.setUint32(40, dataBytes, true);
 
+  // 16 bit is the only path that quantises, so it is the only one that needs dither; adding noise
+  // to a float export would be noise for nothing.
+  const dither = bitDepth === 16 && !isSilent(channels);
+
   let offset = 44;
   for (let i = 0; i < frames; i++) {
     for (let c = 0; c < numChannels; c++) {
@@ -41,7 +59,19 @@ export function encodeWav(
         v.setFloat32(offset, raw, true);
       } else {
         const s = Math.max(-1, Math.min(1, raw));
-        v.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+        const scaled = s < 0 ? s * 0x8000 : s * 0x7fff;
+        // TPDF: two independent uniforms summed give a TRIANGULAR distribution over ±1 LSB, which
+        // decorrelates the quantisation error completely — what was distortion tracking the signal
+        // becomes a flat noise floor around -93 dBFS. A single uniform value would not: its error
+        // still varies with the signal.
+        const dithered = dither ? scaled + (random() + random() - 1) : scaled;
+        // ROUND, not truncate. `setInt16` truncates toward zero on its own, which biased every
+        // sample toward silence by up to a full LSB and collapsed everything below one LSB to
+        // code 0 — a deadband that is the same defect dither exists to fix.
+        // The final clamp is not optional: dither on a full-scale sample would otherwise push
+        // past 32767 and wrap, turning a peak into a click.
+        const q = Math.round(dithered);
+        v.setInt16(offset, q < -0x8000 ? -0x8000 : q > 0x7fff ? 0x7fff : q, true);
       }
       offset += bytesPerSample;
     }

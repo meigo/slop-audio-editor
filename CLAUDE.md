@@ -670,6 +670,29 @@ src/
     the trigger to dismiss counts as "outside" and the menu closes and instantly reopens; it
     listens in the CAPTURE phase because the timeline's own pointer handlers stop propagation.
 
+37. **16-bit WAV export is dithered, and the same change had to fix that it TRUNCATED.**
+    `setInt16` truncates toward zero on its own, so `encodeWav` biased every sample toward silence
+    by up to a full LSB and collapsed everything below one LSB to code 0 — a deadband that is the
+    same defect dither exists to remove. Rounding and dither belong in one change; either alone is
+    half a fix.
+    TPDF: two independent uniforms SUMMED, giving a triangular distribution over ±1 LSB. A single
+    uniform value would not do — its error still varies with the signal. Measured over a 997 Hz
+    tone: total error goes from −98.67 dBFS undithered to −95.35 dBFS (0.560 LSB RMS) dithered.
+    The noise floor RISES by ~3.3 dB, and that is the trade: the undithered error is smaller but
+    CORRELATED with the signal, which is distortion rather than noise. The payoff is visible on a
+    0.34 LSB signal — dithered it quantises to codes {−1, 0, 1}, undithered to {0}, i.e. it
+    vanishes completely.
+    Order is clamp float → scale → dither → ROUND → clamp integer. The final clamp is not
+    optional: dither on a full-scale sample would otherwise push past 32767 and wrap a peak into a
+    click. Dither also legitimately moves a full-scale sample to ±32767, which is why two
+    long-standing tests had to start injecting a neutral RNG — with `Math.random` they would have
+    passed only most of the time.
+    16-bit only (float export has no quantisation step) and automatic (nobody wants to decide it
+    per export). A wholly silent buffer is left bit-exact rather than filled with hiss, checked
+    over the WHOLE buffer — skipping quiet samples individually would reintroduce exactly the
+    signal-dependent correlation dither removes. `random` is injectable purely so the tests assert
+    exact codes instead of statistics with loose bounds.
+
 ## Testing
 
 Vitest, `node` environment, no DOM (`src/**/*.test.ts`, see `vite.config.ts`). Pure logic

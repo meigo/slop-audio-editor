@@ -38,16 +38,22 @@ describe("encodeWav header", () => {
 });
 
 describe("encodeWav samples", () => {
+  // These two are about interleaving and clipping, not noise, and 16-bit output is now dithered:
+  // two randoms at 0.5 sum to a triangular value of exactly 0, which removes dither from the
+  // picture and keeps the assertions exact. With real `Math.random` they would pass only most of
+  // the time, since dither legitimately moves a full-scale sample by up to an LSB.
+  const noDither = () => 0.5;
+
   it("interleaves channels", () => {
     const l = new Float32Array([1, 0]);
     const r = new Float32Array([-1, 0]);
-    const v = new DataView(encodeWav([l, r], 48000, 16));
+    const v = new DataView(encodeWav([l, r], 48000, 16, noDither));
     expect(v.getInt16(44, true)).toBe(32767);
     expect(v.getInt16(46, true)).toBe(-32768);
   });
 
   it("clips out-of-range samples instead of wrapping", () => {
-    const v = new DataView(encodeWav([new Float32Array([2, -2])], 48000, 16));
+    const v = new DataView(encodeWav([new Float32Array([2, -2])], 48000, 16, noDither));
     expect(v.getInt16(44, true)).toBe(32767);
     expect(v.getInt16(46, true)).toBe(-32768);
   });
@@ -61,5 +67,72 @@ describe("encodeWav samples", () => {
   it("handles mono and an empty buffer", () => {
     expect(new DataView(encodeWav([new Float32Array(0)], 48000, 16)).getUint32(40, true)).toBe(0);
     expect(encodeWav([new Float32Array([0.5])], 48000, 16).byteLength).toBe(46);
+  });
+});
+
+/** A deterministic stand-in for `Math.random`, so the dither tests assert exact codes instead of
+ *  statistics with loose bounds — a suite that fails one run in fifty is worse than no test. */
+function fixedRandom(...values: number[]): () => number {
+  let i = 0;
+  return () => values[i++ % values.length];
+}
+
+describe("16-bit dither", () => {
+  const LSB_POS = 1 / 0x7fff;
+
+  // Two 0.5s sum to a triangular value of exactly 0 — the RNG that adds nothing, so this isolates
+  // rounding from dither.
+  const noDither = () => fixedRandom(0.5);
+
+  it("rounds to the nearest code instead of truncating toward zero", () => {
+    // 0.6 LSB. Truncation collapses this to 0; rounding keeps it as code 1, which is the whole
+    // difference between a deadband around silence and a usable quiet passage.
+    const v = new DataView(encodeWav([new Float32Array([0.6 * LSB_POS])], 48000, 16, noDither()));
+    expect(v.getInt16(44, true)).toBe(1);
+  });
+
+  it("dithers a level that would otherwise sit on one code forever", () => {
+    // A third of an LSB: without dither every sample quantises to 0 and the passage is silent.
+    const input = new Float32Array(64).fill(0.34 * LSB_POS);
+    // Alternating extremes: triangular values of exactly -1 and +1 LSB, so 0.34 lands on -0.66
+    // and 1.34 and the codes straddle the input rather than collapsing onto one.
+    const v = new DataView(encodeWav([input], 48000, 16, fixedRandom(0, 0, 1, 1)));
+    const codes = new Set<number>();
+    for (let i = 0; i < 64; i++) codes.add(v.getInt16(44 + i * 2, true));
+    expect([...codes].sort((a, b) => a - b)).toEqual([-1, 1]);
+  });
+
+  it("stays within one LSB — the noise it adds is bounded", () => {
+    const input = new Float32Array(32).fill(0.5);
+    const undithered = 0.5 * 0x7fff;
+    const v = new DataView(encodeWav([input], 48000, 16, fixedRandom(0, 1, 1, 0, 0.25, 0.75)));
+    for (let i = 0; i < 32; i++) {
+      expect(Math.abs(v.getInt16(44 + i * 2, true) - undithered)).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it("still clamps at full scale, so dither cannot wrap a peak into a click", () => {
+    // The clamp only matters in the direction that overflows, so each end needs the RNG that
+    // pushes it OUTWARD: both randoms at 1 add a whole LSB, both at 0 subtract one. (Dither
+    // moving a full-scale sample the other way, to ±32767, is correct and not clamped.)
+    const top = new DataView(encodeWav([new Float32Array([1])], 48000, 16, fixedRandom(1)));
+    expect(top.getInt16(44, true)).toBe(32767);
+
+    const bottom = new DataView(encodeWav([new Float32Array([-1])], 48000, 16, fixedRandom(0)));
+    expect(bottom.getInt16(44, true)).toBe(-32768);
+  });
+
+  it("leaves digital silence exactly silent", () => {
+    // The RNG must produce a NON-ZERO offset, or the test passes whether or not silence is
+    // guarded: both randoms at 1 is +1 LSB, so an unguarded encode writes code 1 everywhere.
+    const v = new DataView(encodeWav([new Float32Array(16)], 48000, 16, fixedRandom(1)));
+    for (let i = 0; i < 16; i++) expect(v.getInt16(44 + i * 2, true)).toBe(0);
+  });
+
+  it("does not dither 32-bit float — there is no quantisation to decorrelate", () => {
+    const input = new Float32Array([0.25, -0.5]);
+    const a = new Uint8Array(encodeWav([input], 48000, 32, fixedRandom(0, 1)));
+    const b = new Uint8Array(encodeWav([input], 48000, 32, fixedRandom(1, 0)));
+    expect([...a]).toEqual([...b]);
   });
 });
