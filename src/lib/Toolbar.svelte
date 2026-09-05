@@ -1,7 +1,7 @@
 <script lang="ts">
   import {
-    ArrowLeftToLine, ArrowRightToLine, Download, Eraser, FilePlus2, FolderOpen, Pause, Play, Plus,
-    Redo2, Repeat, Save, Scale, Scissors, Square, Undo2, Upload,
+    ArrowLeftToLine, ArrowRightToLine, Download, FilePlus2, FolderOpen, Pause, Play, Plus,
+    Redo2, Repeat, Save, Scale, Scissors, Square, Undo2, Upload, X,
   } from "@lucide/svelte";
   import { createProject } from "../doc/document";
   import { addTrack, setDuckDepth, setGlue, setMasterGain, splitAt } from "../doc/edits";
@@ -138,7 +138,7 @@
       title="Clear in/out range (⌘I)"
       onclick={clearPlayRange}
     >
-      <Eraser size={16} />
+      <X size={16} />
     </button>
   </div>
 
