@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { Plus, Rows2, Rows3, Rows4 } from "@lucide/svelte";
-  import { addTrack } from "./doc/edits";
+  import { Plus, Rows2, Rows3, Rows4, Trash2 } from "@lucide/svelte";
+  import { addTrack, removeTrack } from "./doc/edits";
   import { TRACK_HEIGHTS } from "./persist/preferences";
   import Inspector from "./lib/Inspector.svelte";
   import KeyboardShortcuts from "./lib/KeyboardShortcuts.svelte";
@@ -30,6 +30,14 @@
     const i = TRACK_HEIGHTS.findIndex((h) => appState.trackHeightPx <= h);
     return i === -1 ? TRACK_HEIGHTS.length - 1 : i;
   });
+
+  /** `removeTrack` refuses to remove the last track — `resolveTrackId` and `currentTrackId()`
+   *  rely on a project always having one — so disable the control rather than offer a click that
+   *  silently does nothing. */
+  const onlyOneTrack = $derived(appState.project.tracks.length <= 1);
+  const currentTrackName = $derived(
+    appState.project.tracks.find((t) => t.id === currentTrackId())?.name ?? "",
+  );
 
   let timelineWidth = $state(0);
   let loadError = $state<string | null>(null);
@@ -108,6 +116,21 @@
         >
           <Plus size={13} />
           Add track
+        </button>
+        <!-- Deletes the CURRENT track, the one marked in the header column. It lives here rather
+             than in each header for two reasons: a per-track control revealed on hover inserts
+             itself into the flow and shoves M/S/D sideways, and a destructive action is better
+             away from flags that get clicked constantly. It pairs with Add track. -->
+        <button
+          class="self-stretch px-2 text-muted hover:bg-raised hover:text-danger
+                 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-muted"
+          disabled={onlyOneTrack}
+          title={onlyOneTrack
+            ? "Delete track — a project must keep at least one track"
+            : `Delete "${currentTrackName}" and its clips (undoable)`}
+          onclick={() => commit((p) => removeTrack(p, currentTrackId()))}
+        >
+          <Trash2 size={13} />
         </button>
         <button
           class="self-stretch px-2 text-muted hover:bg-raised hover:text-text"
