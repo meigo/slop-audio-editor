@@ -15,6 +15,7 @@ import {
   isInView,
   PAGE_FLIP_MARGIN_PX,
   pageFlipScroll,
+  playheadFollower,
   formatDb,
   formatTime,
   gainToDb,
@@ -604,5 +605,31 @@ describe("isInView", () => {
     expect(isInView(10, 0, 100, 1000)).toBe(true);
     expect(isInView(10.01, 0, 100, 1000)).toBe(false);
     expect(isInView(-0.01, 0, 100, 1000)).toBe(false);
+  });
+});
+
+describe("playheadFollower", () => {
+  // 100 px/s, a 1000 px viewport. The follower remembers the position IT last saw, which is what
+  // makes a loop restart a crossing: `onEnded` assigns the playhead straight to the loop start
+  // between frames, so reading `wasInView` from the live playhead saw it already off-screen and
+  // took that for a manual scroll. That is exactly how the first version failed.
+  it("flips forward, then follows a loop restart back", () => {
+    const step = playheadFollower(9);
+    expect(step(9.5, 4, 100, 1000)).toBeNull(); // in view of 4..14
+    const scrollAfterFlip = step(14.2, 4, 100, 1000); // crossed the right edge
+    expect(scrollAfterFlip).not.toBeNull();
+    expect(step(14.3, scrollAfterFlip!, 100, 1000)).toBeNull(); // settled in the new page
+    // Loop restart: the playhead is assigned 2 s between frames, far behind the flipped view.
+    const back = step(2, scrollAfterFlip!, 100, 1000);
+    expect(back).not.toBeNull();
+    expect(timeToPx(2, back!, 100)).toBeCloseTo(PAGE_FLIP_MARGIN_PX, 6);
+  });
+
+  it("still leaves a manual scroll alone", () => {
+    const step = playheadFollower(5);
+    step(5.1, 0, 100, 1000); // in view
+    // The user scrolls to 40 s; the playhead is now off-screen but did not move.
+    expect(step(5.2, 40, 100, 1000)).toBeNull();
+    expect(step(5.3, 40, 100, 1000)).toBeNull();
   });
 });

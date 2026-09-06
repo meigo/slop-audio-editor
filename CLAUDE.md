@@ -549,8 +549,13 @@ spin forever.
     because the user scrolled away stays off-screen: the view is theirs until the playhead comes
     back to it, which is what keeps auto-scroll from fighting a manual one. Page flip rather than
     continuous scroll because nothing drifts and the picture holds still while you audition.
-    `Playhead.svelte`'s frame loop reads `wasInView` BEFORE advancing the position; that order is
-    the whole mechanism. The loop is `requestAnimationFrame`, which is frozen in a background tab
+    `Playhead.svelte`'s frame loop goes through `playheadFollower`, which remembers the position
+    it LAST SAW and decides from that. Reading `wasInView` from the live `appState.playheadS` was
+    the first version's bug: a loop restart assigns the playhead straight to the loop start
+    between frames (`onEnded`), so by the time the loop looked the playhead was already off-screen
+    and read as "the user scrolled away" — the view never followed a loop back. Found by the
+    user; the pure-function tests had passed because the function was right and the wiring was
+    not, which is why the follower is now the tested unit. The loop is `requestAnimationFrame`, which is frozen in a background tab
     (the same reason the meter cannot be watched here), and the MCP tab is background — so the
     four lines of wiring rest on the pure function's tests and a read-through, not on a browser.
     Keyboard zoom (`+`/`−`) anchors on the playhead when it is on screen, else the view's centre,

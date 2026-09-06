@@ -283,6 +283,27 @@ export function pageFlipScroll(
   return Math.max(0, playheadS - PAGE_FLIP_MARGIN_PX / pxPerSecond);
 }
 
+/**
+ * The frame-loop half of the page flip: remembers the position it LAST SAW and decides each frame
+ * from that.
+ *
+ * Reading `wasInView` from the live playhead was the first version's bug. A loop restart assigns
+ * the playhead straight to the loop start between frames (`onEnded`), so by the time the loop
+ * looked, the playhead was already off-screen and that read as "the user scrolled away" — the
+ * view never followed a loop back. The follower's own memory is what turns that jump into a
+ * crossing. Returns the new scroll, or null to leave the view alone.
+ */
+export function playheadFollower(
+  initialS: number,
+): (nowS: number, scrollS: number, pxPerSecond: number, widthPx: number) => number | null {
+  let lastS = initialS;
+  return (nowS, scrollS, pxPerSecond, widthPx) => {
+    const wasInView = isInView(lastS, scrollS, pxPerSecond, widthPx);
+    lastS = nowS;
+    return pageFlipScroll(nowS, scrollS, pxPerSecond, widthPx, wasInView);
+  };
+}
+
 export interface PinchStart {
   pxPerSecond: number;
   scrollS: number;
