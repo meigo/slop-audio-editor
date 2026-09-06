@@ -8,6 +8,7 @@
     suffix = "",
     title = undefined,
     disabled = false,
+    onInput = undefined,
     onCommit,
   }: {
     label: string;
@@ -19,6 +20,10 @@
     suffix?: string;
     title?: string;
     disabled?: boolean;
+    /** Called on every step of a SCRUB, for a field whose parent wants the picture to follow the
+     *  drag. The parent is expected to open a gesture on the first call and close it in
+     *  `onCommit`, so the whole scrub is still one undo entry — see `ClipInspector`'s fades. */
+    onInput?: (v: number) => void;
     onCommit: (v: number) => void;
   } = $props();
 
@@ -50,8 +55,10 @@
    * scrub only takes over once the pointer has travelled, and it is the movement that suppresses
    * the focus, not a timer.
    *
-   * The document is written ONCE, on release. The draft carries the value during the drag, so a
-   * whole scrub is one undo entry and playback is not rescheduled on every pixel.
+   * The document is written ONCE, on release — unless the parent passes `onInput`, which asks for
+   * every step of the drag as well. Even then it stays one undo entry and one reschedule: the
+   * parent amends inside a gesture and closes it in `onCommit`. Without `onInput` the draft simply
+   * carries the value until release.
    */
   let scrub: { startX: number; startValue: number; moved: boolean } | null = null;
 
@@ -72,14 +79,26 @@
       input?.blur(); // a scrub is not a text edit; a caret left blinking in it is a lie
     }
     // Shift is the fine step, the same modifier the timeline nudge uses.
-    draft = clamp(scrub.startValue + dx * step * (e.shiftKey ? 0.1 : 1)).toFixed(2);
+    const next = clamp(scrub.startValue + dx * step * (e.shiftKey ? 0.1 : 1));
+    draft = next.toFixed(2);
+    onInput?.(next);
   }
 
   function scrubUp() {
     window.removeEventListener("pointermove", scrubMove);
     window.removeEventListener("pointerup", scrubUp);
     window.removeEventListener("pointercancel", scrubUp);
-    if (scrub?.moved) commitDraft();
+    if (scrub?.moved) {
+      // A LIVE field cannot go through `commitDraft`: every step already wrote the document, so
+      // the draft matches `value` by now and the no-op guard there would swallow the release —
+      // leaving the parent's gesture open forever. Close it explicitly instead.
+      if (onInput) {
+        const v = Number(draft);
+        if (Number.isFinite(v)) onCommit(clamp(v));
+      } else {
+        commitDraft();
+      }
+    }
     scrub = null;
   }
 

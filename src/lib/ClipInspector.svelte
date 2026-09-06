@@ -1,7 +1,14 @@
 <script lang="ts">
   import { findClip, MAX_SPEED, MIN_SPEED, type FadeShape } from "../doc/document";
   import { setClipFade, setClipGain, setClipSpeed, trimClipEnd, trimClipStart } from "../doc/edits";
-  import { commit, pool, state as appState } from "../state/appState.svelte";
+  import {
+    amend,
+    beginGesture,
+    commit,
+    endGesture,
+    pool,
+    state as appState,
+  } from "../state/appState.svelte";
   import { dbToGain, gainToDb } from "./geometry";
   import NumberField from "./NumberField.svelte";
 
@@ -13,6 +20,38 @@
   );
   const clip = $derived(selected?.clip);
   const source = $derived(clip ? pool.get(clip.sourceId) : undefined);
+
+  /**
+   * Fade lengths update the DOCUMENT on every step of a scrub, not only on release, so the fade
+   * overlay on the clip follows the drag — the picture is traced from the same curves the engine
+   * plays (Gotcha 17), and a shape you cannot see until you let go is a shape you have to guess at.
+   *
+   * A "structural" gesture, not a "mix" one: a fade is baked into the schedule, so it can only be
+   * heard after a reschedule. `amend` writes without rescheduling, and `endGesture` does it once
+   * at the end — so the drawing is live, the audio arrives on release, and the whole drag is one
+   * undo entry.
+   */
+  let fading = false;
+
+  function onFade(patch: { fadeInS?: number; fadeOutS?: number }) {
+    if (!clip) return;
+    if (!fading) {
+      fading = true;
+      beginGesture();
+    }
+    amend((p) => setClipFade(p, clip.id, patch));
+  }
+
+  function commitFade(patch: { fadeInS?: number; fadeOutS?: number }) {
+    if (!clip) return;
+    if (!fading) {
+      commit((p) => setClipFade(p, clip.id, patch)); // typed, not dragged
+      return;
+    }
+    amend((p) => setClipFade(p, clip.id, patch));
+    fading = false;
+    endGesture();
+  }
 
   const SHAPES: FadeShape[] = ["linear", "equalPower", "exponential"];
   const SHAPE_LABELS: Record<FadeShape, string> = {
@@ -88,14 +127,16 @@
         value={clip.fadeInS}
         suffix="s"
         title="Fade-in length"
-        onCommit={(v) => commit((p) => setClipFade(p, clip.id, { fadeInS: v }))}
+        onInput={(v) => onFade({ fadeInS: v })}
+        onCommit={(v) => commitFade({ fadeInS: v })}
       />
       <NumberField
         label="fade out"
         value={clip.fadeOutS}
         suffix="s"
         title="Fade-out length"
-        onCommit={(v) => commit((p) => setClipFade(p, clip.id, { fadeOutS: v }))}
+        onInput={(v) => onFade({ fadeOutS: v })}
+        onCommit={(v) => commitFade({ fadeOutS: v })}
       />
       <label class="contents text-[11px] text-muted" title="Fade curve shape">
         <span class="text-right">shape</span>
