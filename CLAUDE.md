@@ -966,12 +966,22 @@ command}` that `ShortcutHelp.svelte` renders. `resolveShortcut` was deliberately
     `renderPlan` with a 200 Hz tone: at an input of 0.02 the change is 0.00 dB at ANY drive; at
     0.3 it is -0.96 dB at full drive; at 0.9 it is -5.58, with the third harmonic rising from
     -77 dB to -16 dB as level and drive increase. That progression IS the effect.
-    `SATURATION_MAX_K` is 2, and the first attempt at 8 was wrong for a reason worth remembering:
-    8 was picked because `tanh` stops changing SHAPE much above it, which is true and irrelevant.
-    Peak reduction at full scale runs -2.37 dB at k=1, -6.34 at k=2, -12.05 at k=4, -18.06 at k=8
-    — so a moderate drive of 0.6 was taking 12.7 dB off a hot mix. That is heavy limiting, not
-    saturation. A control's range has to be chosen by what it DOES, not by where the maths stops
-    being interesting.
+    `SATURATION_MAX_K` took THREE goes, and the sequence is the lesson. 8 was picked because
+    `tanh` stops changing SHAPE above it — true and irrelevant, and it took 12.7 dB off a hot mix
+    at moderate drive. 2 fixed that and made the control inaudible: slope-at-zero normalisation
+    only bends material approaching full scale, so a mix peaking around -10 dBFS never reaches the
+    interesting part of the curve, and the ENTIRE range moved the level 0.72 dB with about -31 dB
+    of third harmonic. It took a user saying "I can't hear any difference" to surface that; no test
+    of mine was going to.
+    6 plus `saturationMakeup` is the answer. The makeup restores the RMS the shaping removes at a
+    reference programme level, so drive changes TIMBRE rather than loudness — measured at
+    -10 dBFS, full drive holds the level at 0.00 dB while producing -15.9 dB of third harmonic,
+    about 16%. Without makeup, "more drive" is heard as "everything got quieter", which is
+    indistinguishable from a control that does nothing.
+    Because the makeup is calibrated at ONE level, drive also acts as a gentle leveller: at full
+    drive -20 dBFS comes out +3.9 dB, the reference unchanged, -3 dBFS out -5.6 dB. And the shaped
+    curve tops out at 0.28, so full drive puts a ceiling near -11 dBFS on the master — it cannot
+    clip, but it can make a loud mix quieter, which export normalisation puts back.
     `oversample: "4x"`, because a waveshaper generates harmonics above Nyquist that fold back as
     inharmonic tones. Low fidelity is a fine character; aliasing is a defect, and one master-bus
     node can afford it.
