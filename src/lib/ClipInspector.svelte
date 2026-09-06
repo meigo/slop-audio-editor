@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { findClip, MIN_SPEED, type FadeShape } from "../doc/document";
+  import { findClip, MAX_SPEED, MIN_SPEED, type FadeShape } from "../doc/document";
   import { setClipFade, setClipGain, setClipSpeed, trimClipEnd, trimClipStart } from "../doc/edits";
   import { commit, pool, state as appState } from "../state/appState.svelte";
   import { dbToGain, gainToDb } from "./geometry";
@@ -33,10 +33,18 @@
       {source?.name ?? "missing audio"}
     </span>
 
-    <!-- Grouped by what the fields DO, with a rule between: where the clip sits and how fast it
-         plays; then its level and the envelope shaping that level. Seven fields in one flat column
-         read as a list to scan rather than three things to adjust. -->
-    <section class="flex flex-col gap-2 border-t border-line py-2">
+    <!-- ONE grid for every field on the tab, not one per group: separate grids size their label
+         columns independently, so "fade out" pushed the second group's boxes right and the two
+         halves no longer lined up across the divider. The rules are full-width rows inside the
+         same grid instead of section borders.
+         Grouped by what the fields DO: where the clip sits and how fast it plays; then its level
+         and the envelope shaping that level. Seven fields in one flat column read as a list to
+         scan rather than three things to adjust. -->
+    <div
+      class="grid items-center gap-2 pt-2"
+      style="grid-template-columns: auto minmax(0, 1fr) auto"
+    >
+      <div class="col-span-3 border-t border-line"></div>
       <NumberField
         label="in"
         value={clip.startS}
@@ -58,17 +66,19 @@
         label="speed"
         value={clip.speed}
         min={MIN_SPEED}
+        max={MAX_SPEED}
         suffix="×"
         title="Playback rate. Changes speed and pitch together, like tape — 2 is twice as fast and an octave up. The clip's length on the timeline changes to match."
         onCommit={(v) => commit((p) => setClipSpeed(p, clip.id, v))}
       />
-    </section>
 
-    <section class="flex flex-col gap-2 border-t border-line pt-2">
+      <div class="col-span-3 mt-1 border-t border-line"></div>
       <NumberField
         label="gain"
         value={clip.gain <= 0 ? -60 : gainToDb(clip.gain)}
         min={-60}
+        max={24}
+        step={0.1}
         suffix="dB"
         title="Clip volume in dB"
         onCommit={(v) => commit((p) => setClipGain(p, clip.id, v <= -60 ? 0 : dbToGain(v)))}
@@ -87,10 +97,10 @@
         title="Fade-out length"
         onCommit={(v) => commit((p) => setClipFade(p, clip.id, { fadeOutS: v }))}
       />
-      <label class="flex items-center gap-1 text-[11px] text-muted" title="Fade curve shape">
-        shape
+      <label class="contents text-[11px] text-muted" title="Fade curve shape">
+        <span class="text-right">shape</span>
         <select
-          class="flex-1 rounded bg-raised px-1 text-xs text-text"
+          class="col-span-2 h-6 min-w-0 rounded bg-raised px-1 text-xs text-text"
           value={clip.fadeShape}
           onchange={(e) =>
             commit((p) =>
@@ -102,7 +112,7 @@
           {/each}
         </select>
       </label>
-    </section>
+    </div>
   {:else}
     <span class="text-xs text-muted">Select a clip to edit its exact values</span>
   {/if}

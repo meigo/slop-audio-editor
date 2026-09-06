@@ -896,6 +896,38 @@ command}` that `ShortcutHelp.svelte` renders. `resolveShortcut` was deliberately
     `trackDropIndex` is pure and tested because every header is the same height, so the drop row
     is arithmetic rather than hit-testing.
 
+46. **Panel fields share ONE grid, and the column definition is inline because Tailwind will not
+    generate it.** Every row was its own flex, so the input box started wherever that row's label
+    happened to end — `in` and `fade out` put four different left edges down the column. Rows now
+    render `display: contents` (`NumberField`, `BandSlider`, `FilterSlider`) so their label, control
+    and readout become cells of the PARENT's grid.
+    Two traps, both of which shipped a broken layout for a moment:
+    (a) `grid-cols-[auto_minmax(0,1fr)_auto]` produces NOTHING. Tailwind cannot generate an
+    arbitrary value containing a comma, so the class silently vanishes and the element is a
+    one-column grid — every label, slider and readout on a row of its own. It is set with a plain
+    `style="grid-template-columns: …"` instead, which cannot be mis-parsed.
+    (b) `display: contents` inside a FLEX COLUMN does the same thing for a different reason: the
+    three children become flex items and stack. The container has to actually be the grid.
+    One grid per TAB, not per group: separate grids size their label columns independently, so
+    "fade out" pushed the second group's boxes right and the halves no longer lined up across the
+    divider. The dividers are full-width rows (`col-span-3`) inside the same grid.
+    The middle column is `minmax(0, 1fr)`, so controls fill whatever width the panel has been
+    dragged to — a band slider measures 87 px at the 190 px minimum and 297 px at 400.
+
+47. **Number fields scrub.** Press and drag horizontally to change the value; a press that never
+    moves still puts a caret in to type, so nothing about typing changed. That is the convention
+    every creative tool uses, and it is the answer to "adjusting these is uncomfortable" — a value
+    you want to feel your way to is the wrong job for a keyboard.
+    The document is written ONCE, on release: the scrub only assigns to `draft`, so a whole gesture
+    is one undo entry and playback is not rescheduled on every pixel. `step` is per unit (0.01 for
+    seconds, 0.1 for dB) and Shift is the fine step, matching the timeline's nudge. Arrow keys step
+    the value while the field has focus, with Shift as the COARSE direction there because the base
+    step is already small.
+    Like the track-reorder grip, the gesture runs on WINDOW listeners rather than
+    `setPointerCapture` — which also means it is testable here, since synthetic pointer events
+    cannot satisfy capture. Verified: 50 px at 0.01/px moves 1.50 to 2.00, Shift moves it 0.05,
+    and one undo reverts the whole scrub.
+
 ## Testing
 
 Vitest, `node` environment, no DOM (`src/**/*.test.ts`, see `vite.config.ts`). Pure logic

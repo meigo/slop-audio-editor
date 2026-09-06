@@ -39,6 +39,7 @@ under the voice, and export a mastered file — all locally, with no upload and 
 - Waveforms scaled by clip gain, so the picture shows what you will hear
 - In/out markers for looping a section, kept separate from the selection that bounds an export
 - Reorder tracks by dragging the grip in a track header
+- Number fields scrub: drag one sideways to change it, click to type
 - Three track heights, adjustable zoom, and two-finger pan/pinch on a trackpad or touchscreen
 
 ### Mixing

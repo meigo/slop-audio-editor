@@ -20,13 +20,13 @@
   const pct = $derived(((filterPosition(filter) + 1) / 2) * 100);
 </script>
 
-<div class="flex items-center gap-1">
-  <span class="w-7 shrink-0 text-right text-[10px] text-muted">filter</span>
+<div class="contents">
+  <span class="text-right text-[10px] text-muted">filter</span>
   <!-- Bipolar like an EQ band, but the centre means OFF rather than flat: left sweeps a high-pass
        up, right sweeps a low-pass down. -->
   <input
     type="range"
-    class="slider bipolar w-20"
+    class="slider bipolar w-full min-w-0"
     style="--fill-from: {Math.min(50, pct)}%; --fill-to: {Math.max(50, pct)}%"
     {title}
     min={-1}
@@ -37,7 +37,7 @@
     onpointerup={onCommit}
     onkeyup={onCommit}
   />
-  <span class="w-12 shrink-0 text-right text-[10px] text-muted tabular-nums">
+  <span class="w-12 text-right text-[10px] text-muted tabular-nums">
     {formatFilter(filter)}
   </span>
 </div>

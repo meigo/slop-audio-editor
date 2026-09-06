@@ -60,11 +60,19 @@
 
 <div class="flex flex-col gap-1.5 p-2">
   {#if track}
+    <!-- A grid, not a flex column: each slider row renders `display: contents`, so its label,
+         track and readout become cells here. In a flex column they would each take a row of their
+         own. The middle column is `minmax(0, 1fr)` so the slider fills whatever width the panel is
+         dragged to. Set inline because Tailwind will not generate an arbitrary value containing a
+         comma. -->
     <section
-      class="flex flex-col gap-1.5"
+      class="grid items-center gap-x-2 gap-y-1.5"
+      style="grid-template-columns: auto minmax(0, 1fr) auto"
       data-hint="Three-band tone control for the current track. Click a track header to switch tracks."
     >
-      <h3 class="truncate text-[11px] tracking-wide text-muted uppercase">{track.name}</h3>
+      <h3 class="col-span-3 truncate text-[11px] tracking-wide text-muted uppercase">
+        {track.name}
+      </h3>
       <BandSlider
         label="low"
         db={track.eq.lowDb}

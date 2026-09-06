@@ -22,13 +22,15 @@
   const pct = $derived(((db + maxDb) / (2 * maxDb)) * 100);
 </script>
 
-<div class="flex items-center gap-1">
-  <span class="w-7 shrink-0 text-right text-[10px] text-muted">{label}</span>
+<!-- `contents`, so the three parts join the PARENT's grid: the slider then fills whatever width
+     the panel has been dragged to, and every row's label and readout line up. -->
+<div class="contents">
+  <span class="text-right text-[10px] text-muted">{label}</span>
   <!-- Bipolar and centred on flat, unlike the gain Fader: an EQ band cuts as well as boosts, so
        0 dB belongs in the MIDDLE of the travel rather than at 3/4 like unity gain. -->
   <input
     type="range"
-    class="slider bipolar w-20"
+    class="slider bipolar w-full min-w-0"
     style="--fill-from: {Math.min(50, pct)}%; --fill-to: {Math.max(50, pct)}%"
     {title}
     min={-maxDb}
@@ -39,7 +41,7 @@
     onpointerup={onCommit}
     onkeyup={onCommit}
   />
-  <span class="w-12 shrink-0 text-right text-[10px] text-muted tabular-nums">
+  <span class="w-12 text-right text-[10px] text-muted tabular-nums">
     {formatSignedDb(db)}
   </span>
 </div>

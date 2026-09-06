@@ -36,8 +36,11 @@
      purpose: the meter is a safety device and the fader gets ridden during playback, so neither
      should be reachable only by opening a panel. -->
 <div class="flex flex-col gap-3 p-2">
-  <section class="flex flex-col gap-1.5 border-t border-line pt-2">
-    <h3 class="text-[11px] tracking-wide text-muted uppercase">Master</h3>
+  <section
+    class="grid items-center gap-x-2 gap-y-1.5 border-t border-line pt-2"
+    style="grid-template-columns: auto minmax(0, 1fr) auto"
+  >
+    <h3 class="col-span-3 text-[11px] tracking-wide text-muted uppercase">Master</h3>
     <BandSlider
       label="low"
       db={appState.project.masterEq.lowDb}
@@ -64,7 +67,7 @@
     />
     <!-- Below the EQ because that is the signal order: fader, EQ, then Glue. -->
     <button
-      class="mt-1 rounded border px-2 py-1 text-xs {appState.project.glue
+      class="col-span-3 mt-1 rounded border px-2 py-1 text-xs {appState.project.glue
         ? 'border-accent bg-accent/20 text-text'
         : 'border-line text-muted hover:bg-raised hover:text-text'}"
       aria-pressed={appState.project.glue}
@@ -75,8 +78,11 @@
     </button>
   </section>
 
-  <section class="flex flex-col gap-1.5 border-t border-line pt-2">
-    <h3 class="text-[11px] tracking-wide text-muted uppercase">Duck</h3>
+  <section
+    class="grid items-center gap-x-2 gap-y-1.5 border-t border-line pt-2"
+    style="grid-template-columns: auto minmax(0, 1fr) auto"
+  >
+    <h3 class="col-span-3 text-[11px] tracking-wide text-muted uppercase">Duck</h3>
     <!-- Always mounted, disabled until some track is marked D — the same reason it is not
              `{#if}`-gated: state must not move the layout. -->
     <NumberField
