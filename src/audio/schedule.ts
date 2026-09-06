@@ -1,5 +1,6 @@
 import {
   clipEndS,
+  projectDurationS,
   PROJECT_SAMPLE_RATE,
   type Clip,
   type FadeShape,
@@ -55,7 +56,7 @@ export interface ScheduledClip {
 }
 
 /** Intersect a fade's timeline span with the visible part of the clip. */
-function fadeSpec(
+export function fadeSpec(
   fadeStartS: number,
   fadeLenS: number,
   shape: FadeShape,
@@ -211,4 +212,27 @@ export function planSchedule(
     }
   }
   return out;
+}
+
+/** Shape of the mix fade. Fixed, like ducking's timing: equal power holds the perceived loudness
+ *  steady through the taper, which is what you want when EVERYTHING fades together rather than one
+ *  clip crossing another. A per-project shape control would be a knob with no right answer. */
+const MASTER_FADE_SHAPE: FadeShape = "equalPower";
+
+/**
+ * The mix fade-out, clipped to the render window — or null when there is none to apply.
+ *
+ * Anchored to the PROJECT's end, not the window's: a range export of the middle of a project
+ * should not invent a fade at its own edge, and the fade has to stay where it was drawn when the
+ * export window changes. Reuses `fadeSpec`, so a window that starts partway through the fade
+ * resumes it rather than restarting it — the same handling a clip's own fade gets.
+ */
+export function masterFadeSpec(
+  project: Project,
+  window: { fromS: number; toS: number },
+): FadeSpec | null {
+  const endS = projectDurationS(project);
+  const lenS = Math.min(project.fadeOutS, endS);
+  if (!(lenS > 0)) return null;
+  return fadeSpec(endS - lenS, lenS, MASTER_FADE_SHAPE, window.fromS, window.toS, window.fromS);
 }

@@ -7,7 +7,14 @@
     type EqBands,
     type TrackFilter,
   } from "../doc/document";
-  import { setDuckDepth, setGlue, setMasterEq, setMasterFilter, setSaturation } from "../doc/edits";
+  import {
+    setDuckDepth,
+    setGlue,
+    setMasterEq,
+    setMasterFadeOut,
+    setMasterFilter,
+    setSaturation,
+  } from "../doc/edits";
   import {
     amend,
     beginGesture,
@@ -116,6 +123,20 @@
     >
       Glue
     </button>
+  </section>
+
+  <section
+    class="grid items-center gap-x-2 gap-y-3 border-t border-line pt-2"
+    style="grid-template-columns: auto minmax(0, 1fr) auto"
+  >
+    <h3 class="col-span-3 text-[11px] tracking-wide text-muted uppercase">Fade out</h3>
+    <NumberField
+      label="length"
+      value={appState.project.fadeOutS}
+      suffix="s"
+      title="Fades the WHOLE MIX at the end of the project — everything still playing, together. Anchored to the project end, so a range export of the middle does not invent one."
+      onCommit={(v) => commit((p) => setMasterFadeOut(p, v))}
+    />
   </section>
 
   <section

@@ -121,6 +121,7 @@ function fakeProject(trackIds: string[]): Project {
     masterEq: { lowDb: 0, midDb: 0, highDb: 0 },
     masterFilter: { kind: "off" as const, hz: 0 },
     saturation: 0,
+    fadeOutS: 0,
     tracks: trackIds.map((id) => ({
       id,
       name: id,

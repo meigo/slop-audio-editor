@@ -6,6 +6,7 @@ import {
   MAX_SPEED,
   MIN_CLIP_S,
   MIN_SPEED,
+  projectDurationS,
   clipEndS,
   createTrack,
   findClip,
@@ -431,4 +432,11 @@ export function setMasterFilter(p: Project, filter: TrackFilter): Project {
 export function setSaturation(p: Project, amount: number): Project {
   const next = Math.max(0, Math.min(1, amount));
   return p.saturation === next ? p : { ...p, saturation: next };
+}
+
+/** Fade-out on the whole mix, in seconds. Clamped to the project's own length — a fade longer than
+ *  the material would start before anything is playing. */
+export function setMasterFadeOut(p: Project, seconds: number): Project {
+  const next = Math.max(0, Math.min(seconds, projectDurationS(p)));
+  return p.fadeOutS === next ? p : { ...p, fadeOutS: next };
 }

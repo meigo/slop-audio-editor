@@ -1000,6 +1000,27 @@ command}` that `ShortcutHelp.svelte` renders. `resolveShortcut` was deliberately
     Each attempt clears it first, so a successful retry removes the last failure rather than
     leaving a stale message that describes a problem the user has already fixed.
 
+51. **The mix fade-out is anchored to the PROJECT's end, not the export window's — and it rides
+    its own gain node.** `project.fadeOutS` fades everything still playing, together, which is the
+    thing a per-clip fade cannot do: when a bed and a voice both run to the end, fading the last
+    clip fades one of them.
+    The anchor was the reason this sat unbuilt, and it is a real choice rather than a detail. Tied
+    to the project's end, a range export of the middle produces NO fade (verified: flat from start
+    to finish) and a range that starts mid-fade RESUMES it partway down rather than restarting
+    (verified: −4.61 dB at its first sample). Tied to the window's end instead, every partial
+    export would have invented a fade at its own edge.
+    It reuses `fadeSpec` — the same window-clipping helper a clip's own fade uses, now exported —
+    so "the window started partway through" is handled in one place rather than two.
+    The node is SEPARATE from `masterGain`, for the reason ducking has its own node (Gotcha 20):
+    an automation curve written onto the fader would fight `setMasterGain`, so riding the master
+    during a scheduled fade would cancel one or the other. It sits LAST, after Glue and saturation,
+    so it fades those too, and it becomes the graph's `output` — the meter shows the mix fading
+    rather than the level before the fade.
+    The shape is fixed at equal power. Same argument as ducking's timing: a per-project shape
+    control is a knob with no right answer. Measured on a 10 s project with a 4 s fade: 0.00 dB
+    until 6 s, then −0.69 / −5.11 / −28.12 at 7 / 8.5 / 9.9 s, which is the equal-power taper
+    exactly.
+
 ## Testing
 
 Vitest, `node` environment, no DOM (`src/**/*.test.ts`, see `vite.config.ts`). Pure logic

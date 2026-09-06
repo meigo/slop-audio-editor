@@ -9,7 +9,7 @@ import {
   setTrackMuted,
   splitAt,
 } from "../doc/edits";
-import { DECLICK_S, planSchedule, playsContinuouslyInto } from "./schedule";
+import { DECLICK_S, masterFadeSpec, planSchedule, playsContinuouslyInto } from "./schedule";
 
 const NO_SOLO: ReadonlySet<string> = new Set();
 
@@ -309,5 +309,47 @@ describe("playsContinuouslyInto with speed", () => {
     const prev = { ...makeClip("s1", 0, 5), speed: 2 };
     // 5 timeline seconds at 2x is 10 source seconds; an in-point of 5 would be the speed-1 answer.
     expect(playsContinuouslyInto(prev, { ...makeClip("s1", 5, 5), speed: 2, inS: 5 })).toBe(false);
+  });
+});
+
+describe("masterFadeSpec", () => {
+  /** A 10 s project: one clip from 0 to 10. */
+  const tenSeconds = (fadeOutS: number): Project => {
+    const base = createProject();
+    const p = addClip(base, base.tracks[0].id, makeClip("s", 0, 10));
+    return { ...p, fadeOutS };
+  };
+
+  it("is null when there is no fade", () => {
+    expect(masterFadeSpec(tenSeconds(0), { fromS: 0, toS: 10 })).toBe(null);
+  });
+
+  it("sits at the PROJECT's end, not the window's", () => {
+    // Exporting only the first half must not invent a fade at 5 s.
+    expect(masterFadeSpec(tenSeconds(3), { fromS: 0, toS: 5 })).toBe(null);
+
+    const whole = masterFadeSpec(tenSeconds(3), { fromS: 0, toS: 10 })!;
+    expect(whole.atS).toBeCloseTo(7, 9);
+    expect(whole.durS).toBeCloseTo(3, 9);
+  });
+
+  it("resumes rather than restarts when the window starts mid-fade", () => {
+    const spec = masterFadeSpec(tenSeconds(4), { fromS: 8, toS: 10 })!;
+    expect(spec.atS).toBeCloseTo(0, 9); // straight away, in window time
+    expect(spec.durS).toBeCloseTo(2, 9);
+    expect(spec.fromT).toBeCloseTo(0.5, 9); // half way down the taper already
+    expect(spec.toT).toBeCloseTo(1, 9);
+  });
+
+  it("clamps a fade longer than the project", () => {
+    const spec = masterFadeSpec(tenSeconds(999), { fromS: 0, toS: 10 })!;
+    expect(spec.atS).toBeCloseTo(0, 9);
+    expect(spec.durS).toBeCloseTo(10, 9);
+  });
+
+  it("is cut off with the window, so a partial export fades only as far as it reaches", () => {
+    const spec = masterFadeSpec(tenSeconds(4), { fromS: 0, toS: 8 })!;
+    expect(spec.durS).toBeCloseTo(2, 9);
+    expect(spec.toT).toBeCloseTo(0.5, 9);
   });
 });

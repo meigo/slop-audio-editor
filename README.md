@@ -51,7 +51,8 @@ under the voice, and export a mastered file — all locally, with no upload and 
   Derived from clip positions, not a sidechain, so the dip is already at full depth on the voice's
   first consonant — and it is drawn on the clip
 - **Match loudness**: sets clip gains so everything sits at the group's median LUFS
-- Master gain, master EQ, a master filter, tape-style **saturation**, and **Glue** — a fixed band-limit and gentle bus compressor
+- Master gain, master EQ, a master filter, tape-style **saturation**, **Glue**, and a
+  mix **fade-out** that fades everything still playing at the project's end — a fixed band-limit and gentle bus compressor
 - Live peak meter, per channel, so a hard-panned mix cannot read low
 - Undo/redo across every edit, 100 steps deep
 
@@ -85,7 +86,7 @@ A few decisions shape the whole codebase:
 ```bash
 npm install
 npm run dev       # Vite dev server
-npm test          # Vitest — 539 tests
+npm test          # Vitest — 550 tests
 npm run check     # svelte-check
 npm run lint      # ESLint
 npm run format    # Prettier
