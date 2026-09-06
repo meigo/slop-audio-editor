@@ -301,6 +301,13 @@ spin forever.
     `<select>`, which only SETS it. All three shapes drew identically, so switching a fade to
     exponential changed what you heard and nothing you saw. Same failure as Gotcha 15: derive the
     picture from the audio's source of truth rather than maintaining a parallel guess.
+    Every overlay SVG — fade and duck alike — is inset 1px on ALL FOUR sides (`inset-px` plus a
+    `calc(100% - 2px)` size, or `left-px`/`right-px` with a width 1px short for the fades, which
+    only touch one horizontal edge). The clip's own edge is an `outline` at `-outline-offset-1`,
+    so it occupies that outermost pixel: a curve reaching x=0, x=100 or the top/bottom shares
+    pixels with it and the two read as one thick smudge instead of a border and a curve. The
+    vertical inset came first; the horizontal one was missed until a ducked clip — whose envelope
+    starts and ends hard against both ends — made it obvious.
 
 18. **The master meter taps `RenderedGraph.output`, not `masterGain`, and the tap lives in
     `engine.ts` rather than `renderPlan`.** Two separate rules meeting in one feature.
