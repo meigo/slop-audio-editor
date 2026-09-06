@@ -1,7 +1,7 @@
 <script lang="ts">
   import { projectDurationS, type Track } from "../doc/document";
   import { planDucking, type DuckPoint } from "../audio/ducking";
-  import { state as appState } from "../state/appState.svelte";
+  import { focusPanel, state as appState } from "../state/appState.svelte";
   import ClipView from "./ClipView.svelte";
   import { startRangeDrag } from "./clip-drag.svelte";
   import { armLongPress, endLongPress, moveLongPress } from "./long-press";
@@ -37,6 +37,9 @@
   class="relative touch-none border-b border-line bg-ground"
   style="height: {appState.trackHeightPx}px"
   onpointerdown={(e) => {
+    // Empty lane space — a clip's own handler stops propagation, so reaching here means the
+    // pointer landed on the TRACK.
+    focusPanel("track");
     startRangeDrag(e, track.id);
     armLongPress(e);
   }}

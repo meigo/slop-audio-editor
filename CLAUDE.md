@@ -821,11 +821,20 @@ command}` that `ShortcutHelp.svelte` renders. `resolveShortcut` was deliberately
     properties were in a horizontal bar under the timeline while track and master mixing were in
     a panel on the right, so editing one clip meant looking in two places. Everything now lives in
     `SidePanel.svelte`.
-    The Clip tab holds the clip's own fields AND the current track's EQ and filter; the Master tab
-    holds the master EQ, Glue and duck depth. Splitting it "clip fields here, all mixing there"
-    was the first attempt and it was wrong: track EQ follows `currentTrackId()`, which is set by
-    clicking a clip, so it is a property of the thing you just selected and belongs beside it.
-    Master is the only genuinely project-wide part.
+    THREE tabs — Clip, Track, Master — one per level of the document, and **the panel follows
+    whatever you last touched**: a clip shows Clip, a track header or empty lane space shows
+    Track, and Master is only reached by asking for it. `focusPanel` is called from exactly three
+    places: `ClipView`'s pointer-down, `TrackLane`'s (empty space, since a clip stops
+    propagation), and `TrackHeader`'s click. It is deliberately NOT inside `setCurrentTrack`,
+    because clicking a clip sets the current track too and would then land on the wrong tab.
+    Two earlier shapes were wrong. "Clip fields here, all mixing there" put a track's tone control
+    a tab away from the clip on that track. Folding the track INTO the Clip tab then made one tab
+    mean two levels, which stops scaling the moment more track-wide effects arrive.
+    Touching a clip or track always leaves Master, so mastering while auditioning costs a click to
+    come back. Accepted deliberately: one rule with no exceptions is worth more than one
+    workflow's convenience, and mastering is mostly pressing Space rather than clicking clips.
+    The header click also switching tabs is what makes it a single rule rather than two special
+    cases — the header is the most deliberate "I am working on this track" gesture there is.
     Fields are grouped with rules between them — where the clip sits and how fast it plays, then
     its level and the envelope shaping that level. Seven fields in a flat column read as a list to
     scan rather than three things to adjust. The rule between the clip and its track spans the

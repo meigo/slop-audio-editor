@@ -1,6 +1,8 @@
 import { clampPanelWidth, DEFAULT_PANEL_WIDTH } from "../lib/panel-layout";
 const KEY = "slop-audio-editor.prefs";
 
+export type SidePanelTab = "clip" | "track" | "master";
+
 export interface Preferences {
   pxPerSecond: number;
   snap: boolean;
@@ -12,7 +14,7 @@ export interface Preferences {
    *  document state — the same reason zoom and snap live here. */
   sidePanelOpen: boolean;
   sidePanelWidth: number;
-  sidePanelTab: "clip" | "mix";
+  sidePanelTab: SidePanelTab;
 }
 
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -66,7 +68,10 @@ export function sanitisePreferences(raw: unknown): Preferences {
         : DEFAULT_PANEL_WIDTH,
       Number.MAX_SAFE_INTEGER,
     ),
-    sidePanelTab: r.sidePanelTab === "mix" ? "mix" : DEFAULT_PREFERENCES.sidePanelTab,
+    sidePanelTab:
+      r.sidePanelTab === "track" || r.sidePanelTab === "master"
+        ? r.sidePanelTab
+        : DEFAULT_PREFERENCES.sidePanelTab,
   };
 }
 

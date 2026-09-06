@@ -14,6 +14,7 @@
     commit,
     currentTrackId,
     endGesture,
+    focusPanel,
     engine,
     setCurrentTrack,
     state as appState,
@@ -138,7 +139,10 @@
   class:border-l-accent={isCurrent}
   style="height: {appState.trackHeightPx}px"
   data-track-header={track.id}
-  onclick={() => setCurrentTrack(track.id)}
+  onclick={() => {
+    setCurrentTrack(track.id);
+    focusPanel("track");
+  }}
 >
   <div class="flex items-center gap-1">
     <!-- svelte-ignore a11y_no_static_element_interactions -->

@@ -58,7 +58,7 @@
   }
 </script>
 
-<div class="flex flex-col gap-1.5 border-t border-line p-2">
+<div class="flex flex-col gap-1.5 p-2">
   {#if track}
     <section
       class="flex flex-col gap-1.5"

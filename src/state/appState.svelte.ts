@@ -8,7 +8,12 @@ import { matchLoudnessGains, type LoudnessEntry } from "../doc/loudness-match";
 import { setIn, setOut, type PlayRange } from "../doc/play-range";
 import { NO_SELECTION, type Selection } from "../doc/selection";
 import { putSource, scheduleDocumentSave } from "../persist/autosave";
-import { loadPreferences, nextTrackHeight, savePreferences } from "../persist/preferences";
+import {
+  loadPreferences,
+  nextTrackHeight,
+  savePreferences,
+  type SidePanelTab,
+} from "../persist/preferences";
 import { canRedo, canUndo, createHistory, record, redo, undo } from "./history";
 
 export const pool = new SourcePool();
@@ -429,4 +434,20 @@ export function deleteSelection(ripple = false): void {
 export function duplicateSelection(): void {
   copySelection();
   pasteAtPlayhead();
+}
+
+/**
+ * Point the side panel at what the user just touched.
+ *
+ * ONE rule, no exceptions: a clip shows Clip, a track (its header, or empty lane space) shows
+ * Track, and Master is only reached by asking for it. Touching a clip or a track leaves Master,
+ * which costs a click when mastering while auditioning — accepted, because "the panel shows what
+ * you last touched" is worth more than one workflow's convenience, and mastering is mostly
+ * pressing Space rather than clicking clips.
+ *
+ * Deliberately NOT folded into `setCurrentTrack`: clicking a CLIP sets the current track too, and
+ * would then land on the Track tab instead of the clip the user just selected.
+ */
+export function focusPanel(tab: SidePanelTab): void {
+  state.sidePanelTab = tab;
 }

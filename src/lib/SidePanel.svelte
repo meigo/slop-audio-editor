@@ -6,13 +6,14 @@
   import TrackInspector from "./TrackInspector.svelte";
   import { clampPanelWidth, PANEL_RAIL_WIDTH, resizedPanelWidth } from "./panel-layout";
 
-  /** Clip holds everything about what you SELECTED — the clip's own fields and the mix controls
-   *  for the track it sits on, which is the track clicking that clip made current. Master holds
-   *  what applies to the whole project. Splitting it the other way put a clip's tone control one
-   *  tab away from the clip. */
+  /** Three levels, and the panel follows whatever you last touched: a clip shows Clip, a track
+   *  header or empty lane space shows Track, and Master is only reached by asking for it. See
+   *  `focusPanel`. A track is its own level — clips sit on it and more track-wide effects will
+   *  land there — so folding it into Clip made the tab mean two things at once. */
   const TABS = [
     { id: "clip" as const, label: "Clip" },
-    { id: "mix" as const, label: "Master" },
+    { id: "track" as const, label: "Track" },
+    { id: "master" as const, label: "Master" },
   ];
 
   // Resize grip, mirroring slop-animator's. The arithmetic lives in `resizedPanelWidth` so it can
@@ -100,6 +101,7 @@
     <div class="min-h-0 flex-1 overflow-y-auto">
       {#if appState.sidePanelTab === "clip"}
         <ClipInspector />
+      {:else if appState.sidePanelTab === "track"}
         <TrackInspector />
       {:else}
         <MasterInspector />

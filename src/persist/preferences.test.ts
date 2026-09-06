@@ -23,7 +23,7 @@ describe("sanitisePreferences", () => {
       normaliseLufs: -16,
       sidePanelOpen: true,
       sidePanelWidth: 260,
-      sidePanelTab: "mix",
+      sidePanelTab: "master",
     });
     expect(p).toEqual({
       pxPerSecond: 120,
@@ -33,7 +33,7 @@ describe("sanitisePreferences", () => {
       normaliseLufs: -16,
       sidePanelOpen: true,
       sidePanelWidth: 260,
-      sidePanelTab: "mix",
+      sidePanelTab: "master",
     });
   });
 
@@ -109,7 +109,11 @@ describe("normaliseLufs", () => {
   });
 
   it("only accepts a tab it knows", () => {
-    expect(sanitisePreferences({ sidePanelTab: "mix" }).sidePanelTab).toBe("mix");
+    expect(sanitisePreferences({ sidePanelTab: "track" }).sidePanelTab).toBe("track");
+    expect(sanitisePreferences({ sidePanelTab: "master" }).sidePanelTab).toBe("master");
+    // "mix" was the old two-tab name; anything unrecognised falls back rather than rendering
+    // nothing.
+    expect(sanitisePreferences({ sidePanelTab: "mix" }).sidePanelTab).toBe("clip");
     expect(sanitisePreferences({ sidePanelTab: "nope" }).sidePanelTab).toBe("clip");
   });
 });

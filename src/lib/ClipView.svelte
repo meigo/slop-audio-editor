@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Clip } from "../doc/document";
   import { clipsInRange } from "../doc/selection";
-  import { pool, setCurrentTrack, state as appState } from "../state/appState.svelte";
+  import { focusPanel, pool, setCurrentTrack, state as appState } from "../state/appState.svelte";
   import { startClipDrag } from "./clip-drag.svelte";
   import { armLongPress, endLongPress, moveLongPress } from "./long-press";
   import { fadeInCurve, fadeOutCurve } from "../audio/fades";
@@ -72,10 +72,12 @@
       (sel.kind === "range" && clipsInRange(appState.project, sel.range).includes(clip.id));
     if (!covered) appState.selection = { kind: "clips", clipIds: [clip.id] };
     setCurrentTrack(trackId);
+    focusPanel("clip");
   }
 
   function onPointerDown(e: PointerEvent) {
     e.stopPropagation(); // a clip click must not start a range drag on the lane behind it
+    focusPanel("clip"); // the panel follows what you touched
     const z = zoneAt(e);
     // Shift as well as the platform modifier: Shift is what most people reach for first, and
     // nothing else on a clip uses it at pointer-down (Shift only suppresses snapping once a
