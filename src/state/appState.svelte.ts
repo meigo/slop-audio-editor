@@ -461,6 +461,27 @@ export function zoomToFit(scope: "project" | "selection"): void {
   state.scrollS = next.scrollS;
 }
 
+/**
+ * Drop every piece of session state that belonged to the PREVIOUS document.
+ *
+ * Selection, in/out markers, solo, the playhead and the running graph are all keyed to a document
+ * that no longer exists. The selection is the dangerous one: `exportWindow` reads a time-range
+ * selection and nothing else, so a range left over from project A silently truncated an export of
+ * project B — while `RangeOverlay` drew nothing, because the range's track ids matched no track in
+ * B. That is the Gotcha 1/13 failure exactly: a wrong mixdown reported as a success.
+ *
+ * Called by `loadInto` (Open, and restoring an autosave) and by New project.
+ */
+export function resetSessionState(): void {
+  engine.stop();
+  state.playing = false;
+  state.playheadS = 0;
+  state.selection = NO_SELECTION;
+  state.playRange = null;
+  state.soloed.clear();
+  state.currentTrackId = null;
+}
+
 /** Copy, then paste at the playhead on the current track. Two undo entries, because that is what
  *  the two operations genuinely are — and the paste is the one worth undoing. */
 export function duplicateSelection(): void {

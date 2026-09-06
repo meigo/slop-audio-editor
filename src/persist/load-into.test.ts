@@ -106,6 +106,24 @@ describe("loadInto, through openProjectFile", () => {
     expect(minted.filter((id) => existing.has(id))).toEqual([]);
   });
 
+  it("clears the previous document's session state, so it cannot reach the new one's export", async () => {
+    // A time-range selection is what `exportWindow` reads. Left over from the previous project it
+    // silently truncates an export of this one — and RangeOverlay draws nothing, because its
+    // track ids match no track here. Same class as Gotchas 1 and 13.
+    appState.state.selection = {
+      kind: "range",
+      range: { fromS: 2, toS: 4, trackIds: ["track-from-the-old-project"] },
+    };
+    appState.state.playRange = { fromS: 1, toS: 9 };
+    appState.state.soloed.add("track-from-the-old-project");
+
+    await openProjectFile(packedFile());
+
+    expect(appState.state.selection).toEqual({ kind: "none" });
+    expect(appState.state.playRange).toBeNull();
+    expect(appState.state.soloed.size).toBe(0);
+  });
+
   it("clears undo history, so undo cannot walk back into the previous document", async () => {
     const p = createProject();
     const bytes = packProject(p, []);

@@ -264,6 +264,28 @@ describe("declick at a seam between contiguous clips", () => {
     expect(b.fadeIn).not.toBeNull();
   });
 
+  it("declicks a seam the window opens exactly on — the other half never played", () => {
+    // Split at 15, then press Space with the playhead still on the cut. The first half is not in
+    // the window at all, so the second half starts from silence: a genuine step, and the exact
+    // case DECLICK_S exists for. `joinedAtStart` used to be decided from the document neighbour
+    // alone, which said "continuous" and suppressed the ramp.
+    const plan = planSchedule(splitOnce(), 15, 100, NO_SOLO);
+    expect(plan).toHaveLength(1);
+    expect(plan[0].fadeIn).toMatchObject({ atS: 0, durS: DECLICK_S });
+  });
+
+  it("declicks a seam the window ends exactly on", () => {
+    const plan = planSchedule(splitOnce(), 0, 15, NO_SOLO);
+    expect(plan).toHaveLength(1);
+    expect(plan[0].fadeOut).toMatchObject({ durS: DECLICK_S });
+  });
+
+  it("still leaves the seam dry when BOTH halves are in the window", () => {
+    const [a, b] = planSchedule(splitOnce(), 10, 20, NO_SOLO);
+    expect(a.fadeOut).toBeNull();
+    expect(b.fadeIn).toBeNull();
+  });
+
   it("declicks where the WINDOW cuts into a clip, seam or not", () => {
     // Opening playback mid-clip is a genuine discontinuity even though the clip continues its
     // neighbour: the previous audio was never played.

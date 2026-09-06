@@ -36,6 +36,7 @@
     pool,
     reachableProjects,
     redoEdit,
+    resetSessionState,
     seekTo,
     selectedTrackIds,
     setPlayIn,
@@ -112,6 +113,9 @@
         class={MENU_ITEM}
         onclick={() => {
           commit(() => createProject());
+          // The same reset `loadInto` does: a selection, in/out range or solo left over from the
+          // old document would still be read by the export window and the transport.
+          resetSessionState();
           // New project is an undoable commit, so the previous document is still reachable —
           // prune only what NO reachable document references, or undo comes back to dead audio.
           void pruneUnreferencedSources(

@@ -127,15 +127,23 @@ export function normaliseChannels(
     return { achievedLufs: n.achievedLufs, reductionDb: 0, limitedByPeak: n.limitedByPeak };
   }
 
+  const ceiling = 10 ** (NORMALISE_CEILING_DBFS / 20);
   let reductionDb = 0;
   for (let pass = 0; pass < NORMALISE_MAX_PASSES; pass++) {
     // Silence needs no guard of its own: `normalisationGain` returns a gain of 1 for a
-    // non-finite measurement, which trips the convergence break below on the first pass.
+    // non-finite measurement, which — with a zero peak, already under the ceiling — trips the
+    // convergence break below on the first pass.
     const lufs = integratedLoudness(channels, sampleRate);
+    const peak = peakAmplitude(channels);
     // No ceiling here: the limiter is what keeps the peaks in check, so capping the gain as well
     // would leave the target unreachable — the very thing the limiter was turned on to fix.
-    const n = normalisationGain(lufs, peakAmplitude(channels), targetLufs, Infinity);
-    if (Math.abs(20 * Math.log10(n.gain)) < NORMALISE_TOLERANCE_DB) break;
+    const n = normalisationGain(lufs, peak, targetLufs, Infinity);
+    // BOTH conditions, not just the gain. A mix already at the target but peaking over the
+    // ceiling — "mixed to -16, peaks near 0, export -16 with the limiter" — used to break here
+    // before `limitPeaks` ever ran, so the limiter the user ticked did nothing and the file went
+    // out above the ceiling reporting no reduction.
+    const onTarget = Math.abs(20 * Math.log10(n.gain)) < NORMALISE_TOLERANCE_DB;
+    if (onTarget && peak <= ceiling) break;
     scale(n.gain);
     const r = limitPeaks(channels, sampleRate);
     if (r.maxReductionDb > reductionDb) reductionDb = r.maxReductionDb;

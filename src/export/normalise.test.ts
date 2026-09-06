@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { integratedLoudness } from "../audio/loudness";
 import { NORMALISE_CEILING_DBFS, normalisationGain, normaliseChannels } from "./normalise";
 
 const at = (measured: number, peak: number, target: number) =>
@@ -91,6 +92,28 @@ function highCrestMix(): Float32Array[] {
   });
 }
 
+/** A mix sitting exactly on `targetLufs` whose peaks are still above the ceiling — the ordinary
+ *  "mixed to -16, peaks near full scale" case. Its crest factor is what matters (peak vs ceiling
+ *  is scale-invariant), so the bed level is chosen to give ~15 dB of it; the scale to the target
+ *  is by MEASUREMENT, and the test asserts the fixture really is over the ceiling before it
+ *  asserts anything else. */
+function onTargetButHot(targetLufs: number): Float32Array[] {
+  const SR = 48000;
+  const n = SR * 4;
+  const ch = [0, 1].map(() => {
+    const d = new Float32Array(n);
+    for (let i = 0; i < n; i++) d[i] = 0.18 * Math.sin((2 * Math.PI * 220 * i) / SR);
+    for (let k = 0; k < 8; k++) {
+      const at = 3000 + k * 5500;
+      for (let j = 0; j < 60; j++) d[at + j] = 0.99 * Math.exp(-j / 20);
+    }
+    return d;
+  });
+  const gain = 10 ** ((targetLufs - integratedLoudness(ch, SR)) / 20);
+  for (const c of ch) for (let i = 0; i < c.length; i++) c[i] *= gain;
+  return ch;
+}
+
 describe("normaliseChannels", () => {
   const SR = 48000;
   // A loop, not `Math.max(...spread)`: these buffers are 192k samples and spreading them blows
@@ -134,6 +157,20 @@ describe("normaliseChannels", () => {
 
     expect(again.reductionDb).toBe(0); // no further squashing
     expect([...ch[0]]).toEqual([...settled[0]]);
+  });
+
+  it("still limits a mix that is already at the target but over the ceiling", () => {
+    // The ordinary case: mixed to -16 with peaks near full scale, exported at -16 with the
+    // limiter ticked. The loop used to break on the gain tolerance BEFORE limiting, so the
+    // limiter the user asked for never ran and the file went out above the ceiling.
+    const ch = onTargetButHot(-16);
+    expect(peakDb(ch)).toBeGreaterThan(NORMALISE_CEILING_DBFS); // the fixture must actually be hot
+
+    const r = normaliseChannels(ch, SR, -16, true);
+
+    expect(peakDb(ch)).toBeLessThanOrEqual(NORMALISE_CEILING_DBFS + 1e-6);
+    expect(r.reductionDb).toBeGreaterThan(0); // and it says what it cost
+    expect(r.achievedLufs).toBeCloseTo(-16, 0);
   });
 
   it("leaves silence alone rather than looping on an infinite gain", () => {

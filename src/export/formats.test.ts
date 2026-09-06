@@ -30,6 +30,19 @@ describe("exportWindow", () => {
     expect(exportWindow(p, selection)).toEqual({ fromS: 0, toS: 20 });
   });
 
+  it("ignores a range whose tracks are gone from this project", () => {
+    // A range is session state and outlives the document it was drawn on. One left over from a
+    // previous project silently truncated the export of the new one — while RangeOverlay drew
+    // nothing, because it matches the same dead track ids.
+    const base = createProject();
+    const p = addClip(base, base.tracks[0].id, makeClip("s", 0, 20));
+    const selection = {
+      kind: "range" as const,
+      range: { fromS: 3, toS: 8, trackIds: ["track-from-another-project"] },
+    };
+    expect(exportWindow(p, selection)).toEqual({ fromS: 0, toS: 20 });
+  });
+
   it("is an empty window for an empty project", () => {
     expect(exportWindow(createProject(), NO_SELECTION)).toEqual({ fromS: 0, toS: 0 });
   });

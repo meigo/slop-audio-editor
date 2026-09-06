@@ -136,6 +136,14 @@ src/
    which silently breaks the sync between "position on the timeline" and "offset into the source" —
    the clip would visually stay put but start playing from the wrong point in the source audio.
 
+2b. **A fade belongs to the EDGE it was drawn on — `sliceClip` drops the one whose edge the piece
+    no longer has.** Spreading `...c` carried both fades onto every piece, so splitting a clip
+    with a 2 s fade-out gave the head a fade-out at the cut (audio that was at full level now
+    tapering to silence) and the tail a fade-in from silence — and `playsContinuouslyInto` still
+    called the seam continuous, so not even the declick fired. `splitAt`, `deleteRange` and
+    drop-to-overwrite all land in `sliceClip`, so all three were affected. The old test asserted
+    only the SUM of the two fades, which the wrong model satisfied unchanged.
+
 3. **`planSchedule` is shared by preview and export — it has no playback-only branches.** Any
    special case that should apply only while playing (or only while exporting) belongs in
    `renderPlan`'s caller, never inside the plan itself. Why it matters: the whole reason preview and
@@ -273,8 +281,15 @@ spin forever.
     loudness silently produced a correct-sounding but visually unchanged mix — the waveform is
     meant to show what you'll hear, and reading peaks off `source.peaks` without gain broke that.
 
-16. **Undo history belongs to ONE document — `loadInto` resets it, and orphan pruning must
-    consult every undo-reachable document.** Two halves of the same invariant, both verified in a
+16. **Undo history AND session state belong to ONE document — `loadInto` resets both, and orphan
+    pruning must consult every undo-reachable document.**
+    (c) `resetSessionState()` (`appState.svelte.ts`) is called by `loadInto` and by New project:
+    selection, in/out range, solo, playhead and the running graph are all keyed to the OUTGOING
+    document. The selection is the dangerous one — `exportWindow` reads a time-range selection and
+    nothing else, so a range left over from project A silently truncated an export of project B
+    while `RangeOverlay` drew nothing (its track ids matched no track in B). `exportWindow` now
+    also ignores a range naming no live track, which is the same resolve-at-USE rule `activeSoloed`
+    follows (Gotcha 26) and the belt to the reset's braces. Two halves of the same invariant, both verified in a
     browser after being found by audit:
     (a) `loadInto` (`src/persist/project-io.svelte.ts`) calls `resetHistory()` after swapping the
     pool and project. Without it, undo walks straight out of the project you just opened into the
@@ -438,7 +453,12 @@ spin forever.
     into the middle of audio is the same discontinuity). `declickSpec` caps the ramp at half the
     audible span, because a clip may be as short as `MIN_CLIP_S` (10 ms) — only two declicks long
     — and the existing one-sample-gap guard then keeps the two spans from touching, which
-    `setValueCurveAtTime` throws on. Because it is never written to the document it cannot be
+    `setValueCurveAtTime` throws on.
+    A seam only counts as joined when the OTHER half is actually IN the render window: the window
+    is half-open, so a neighbour that merely touches `fromS`/`toS` is never scheduled, and
+    suppressing the ramp against audio that will not play is how a split — with the playhead left
+    on the cut, the commonest way to arrive there — still clicked on Space.
+    Because it is never written to the document it cannot be
     edited, undone, or saved, and it costs nothing in the file format.
 
 24. **Per-track EQ is three FIXED bands, and a flat EQ builds no filter nodes at all.**
@@ -755,6 +775,10 @@ command}` that `HelpOverlay.svelte` renders. `resolveShortcut` was deliberately 
     `NORMALISE_TOLERANCE_DB`. With the limiter on, the normalisation gain is computed with an
     INFINITE ceiling: capping the gain as well would leave the target unreachable, which is the
     very thing the limiter was switched on to fix.
+    The convergence break tests the PEAK as well as the gain. Testing the gain alone meant a mix
+    already at the target but over the ceiling — "mixed to -16, peaks near 0, export -16 with the
+    limiter" — broke out of the loop before `limitPeaks` ever ran: the limiter the user ticked did
+    nothing and the file went out above the ceiling reporting no reduction.
     It is **opt-in and reports what it cost** (deepest reduction in dB, shown in `warn` past 6 dB).
     Gotcha 28 says normalisation refuses to include a limiter because that would change the
     dynamics of a mix the user monitored; the difference here is consent — a box they tick.

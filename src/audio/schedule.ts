@@ -200,14 +200,14 @@ export function planSchedule(
       const c = t.clips[i];
       const prev = t.clips[i - 1];
       const next = t.clips[i + 1];
-      const s = scheduleClip(
-        c,
-        t.id,
-        fromS,
-        toS,
-        prev !== undefined && playsContinuouslyInto(prev, c),
-        next !== undefined && playsContinuouslyInto(c, next),
-      );
+      // A seam only counts as joined when the OTHER half is actually in this window. The window
+      // is half-open, so a neighbour that merely touches `fromS`/`toS` is never scheduled — and
+      // suppressing the ramp against audio that will not play is how a split, left with the
+      // playhead on the cut, still clicked on Space.
+      const joinedAtStart =
+        prev !== undefined && playsContinuouslyInto(prev, c) && clipEndS(prev) > fromS;
+      const joinedAtEnd = next !== undefined && playsContinuouslyInto(c, next) && next.startS < toS;
+      const s = scheduleClip(c, t.id, fromS, toS, joinedAtStart, joinedAtEnd);
       if (s) out.push(s);
     }
   }

@@ -66,8 +66,13 @@ describe("sliceClip", () => {
     expect(sliceClip(clip({ startS: 0, durS: 5 }), 4.999, 20)).toBeNull();
   });
 
-  it("clamps fades that no longer fit the slice", () => {
+  it("clamps a surviving fade that no longer fits the slice", () => {
+    // The slice keeps the original start, so the fade-IN survives and is clamped to the shorter
+    // piece; the fade-out belonged to an edge this piece no longer has. Asserting only the SUM
+    // let the old "carry both fades onto every piece" model pass this test unchanged.
     const s = sliceClip(clip({ startS: 0, durS: 10, fadeInS: 4, fadeOutS: 4 }), 0, 3)!;
+    expect(s.fadeInS).toBeCloseTo(3);
+    expect(s.fadeOutS).toBe(0);
     expect(s.fadeInS + s.fadeOutS).toBeCloseTo(3);
   });
 });
@@ -129,5 +134,28 @@ describe("insertClip", () => {
       [2, 8],
       [10, 2],
     ]);
+  });
+});
+
+describe("sliceClip fades", () => {
+  const faded = () => clip({ startS: 0, durS: 10, fadeInS: 2, fadeOutS: 3 });
+
+  it("keeps the fade-in only when the slice still starts where the clip did", () => {
+    const head = sliceClip(faded(), -Infinity, 7)!;
+    expect(head.fadeInS).toBe(2);
+    const tail = sliceClip(faded(), 7, Infinity)!;
+    expect(tail.fadeInS).toBe(0);
+  });
+
+  it("keeps the fade-out only when the slice still ends where the clip did", () => {
+    const tail = sliceClip(faded(), 7, Infinity)!;
+    expect(tail.fadeOutS).toBe(3);
+    const head = sliceClip(faded(), -Infinity, 7)!;
+    expect(head.fadeOutS).toBe(0);
+  });
+
+  it("drops both when the slice is taken out of the middle", () => {
+    const mid = sliceClip(faded(), 3, 6)!;
+    expect([mid.fadeInS, mid.fadeOutS]).toEqual([0, 0]);
   });
 });

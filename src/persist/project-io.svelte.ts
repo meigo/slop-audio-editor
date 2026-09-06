@@ -1,6 +1,6 @@
 import { decodeSource, type Source } from "../audio/pool";
 import { adoptIds, referencedSourceIdsAcross, type Project } from "../doc/document";
-import { pool, resetHistory, state as appState } from "../state/appState.svelte";
+import { pool, resetHistory, resetSessionState, state as appState } from "../state/appState.svelte";
 import {
   deleteSource,
   disableDocumentSaves,
@@ -81,6 +81,9 @@ async function loadInto(project: typeof appState.project, sources: SourceRecord[
     }
   }
   // Past this line nothing can fail, so the swap is effectively atomic.
+  // Session state first: it is keyed to the OUTGOING document, and stopping the engine before the
+  // pool is emptied means nothing is left playing buffers this project no longer owns.
+  resetSessionState();
   pool.clear();
   for (const d of decoded) pool.add(d);
   appState.project = project;

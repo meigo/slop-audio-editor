@@ -31,9 +31,22 @@ export function sliceClip(c: Clip, fromS: number, toS: number): Clip | null {
   const e = Math.min(clipEndS(c), toS);
   const durS = e - s;
   if (durS < MIN_CLIP_S) return null;
-  // `s - c.startS` is TIMELINE seconds; the in-point advances by that many SOURCE seconds,
-  // which at speed != 1 is not the same number. Split and drop-to-overwrite both land here.
-  return clampFades({ ...c, startS: s, inS: c.inS + (s - c.startS) * c.speed, durS });
+  // A fade belongs to the EDGE it was drawn on, not to the clip's identity. Spreading `...c`
+  // carried both fades onto every piece: splitting a clip with a fade-out gave the head a
+  // fade-out at the cut — audio that was at full level now tapering to silence — and the tail a
+  // fade-in from silence, with `playsContinuouslyInto` still calling the seam continuous so not
+  // even the declick fired. A fade survives only when the piece still has the edge it was
+  // attached to.
+  const keepsStart = s === c.startS;
+  const keepsEnd = e === clipEndS(c);
+  return clampFades({
+    ...c,
+    startS: s,
+    inS: c.inS + (s - c.startS) * c.speed,
+    durS,
+    fadeInS: keepsStart ? c.fadeInS : 0,
+    fadeOutS: keepsEnd ? c.fadeOutS : 0,
+  });
 }
 
 /** Place `incoming` into `clips`, overwriting whatever it lands on: the dragged clip wins.
