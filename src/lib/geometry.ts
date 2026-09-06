@@ -208,22 +208,37 @@ export const FIT_PAD_PX = 12;
  * side.
  *
  * An empty span falls back to the default scale rather than dividing by zero — fitting a
- * zero-length range or an empty project would otherwise land at maximum zoom on nothing. The
- * scroll is clamped at 0 because there is nothing before t = 0 to show: `formatTime` renders every
- * negative tick as 00:00.000, so the left pad is simply given up for a span that starts there.
+ * zero-length range or an empty project would otherwise land at maximum zoom on nothing.
+ *
+ * The scroll can never go below 0: there is nothing before t = 0 to show, and `formatTime` renders
+ * every negative tick as 00:00.000. When the left pad would fall off that start, its WIDTH is
+ * given back to the span rather than simply clamped away — subtracting both pads from the scale
+ * and then dropping one of them piles both up as a gap on the right, which is what a fit of the
+ * whole project (which always starts at 0) did.
  */
 export function fitView(
   fromS: number,
   toS: number,
   viewportWidthPx: number,
 ): { pxPerSecond: number; scrollS: number } {
-  // A viewport narrower than its own pads would ask for a negative width; one pixel keeps the
-  // scale finite and the clamp below does the rest.
-  const usablePx = Math.max(1, viewportWidthPx - 2 * FIT_PAD_PX);
   const spanS = toS - fromS;
-  const wanted = spanS > 0 ? usablePx / spanS : DEFAULT_PX_PER_S;
-  const pxPerSecond = Math.min(MAX_PX_PER_S, Math.max(MIN_PX_PER_S, wanted));
-  return { pxPerSecond, scrollS: Math.max(0, fromS - FIT_PAD_PX / pxPerSecond) };
+  if (!(spanS > 0)) {
+    return {
+      pxPerSecond: DEFAULT_PX_PER_S,
+      scrollS: Math.max(0, fromS - FIT_PAD_PX / DEFAULT_PX_PER_S),
+    };
+  }
+  // A viewport narrower than its own pads would ask for a negative width; one pixel keeps the
+  // scale finite and the clamp does the rest.
+  const bothPads = clampScale(Math.max(1, viewportWidthPx - 2 * FIT_PAD_PX) / spanS);
+  const scrollS = fromS - FIT_PAD_PX / bothPads;
+  if (scrollS >= 0) return { pxPerSecond: bothPads, scrollS };
+  // Pinned to 0, so the visible window is 0..toS and only the RIGHT pad is spent.
+  return { pxPerSecond: clampScale(Math.max(1, viewportWidthPx - FIT_PAD_PX) / toS), scrollS: 0 };
+}
+
+function clampScale(pxPerSecond: number): number {
+  return Math.min(MAX_PX_PER_S, Math.max(MIN_PX_PER_S, pxPerSecond));
 }
 
 export interface PinchStart {

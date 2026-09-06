@@ -537,6 +537,19 @@ describe("fitView", () => {
     expect(fitView(0, 10, 1024).scrollS).toBe(0);
   });
 
+  it("gives the left pad back to the span when it falls off the start", () => {
+    // Both pads were being subtracted from the scale and then the left one clamped away, so a
+    // fit of the whole project piled BOTH of them up as a gap on the right.
+    const { pxPerSecond, scrollS } = fitView(0, 10, 1024);
+    expect(timeToPx(10, scrollS, pxPerSecond)).toBeCloseTo(1024 - FIT_PAD_PX, 6);
+  });
+
+  it("still pads both sides when the span starts far enough in", () => {
+    const { pxPerSecond, scrollS } = fitView(4, 14, 1024);
+    expect(timeToPx(4, scrollS, pxPerSecond)).toBeCloseTo(FIT_PAD_PX, 6);
+    expect(timeToPx(14, scrollS, pxPerSecond)).toBeCloseTo(1024 - FIT_PAD_PX, 6);
+  });
+
   it("survives a viewport too narrow for the pads", () => {
     const { pxPerSecond } = fitView(0, 10, 10);
     expect(pxPerSecond).toBeGreaterThan(0);
