@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { projectDurationS } from "../doc/document";
   import { moveClips, setTrackMuted, splitAt } from "../doc/edits";
   import { editPoints, nextEditPoint, prevEditPoint, NO_SELECTION } from "../doc/selection";
   import {
@@ -21,10 +20,11 @@
     toggleSolo,
     togglePlay,
     undoEdit,
+    zoomToFit,
   } from "../state/appState.svelte";
   import { resolveShortcut } from "./shortcuts";
 
-  const { onSave, viewportWidthPx }: { onSave: () => void; viewportWidthPx: number } = $props();
+  const { onSave }: { onSave: () => void } = $props();
 
   /** A shortcut must never fire while the user is typing into the inspector or a rename field. */
   function isTextTarget(t: EventTarget | null): boolean {
@@ -118,12 +118,8 @@
       case "zoom":
         appState.pxPerSecond = Math.min(2000, Math.max(2, appState.pxPerSecond * cmd.factor));
         return;
-      case "zoomFit": {
-        const dur = projectDurationS(appState.project);
-        appState.scrollS = 0;
-        appState.pxPerSecond = dur > 0 ? Math.max(2, (viewportWidthPx - 24) / dur) : 60;
-        return;
-      }
+      case "zoomFit":
+        return zoomToFit(cmd.scope);
     }
   }
 </script>

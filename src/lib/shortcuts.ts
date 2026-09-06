@@ -15,7 +15,7 @@ export type Command =
   | { kind: "nudge"; deltaS: number }
   | { kind: "jumpEdit"; direction: 1 | -1 }
   | { kind: "zoom"; factor: number }
-  | { kind: "zoomFit" }
+  | { kind: "zoomFit"; scope: "project" | "selection" }
   | { kind: "setIn" }
   | { kind: "setOut" }
   | { kind: "clearPlayRange" }
@@ -82,8 +82,10 @@ export function resolveShortcut(e: KeyEventLike): Command | null {
       return { kind: "setIn" };
     case "o":
       return { kind: "setOut" };
+    case "f":
+      return { kind: "zoomFit", scope: "selection" };
     case "F":
-      return { kind: "zoomFit" };
+      return { kind: "zoomFit", scope: "project" };
     case "?":
       return { kind: "showHelp" };
     case "Delete":
@@ -222,8 +224,15 @@ export const SHORTCUTS: readonly ShortcutDoc[] = [
   { group: "View", keys: "+  −", label: "Zoom in / out", event: ev("="), command: "zoom" },
   {
     group: "View",
+    keys: "F",
+    label: "Zoom to fit the selection",
+    event: ev("f"),
+    command: "zoomFit",
+  },
+  {
+    group: "View",
     keys: "⇧F",
-    label: "Zoom to fit",
+    label: "Zoom to fit the whole project",
     event: ev("F", { shift: true }),
     command: "zoomFit",
   },

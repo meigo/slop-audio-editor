@@ -1,7 +1,7 @@
 import type { Selection } from "../doc/selection";
 
 export interface ContextItem {
-  id: "cut" | "copy" | "duplicate" | "delete" | "paste";
+  id: "cut" | "copy" | "duplicate" | "delete" | "paste" | "zoomFit";
   label: string;
   enabled: boolean;
 }
@@ -41,5 +41,8 @@ export function contextItems(selection: Selection, hasClipboard: boolean): Conte
     { id: "paste", label: "Paste", enabled: hasClipboard },
     { id: "duplicate", label: "Duplicate", enabled: clips },
     { id: "delete", label: "Delete", enabled: hasSelection },
+    // Always enabled: with nothing selected it frames the whole project, and this menu is the
+    // only place zoom-to-fit can be reached on a touch device.
+    { id: "zoomFit", label: "Zoom to fit", enabled: true },
   ];
 }

@@ -196,6 +196,36 @@ export function envelopeAreaPoints(
 export const MIN_PX_PER_S = 2;
 export const MAX_PX_PER_S = 2000;
 
+/** Starting scale for a fresh session, and the fallback when there is no span to fit. */
+export const DEFAULT_PX_PER_S = 60;
+
+/** Breathing room left at each side of a fitted span, so its edges are not flush with the
+ *  viewport's own. */
+export const FIT_PAD_PX = 12;
+
+/**
+ * Scale and scroll that put `fromS`..`toS` across the viewport with `FIT_PAD_PX` to spare at each
+ * side.
+ *
+ * An empty span falls back to the default scale rather than dividing by zero — fitting a
+ * zero-length range or an empty project would otherwise land at maximum zoom on nothing. The
+ * scroll is clamped at 0 because there is nothing before t = 0 to show: `formatTime` renders every
+ * negative tick as 00:00.000, so the left pad is simply given up for a span that starts there.
+ */
+export function fitView(
+  fromS: number,
+  toS: number,
+  viewportWidthPx: number,
+): { pxPerSecond: number; scrollS: number } {
+  // A viewport narrower than its own pads would ask for a negative width; one pixel keeps the
+  // scale finite and the clamp below does the rest.
+  const usablePx = Math.max(1, viewportWidthPx - 2 * FIT_PAD_PX);
+  const spanS = toS - fromS;
+  const wanted = spanS > 0 ? usablePx / spanS : DEFAULT_PX_PER_S;
+  const pxPerSecond = Math.min(MAX_PX_PER_S, Math.max(MIN_PX_PER_S, wanted));
+  return { pxPerSecond, scrollS: Math.max(0, fromS - FIT_PAD_PX / pxPerSecond) };
+}
+
 export interface PinchStart {
   pxPerSecond: number;
   scrollS: number;

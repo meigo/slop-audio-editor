@@ -14,7 +14,7 @@ const byId = (sel: Parameters<typeof contextItems>[0], clip: boolean) =>
   Object.fromEntries(contextItems(sel, clip).map((i) => [i.id, i.enabled]));
 
 describe("contextItems", () => {
-  it("always offers the same five rows, so the menu never changes shape", () => {
+  it("always offers the same rows, so the menu never changes shape", () => {
     const shape = (sel: Parameters<typeof contextItems>[0], c: boolean) =>
       contextItems(sel, c).map((i) => i.id);
     expect(shape(NO_SELECTION, false)).toEqual(shape(clips(2), true));
@@ -34,6 +34,13 @@ describe("contextItems", () => {
   it("enables paste from the clipboard alone, whatever is selected", () => {
     expect(byId(NO_SELECTION, true).paste).toBe(true);
     expect(byId(clips(3), false).paste).toBe(false);
+  });
+
+  it("always enables zoom to fit, which needs no selection to be useful", () => {
+    // It is the only way to reach zoom-to-fit on a touch device, where neither key exists — and
+    // with nothing selected it frames the whole project rather than doing nothing.
+    expect(byId(NO_SELECTION, false).zoomFit).toBe(true);
+    expect(byId(clips(2), false).zoomFit).toBe(true);
   });
 
   it("disables delete when nothing is selected", () => {

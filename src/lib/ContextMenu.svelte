@@ -7,6 +7,7 @@
     duplicateSelection,
     pasteAtPlayhead,
     state as appState,
+    zoomToFit,
   } from "../state/appState.svelte";
   import { clickOutside } from "./click-outside";
   import { clampMenuPosition, contextItems, type ContextItem } from "./context-menu";
@@ -39,6 +40,7 @@
     else if (item.id === "copy") copySelection();
     else if (item.id === "paste") pasteAtPlayhead();
     else if (item.id === "duplicate") duplicateSelection();
+    else if (item.id === "zoomFit") zoomToFit("selection");
     else deleteSelection();
   }
 </script>

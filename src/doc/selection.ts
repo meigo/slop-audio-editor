@@ -1,4 +1,4 @@
-import { clipEndS, type Project } from "./document";
+import { clipEndS, projectDurationS, type Project } from "./document";
 
 export interface TimeRange {
   fromS: number;
@@ -48,4 +48,33 @@ export function nextEditPoint(points: readonly number[], afterS: number): number
 export function prevEditPoint(points: readonly number[], beforeS: number): number | null {
   for (let i = points.length - 1; i >= 0; i--) if (points[i] < beforeS) return points[i];
   return null;
+}
+
+/**
+ * The time span "zoom to fit" should frame for a given selection.
+ *
+ * A range is taken as drawn rather than widened to the clips it covers: the box the user drew is
+ * what they asked to look at, and a clip it only partly overlaps would stretch the view past it.
+ * Anything that resolves to nothing — no selection, or ids left over from deleted clips — falls
+ * back to the whole project, so "fit the selection" degrades into "fit everything" by definition
+ * instead of by a special case at each call site.
+ */
+export function fitSpan(p: Project, selection: Selection): { fromS: number; toS: number } {
+  if (selection.kind === "range") {
+    return { fromS: selection.range.fromS, toS: selection.range.toS };
+  }
+  if (selection.kind === "clips") {
+    const ids = new Set(selection.clipIds);
+    let fromS = Infinity;
+    let toS = -Infinity;
+    for (const t of p.tracks) {
+      for (const c of t.clips) {
+        if (!ids.has(c.id)) continue;
+        fromS = Math.min(fromS, c.startS);
+        toS = Math.max(toS, clipEndS(c));
+      }
+    }
+    if (toS > -Infinity) return { fromS, toS };
+  }
+  return { fromS: 0, toS: projectDurationS(p) };
 }

@@ -40,6 +40,8 @@ under the voice, and export a mastered file — all locally, with no upload and 
 - In/out markers for looping a section, kept separate from the selection that bounds an export
 - Reorder tracks by dragging the grip in a track header
 - Number fields scrub: drag one sideways to change it, click to type
+- Zoom to fit the selection (F), a drawn range, or the whole project (⇧F) — from the keyboard,
+  the toolbar or the right-click menu
 - Three track heights, adjustable zoom, and two-finger pan/pinch on a trackpad or touchscreen
 
 ### Mixing

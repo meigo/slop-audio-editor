@@ -11,6 +11,7 @@
     Scissors,
     Square,
     Undo2,
+    UnfoldHorizontal,
     X,
   } from "@lucide/svelte";
   import { createProject } from "../doc/document";
@@ -42,6 +43,7 @@
     state as appState,
     togglePlay,
     undoEdit,
+    zoomToFit,
   } from "../state/appState.svelte";
   import ExportDialog from "./ExportDialog.svelte";
   import ToolbarMenu from "./ToolbarMenu.svelte";
@@ -287,6 +289,14 @@
   </button>
 
   <div class={DIVIDER}></div>
+
+  <button
+    class={BTN}
+    title="Zoom to fit the selection, or the whole project (F)"
+    onclick={() => zoomToFit("selection")}
+  >
+    <UnfoldHorizontal size={16} />
+  </button>
 
   <!-- A button as well as the `?` key: the whole point of the overlay is to reach people who do
        not know the shortcuts, so reaching it can't require knowing one. -->

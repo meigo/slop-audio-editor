@@ -1,7 +1,14 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { __resetIds, createProject, type Project } from "./document";
 import { addClip, addTrack, makeClip } from "./edits";
-import { clipsInRange, editPoints, nextEditPoint, prevEditPoint } from "./selection";
+import {
+  clipsInRange,
+  editPoints,
+  fitSpan,
+  nextEditPoint,
+  NO_SELECTION,
+  prevEditPoint,
+} from "./selection";
 
 /** Track A: 0–2 and 5–8. Track B: 3–4. */
 function scene(): Project {
@@ -82,5 +89,38 @@ describe("nextEditPoint / prevEditPoint", () => {
   it("returns null before the first point", () => {
     expect(prevEditPoint(points, 0)).toBeNull();
     expect(prevEditPoint(points, -1)).toBeNull();
+  });
+});
+
+describe("fitSpan", () => {
+  it("spans the selected clips, from the earliest start to the latest end", () => {
+    const p = scene();
+    const [a] = p.tracks[0].clips; // 0-2
+    const b = p.tracks[1].clips[0]; // 3-4
+    expect(fitSpan(p, { kind: "clips", clipIds: [b.id, a.id] })).toEqual({ fromS: 0, toS: 4 });
+  });
+
+  it("ignores ids that name no clip", () => {
+    const p = scene();
+    const a = p.tracks[0].clips[0]; // 0-2
+    expect(fitSpan(p, { kind: "clips", clipIds: [a.id, "gone"] })).toEqual({ fromS: 0, toS: 2 });
+  });
+
+  it("spans the range itself, not the clips it covers", () => {
+    // The range is what the user drew; a clip it only partly covers must not stretch the view.
+    const p = scene();
+    const range = { fromS: 1, toS: 6, trackIds: [p.tracks[0].id] };
+    expect(fitSpan(p, { kind: "range", range })).toEqual({ fromS: 1, toS: 6 });
+  });
+
+  it("falls back to the whole project when nothing is selected", () => {
+    const p = scene();
+    expect(fitSpan(p, NO_SELECTION)).toEqual({ fromS: 0, toS: 8 });
+  });
+
+  it("falls back to the whole project when the selection resolves to no clips", () => {
+    // A stale id is the same situation as no selection: there is nothing to frame.
+    const p = scene();
+    expect(fitSpan(p, { kind: "clips", clipIds: ["gone"] })).toEqual({ fromS: 0, toS: 8 });
   });
 });

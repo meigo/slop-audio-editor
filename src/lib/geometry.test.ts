@@ -2,6 +2,7 @@ import { FILTER_OFF } from "../doc/document";
 import { describe, expect, it } from "vitest";
 import {
   dbToGain,
+  DEFAULT_PX_PER_S,
   dbToPosition,
   envelopeAreaPoints,
   envelopeCurvePoints,
@@ -9,10 +10,14 @@ import {
   fadeAreaPoints,
   fadeCurvePoints,
   fadeCurveXY,
+  FIT_PAD_PX,
+  fitView,
   formatDb,
   formatTime,
   gainToDb,
   formatSignedDb,
+  MAX_PX_PER_S,
+  MIN_PX_PER_S,
   METER_FLOOR_DB,
   meterFillPct,
   pinchUpdate,
@@ -498,5 +503,43 @@ describe("formatPan", () => {
 
   it("calls a hair off centre the centre, not L0", () => {
     expect(formatPan(0.001)).toBe("C");
+  });
+});
+
+describe("fitView", () => {
+  it("scales a span to the viewport, leaving the pad at each side", () => {
+    const { pxPerSecond, scrollS } = fitView(4, 14, 1024);
+    expect(pxPerSecond).toBeCloseTo((1024 - 2 * FIT_PAD_PX) / 10, 6);
+    expect(scrollS).toBeCloseTo(4 - FIT_PAD_PX / pxPerSecond, 6);
+  });
+
+  it("puts the whole span on screen", () => {
+    const { pxPerSecond, scrollS } = fitView(4, 9, 800);
+    expect(timeToPx(4, scrollS, pxPerSecond)).toBeCloseTo(FIT_PAD_PX, 6);
+    expect(timeToPx(9, scrollS, pxPerSecond)).toBeCloseTo(800 - FIT_PAD_PX, 6);
+  });
+
+  it("clamps the scale rather than zooming past the limits", () => {
+    expect(fitView(0, 100000, 1024).pxPerSecond).toBe(MIN_PX_PER_S);
+    expect(fitView(0, 0.001, 1024).pxPerSecond).toBe(MAX_PX_PER_S);
+  });
+
+  it("falls back to the default scale for an empty span, anchored at it", () => {
+    // A zero-length span would otherwise divide by zero and land at maximum zoom.
+    const { pxPerSecond, scrollS } = fitView(30, 30, 1024);
+    expect(pxPerSecond).toBe(DEFAULT_PX_PER_S);
+    expect(scrollS).toBeCloseTo(30 - FIT_PAD_PX / DEFAULT_PX_PER_S, 6);
+  });
+
+  it("never scrolls before t = 0", () => {
+    // Padding a span that starts at 0 would put negative time on screen, where there is nothing
+    // to see and `formatTime` clamps every tick to 00:00.000.
+    expect(fitView(0, 10, 1024).scrollS).toBe(0);
+  });
+
+  it("survives a viewport too narrow for the pads", () => {
+    const { pxPerSecond } = fitView(0, 10, 10);
+    expect(pxPerSecond).toBeGreaterThan(0);
+    expect(Number.isFinite(pxPerSecond)).toBe(true);
   });
 });

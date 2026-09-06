@@ -59,7 +59,20 @@ describe("resolveShortcut", () => {
     expect(resolveShortcut(key("="))).toEqual({ kind: "zoom", factor: 1.5 });
     expect(resolveShortcut(key("+"))).toEqual({ kind: "zoom", factor: 1.5 });
     expect(resolveShortcut(key("-"))).toEqual({ kind: "zoom", factor: 1 / 1.5 });
-    expect(resolveShortcut(key("F", { shiftKey: true }))).toEqual({ kind: "zoomFit" });
+    expect(resolveShortcut(key("F", { shiftKey: true }))).toEqual({
+      kind: "zoomFit",
+      scope: "project",
+    });
+  });
+
+  it("fits the selection unshifted and the whole project shifted", () => {
+    // The scope is the only difference between the two, and no other test can catch it being the
+    // wrong way round: both keys resolve to the same command kind.
+    expect(resolveShortcut(key("f"))).toEqual({ kind: "zoomFit", scope: "selection" });
+    expect(resolveShortcut(key("F", { shiftKey: true }))).toEqual({
+      kind: "zoomFit",
+      scope: "project",
+    });
   });
 
   it("returns null for anything unmapped", () => {

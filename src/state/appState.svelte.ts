@@ -6,7 +6,7 @@ import { createProject, projectDurationS, resolveTrackId, type Project } from ".
 import { addClip, deleteClips, deleteRange, makeClip, setClipGain } from "../doc/edits";
 import { matchLoudnessGains, type LoudnessEntry } from "../doc/loudness-match";
 import { setIn, setOut, type PlayRange } from "../doc/play-range";
-import { NO_SELECTION, type Selection } from "../doc/selection";
+import { fitSpan, NO_SELECTION, type Selection } from "../doc/selection";
 import { putSource, scheduleDocumentSave } from "../persist/autosave";
 import {
   loadPreferences,
@@ -14,6 +14,7 @@ import {
   savePreferences,
   type SidePanelTab,
 } from "../persist/preferences";
+import { fitView } from "../lib/geometry";
 import { canRedo, canUndo, createHistory, record, redo, undo } from "./history";
 
 export const pool = new SourcePool();
@@ -41,6 +42,10 @@ export const state = $state({
   currentTrackId: null as string | null,
   pxPerSecond: prefs.pxPerSecond,
   scrollS: 0,
+  /** Width of the timeline viewport in CSS pixels, published by `App` so the zoom-to-fit action
+   *  can be reached from the keyboard, the toolbar and the context menu without three of them
+   *  drilling the same measurement through props. */
+  timelineWidthPx: 0,
   trackHeightPx: prefs.trackHeightPx,
   snap: prefs.snap,
   /** Export settings live in session state and persist through `preferences` — they are a
@@ -434,6 +439,26 @@ export function deleteSelection(ripple = false): void {
     const r = state.selection.range;
     commit((p) => deleteRange(p, r.trackIds, r.fromS, r.toS, ripple));
   }
+}
+
+/**
+ * Scale the timeline so a span fills the viewport horizontally.
+ *
+ * `"selection"` frames the selected clips or the drawn range and falls back to the whole project
+ * when nothing is selected (see `fitSpan`); `"project"` always frames everything, so a fit is
+ * reachable without first clearing a selection.
+ *
+ * Lives here for the same reason `deleteSelection` does: the keyboard, the toolbar button and the
+ * context menu all fit, and three copies of the arithmetic would drift.
+ */
+export function zoomToFit(scope: "project" | "selection"): void {
+  const span =
+    scope === "project"
+      ? { fromS: 0, toS: projectDurationS(state.project) }
+      : fitSpan(state.project, state.selection);
+  const next = fitView(span.fromS, span.toS, state.timelineWidthPx);
+  state.pxPerSecond = next.pxPerSecond;
+  state.scrollS = next.scrollS;
 }
 
 /** Copy, then paste at the playhead on the current track. Two undo entries, because that is what

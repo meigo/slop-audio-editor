@@ -46,6 +46,11 @@
   );
 
   let timelineWidth = $state(0);
+  // Published to the store so zoom-to-fit can be reached from the toolbar and the context menu,
+  // neither of which is a child of this element.
+  $effect(() => {
+    appState.timelineWidthPx = timelineWidth;
+  });
 
   // Runs once on mount: pull yesterday's session back in before the user touches anything.
   $effect(() => {
@@ -108,7 +113,7 @@
     </button>
   {/if}
 
-  <KeyboardShortcuts onSave={saveProjectFile} viewportWidthPx={timelineWidth} />
+  <KeyboardShortcuts onSave={saveProjectFile} />
   <Toolbar />
 
   <div class="flex min-h-0 flex-1">
