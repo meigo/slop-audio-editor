@@ -80,3 +80,19 @@ describe("setOut", () => {
     expect(setOut(range, 5, 10)).toBe(range);
   });
 });
+
+describe("setOut on a project that has shrunk under the range", () => {
+  it("never leaves toS below fromS", () => {
+    // In/out markers are session state and are not reconciled when clips are deleted, so an
+    // existing range can start PAST the new project end. `Math.min(projectEndS, …)` then won and
+    // produced { fromS: 8, toS: 5 } — the inverted range the function's own contract forbids.
+    const r = setOut({ fromS: 8, toS: 10 }, 4, 5);
+    expect(r).not.toBeNull();
+    expect(r!.toS).toBeGreaterThan(r!.fromS);
+    expect(r!.toS).toBeLessThanOrEqual(5);
+  });
+
+  it("gives up the range when the project is too short to hold one at all", () => {
+    expect(setOut({ fromS: 8, toS: 10 }, 4, 0.01)).toBeNull();
+  });
+});

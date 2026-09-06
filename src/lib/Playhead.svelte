@@ -1,13 +1,28 @@
 <script lang="ts">
   import { engine, state as appState } from "../state/appState.svelte";
-  import { timeToPx } from "./geometry";
+  import { isInView, pageFlipScroll, timeToPx } from "./geometry";
 
   // While playing, the position comes from the audio clock — never from a counter.
+  // The same loop keeps the playhead on screen by PAGE FLIP (`pageFlipScroll`): the view jumps
+  // when the playhead crosses the right edge and otherwise holds still. `wasInView` is read
+  // BEFORE the position advances, which is what turns "is off-screen" into "just crossed" — a
+  // playhead the user scrolled away from was not in view last frame, so it does not pull the
+  // view back.
   $effect(() => {
     if (!appState.playing) return;
     let raf = 0;
     const tick = () => {
+      const { scrollS, pxPerSecond, timelineWidthPx } = appState;
+      const wasInView = isInView(appState.playheadS, scrollS, pxPerSecond, timelineWidthPx);
       appState.playheadS = engine.positionS();
+      const flip = pageFlipScroll(
+        appState.playheadS,
+        scrollS,
+        pxPerSecond,
+        timelineWidthPx,
+        wasInView,
+      );
+      if (flip !== null) appState.scrollS = flip;
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);

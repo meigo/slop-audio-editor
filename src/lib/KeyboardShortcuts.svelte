@@ -22,7 +22,7 @@
     undoEdit,
     zoomToFit,
   } from "../state/appState.svelte";
-  import { MAX_PX_PER_S, MIN_PX_PER_S } from "./geometry";
+  import { isInView, pinchUpdate, timeToPx } from "./geometry";
   import { isTypingTarget, repeatsOnHold, resolveShortcut } from "./shortcuts";
 
   const { onSave }: { onSave: () => void } = $props();
@@ -117,12 +117,23 @@
             : prevEditPoint(points, appState.playheadS);
         return seekTo(next ?? appState.playheadS);
       }
-      case "zoom":
-        appState.pxPerSecond = Math.min(
-          MAX_PX_PER_S,
-          Math.max(MIN_PX_PER_S, appState.pxPerSecond * cmd.factor),
+      case "zoom": {
+        // About the playhead when it is on screen, else about the view's centre — never about the
+        // left edge, which zoomed the thing you were looking at out of view. `pinchUpdate` is the
+        // same arithmetic the two-finger gesture uses: a spread ratio of `factor` at one anchor.
+        const w = appState.timelineWidthPx;
+        const { scrollS, pxPerSecond } = appState;
+        const anchorPx = isInView(appState.playheadS, scrollS, pxPerSecond, w)
+          ? timeToPx(appState.playheadS, scrollS, pxPerSecond)
+          : w / 2;
+        const next = pinchUpdate(
+          { pxPerSecond, scrollS, centerPx: anchorPx, spreadPx: 1 },
+          { centerPx: anchorPx, spreadPx: cmd.factor },
         );
+        appState.pxPerSecond = next.pxPerSecond;
+        appState.scrollS = next.scrollS;
         return;
+      }
       case "zoomFit":
         return zoomToFit(cmd.scope);
     }

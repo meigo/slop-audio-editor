@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { encodeWav } from "./wav";
+import { encodeWav, FLOAT_DATA_OFFSET } from "./wav";
 
 function ascii(view: DataView, offset: number, len: number): string {
   let s = "";
@@ -60,8 +60,8 @@ describe("encodeWav samples", () => {
 
   it("round-trips float samples exactly at 32 bit", () => {
     const v = new DataView(encodeWav([new Float32Array([0.25, -0.5])], 48000, 32));
-    expect(v.getFloat32(44, true)).toBe(0.25);
-    expect(v.getFloat32(48, true)).toBe(-0.5);
+    expect(v.getFloat32(FLOAT_DATA_OFFSET, true)).toBe(0.25);
+    expect(v.getFloat32(FLOAT_DATA_OFFSET + 4, true)).toBe(-0.5);
   });
 
   it("handles mono and an empty buffer", () => {
@@ -134,5 +134,27 @@ describe("16-bit dither", () => {
     const a = new Uint8Array(encodeWav([input], 48000, 32, fixedRandom(0, 1)));
     const b = new Uint8Array(encodeWav([input], 48000, 32, fixedRandom(1, 0)));
     expect([...a]).toEqual([...b]);
+  });
+});
+
+describe("the float header", () => {
+  // WAVE_FORMAT_IEEE_FLOAT is a non-PCM format, and for those the spec wants an 18-byte fmt chunk
+  // (a zero cbSize) and a fact chunk carrying the sample count. Most readers shrug at the 16-byte
+  // PCM-style header; strict ones refuse the file. PCM keeps its 16-byte fmt and 44-byte header.
+  it("writes an 18-byte fmt chunk with cbSize 0 and a fact chunk before the data", () => {
+    const v = new DataView(encodeWav([new Float32Array(3), new Float32Array(3)], 48000, 32));
+    expect(v.getUint32(16, true)).toBe(18);
+    expect(v.getUint16(36, true)).toBe(0); // cbSize
+    expect(ascii(v, 38, 4)).toBe("fact");
+    expect(v.getUint32(42, true)).toBe(4);
+    expect(v.getUint32(46, true)).toBe(3); // frames per channel
+    expect(ascii(v, 50, 4)).toBe("data");
+    expect(v.getUint32(54, true)).toBe(3 * 2 * 4);
+  });
+
+  it("keeps the 16-bit header at 44 bytes", () => {
+    const v = new DataView(encodeWav([new Float32Array(3)], 48000, 16));
+    expect(v.getUint32(16, true)).toBe(16);
+    expect(ascii(v, 36, 4)).toBe("data");
   });
 });

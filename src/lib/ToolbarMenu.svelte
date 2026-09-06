@@ -23,6 +23,8 @@
   const close = () => (open = false);
 </script>
 
+<svelte:window onkeydown={(e) => e.key === "Escape" && open && close()} />
+
 <div class="relative shrink-0" use:clickOutside={close}>
   <button
     class="flex h-6 items-center gap-1 rounded px-2 text-xs {open

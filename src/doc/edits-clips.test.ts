@@ -1,6 +1,14 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { __resetIds, createProject, type Project } from "./document";
-import { addClip, addTrack, deleteClips, makeClip, moveClips } from "./edits";
+import {
+  addClip,
+  addTrack,
+  deleteClips,
+  makeClip,
+  moveClips,
+  setClipSpeed,
+  trimClipEnd,
+} from "./edits";
 import { expectNoOverlaps } from "./test-helpers";
 
 function twoTracks(): Project {
@@ -147,6 +155,28 @@ describe("moveClips", () => {
     const ids = p.tracks[0].clips.map((c) => c.id);
     const next = moveClips(p, ids, -10, 0);
     expect(next.tracks[0].clips.map((c) => c.startS)).toEqual([0, 4]);
+    expectNoOverlaps(next);
+  });
+});
+
+describe("a clip already shorter than MIN_CLIP_S", () => {
+  // Only a sub-10 ms import can create one, but once it exists the floor used to be applied AFTER
+  // the neighbour clamp, so any speed change or tail drag grew it into the next clip. Non-overlap
+  // is the invariant everything else stands on; the floor is a courtesy.
+  function butted(): Project {
+    const base = createProject();
+    const t = base.tracks[0].id;
+    let p = addClip(base, t, { ...makeClip("s", 0, 0.005), id: "tiny" });
+    return addClip(p, t, makeClip("s", 0.005, 1));
+  }
+
+  it("does not overlap its neighbour when its speed changes", () => {
+    const next = setClipSpeed(butted(), "tiny", 0.5);
+    expectNoOverlaps(next);
+  });
+
+  it("does not overlap its neighbour when its tail is dragged", () => {
+    const next = trimClipEnd(butted(), "tiny", 1, 10);
     expectNoOverlaps(next);
   });
 });

@@ -62,6 +62,9 @@ export function startClipDrag(
   trackId: string,
   zone: ClipZone,
 ): void {
+  // Primary button only, the same guard `startRangeDrag` has: a right-click's pointerdown
+  // otherwise captured the pointer and opened a gesture under the context menu.
+  if (e.button !== 0) return;
   const target = e.currentTarget as HTMLElement;
   const pointerId = e.pointerId;
   target.setPointerCapture(pointerId);

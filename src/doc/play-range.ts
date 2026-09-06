@@ -42,5 +42,11 @@ export function setOut(
     return { fromS: 0, toS: at };
   }
   const toS = Math.min(projectEndS, Math.max(at, range.fromS + MIN_PLAY_RANGE_S));
-  return toS === range.toS ? range : { fromS: range.fromS, toS };
+  // The range is session state and is not reconciled when clips are deleted, so an existing one
+  // can START past the project's new end — and then the `projectEndS` clamp above wins over the
+  // `fromS + MIN` floor and inverts the range. Pull `fromS` down with it; give the range up
+  // entirely when the project cannot hold one.
+  if (toS < MIN_PLAY_RANGE_S) return null;
+  const fromS = Math.min(range.fromS, toS - MIN_PLAY_RANGE_S);
+  return toS === range.toS && fromS === range.fromS ? range : { fromS, toS };
 }

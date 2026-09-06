@@ -88,7 +88,11 @@ export function setClipSpeed(p: Project, clipId: string, speed: number): Project
     const i = t.clips.indexOf(c);
     const nextStart = i < t.clips.length - 1 ? t.clips[i + 1].startS : Infinity;
     const wanted = (c.durS * c.speed) / next;
-    const durS = Math.max(MIN_CLIP_S, Math.min(wanted, nextStart - c.startS));
+    // The neighbour wins over the MIN_CLIP_S floor. A clip already shorter than the floor (only
+    // a sub-10 ms import makes one) sits butted against the next clip, and applying the floor
+    // AFTER the neighbour clamp grew it straight into that clip. Non-overlap is the invariant
+    // everything else stands on; the floor is a courtesy.
+    const durS = Math.min(Math.max(MIN_CLIP_S, wanted), nextStart - c.startS);
     return clampFades({ ...c, speed: next, durS });
   });
 }
@@ -273,7 +277,9 @@ export function trimClipEnd(
     const lo = MIN_CLIP_S - c.durS;
     // Source remaining, expressed in TIMELINE seconds — one timeline second eats `speed` of them.
     const hi = Math.min((sourceDurS - c.inS) / c.speed - c.durS, nextStart - clipEndS(c));
-    const d = Math.max(lo, Math.min(deltaS, hi));
+    // `hi` wins when the two disagree: a clip already under MIN_CLIP_S and butted against its
+    // neighbour has `lo > hi`, and letting the floor win grew it into the next clip.
+    const d = Math.max(Math.min(lo, hi), Math.min(deltaS, hi));
     if (d === 0) return c;
     return clampFades({ ...c, durS: c.durS + d });
   });

@@ -12,6 +12,9 @@ import {
   fadeCurveXY,
   FIT_PAD_PX,
   fitView,
+  isInView,
+  PAGE_FLIP_MARGIN_PX,
+  pageFlipScroll,
   formatDb,
   formatTime,
   gainToDb,
@@ -554,5 +557,39 @@ describe("fitView", () => {
     const { pxPerSecond } = fitView(0, 10, 10);
     expect(pxPerSecond).toBeGreaterThan(0);
     expect(Number.isFinite(pxPerSecond)).toBe(true);
+  });
+});
+
+describe("pageFlipScroll", () => {
+  // 100 px/s, a 1000 px viewport showing 0..10 s.
+  it("flips a page when the playhead leaves the right edge while it was in view", () => {
+    const next = pageFlipScroll(10.2, 0, 100, 1000, true);
+    expect(next).not.toBeNull();
+    // The playhead lands a small margin in from the LEFT edge, so what plays next has the width.
+    expect(timeToPx(10.2, next!, 100)).toBeCloseTo(PAGE_FLIP_MARGIN_PX, 6);
+  });
+
+  it("does nothing while the playhead is in view", () => {
+    expect(pageFlipScroll(5, 0, 100, 1000, true)).toBeNull();
+  });
+
+  it("does not fight a manual scroll — a playhead already out of view stays out", () => {
+    // The user scrolled away to look at something; the view stays until the playhead next
+    // CROSSES the right edge, which it cannot do from outside.
+    expect(pageFlipScroll(30, 0, 100, 1000, false)).toBeNull();
+    expect(pageFlipScroll(-1, 5, 100, 1000, false)).toBeNull();
+  });
+
+  it("never flips to a negative scroll", () => {
+    expect(pageFlipScroll(0.1, 0, 100, 5, true)).toBe(0);
+  });
+});
+
+describe("isInView", () => {
+  it("is true inside the viewport, inclusive of its edges", () => {
+    expect(isInView(0, 0, 100, 1000)).toBe(true);
+    expect(isInView(10, 0, 100, 1000)).toBe(true);
+    expect(isInView(10.01, 0, 100, 1000)).toBe(false);
+    expect(isInView(-0.01, 0, 100, 1000)).toBe(false);
   });
 });

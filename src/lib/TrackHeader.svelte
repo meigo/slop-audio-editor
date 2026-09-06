@@ -29,6 +29,10 @@
 
   let renaming = $state(false);
   let nameInput = $state<HTMLInputElement | null>(null);
+  /** Escape abandons the rename. A flag rather than relying on the input unmounting without a
+   *  blur: browsers disagree about whether a removed element blurs, and the blur handler is the
+   *  one that commits. */
+  let renameCancelled = false;
   let dragging = false;
 
   /** M / S / D share a fixed 20 px square so the row does not reflow as letters differ, and the
@@ -159,10 +163,19 @@
         class="w-full bg-panel px-1 text-xs select-text"
         value={track.name}
         onblur={(e) => {
-          commit((p) => renameTrack(p, track.id, e.currentTarget.value.trim() || track.name));
+          if (!renameCancelled) {
+            commit((p) => renameTrack(p, track.id, e.currentTarget.value.trim() || track.name));
+          }
+          renameCancelled = false;
           renaming = false;
         }}
-        onkeydown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+        onkeydown={(e) => {
+          if (e.key === "Enter") e.currentTarget.blur();
+          if (e.key === "Escape") {
+            renameCancelled = true;
+            e.currentTarget.blur();
+          }
+        }}
       />
     {:else}
       <button

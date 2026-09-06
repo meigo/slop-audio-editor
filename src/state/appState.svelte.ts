@@ -163,15 +163,24 @@ export function canRedoNow(): boolean {
   return canRedo(history);
 }
 
-/** One edit, one history entry. */
+/** One edit, one history entry.
+ *
+ *  A commit can land INSIDE an open gesture — Delete pressed mid-drag. Recording the drag's base
+ *  after the edit put history out of order: the first undo restored the pre-drag state and the
+ *  second undid the edit into a mid-drag snapshot. The gesture is closed first, so what the drag
+ *  had done so far is its own entry, and reopened after, so the rest of the drag is another. */
 export function commit(fn: (p: Project) => Project): void {
+  const reopen = gestureBase !== null ? gestureKind : null;
+  if (reopen !== null) endGesture();
   const prev = state.project;
   const next = fn(prev);
-  if (next === prev) return;
-  history = record(history, prev);
-  state.project = next;
-  state.dirty = true;
-  restartIfPlaying();
+  if (next !== prev) {
+    history = record(history, prev);
+    state.project = next;
+    state.dirty = true;
+    restartIfPlaying();
+  }
+  if (reopen !== null) beginGesture(reopen);
 }
 
 /** A continuous gesture (dragging a clip, riding a fader) mutates live via `amend` and produces

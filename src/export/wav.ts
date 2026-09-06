@@ -17,6 +17,10 @@ function isSilent(channels: readonly Float32Array[]): boolean {
   return true;
 }
 
+/** Where the samples start in a 32-bit float file: a 44-byte PCM-style header plus the 2-byte
+ *  `cbSize` the non-PCM fmt chunk carries and a 12-byte fact chunk. 16-bit stays at 44. */
+export const FLOAT_DATA_OFFSET = 58;
+
 export function encodeWav(
   channels: readonly Float32Array[],
   sampleRate: number,
@@ -30,28 +34,43 @@ export function encodeWav(
   const blockAlign = numChannels * bytesPerSample;
   const dataBytes = frames * blockAlign;
 
-  const buf = new ArrayBuffer(44 + dataBytes);
+  // IEEE float is a NON-PCM format, and for those the spec wants an 18-byte fmt chunk (a zero
+  // `cbSize` after the bit depth) plus a fact chunk carrying the frame count. Most readers shrug
+  // at the PCM-style 16-byte header; strict ones refuse the file. PCM keeps the plain 44 bytes.
+  const isFloat = bitDepth === 32;
+  const fmtSize = isFloat ? 18 : 16;
+  const headerBytes = isFloat ? FLOAT_DATA_OFFSET : 44;
+  const buf = new ArrayBuffer(headerBytes + dataBytes);
   const v = new DataView(buf);
 
   writeAscii(v, 0, "RIFF");
-  v.setUint32(4, 36 + dataBytes, true);
+  v.setUint32(4, headerBytes - 8 + dataBytes, true);
   writeAscii(v, 8, "WAVE");
   writeAscii(v, 12, "fmt ");
-  v.setUint32(16, 16, true); // fmt chunk size
-  v.setUint16(20, bitDepth === 32 ? 3 : 1, true); // 3 = IEEE float, 1 = PCM
+  v.setUint32(16, fmtSize, true);
+  v.setUint16(20, isFloat ? 3 : 1, true); // 3 = IEEE float, 1 = PCM
   v.setUint16(22, numChannels, true);
   v.setUint32(24, sampleRate, true);
   v.setUint32(28, sampleRate * blockAlign, true);
   v.setUint16(32, blockAlign, true);
   v.setUint16(34, bitDepth, true);
-  writeAscii(v, 36, "data");
-  v.setUint32(40, dataBytes, true);
+  let at = 36;
+  if (isFloat) {
+    v.setUint16(at, 0, true); // cbSize: no extension bytes follow
+    at += 2;
+    writeAscii(v, at, "fact");
+    v.setUint32(at + 4, 4, true);
+    v.setUint32(at + 8, frames, true);
+    at += 12;
+  }
+  writeAscii(v, at, "data");
+  v.setUint32(at + 4, dataBytes, true);
 
   // 16 bit is the only path that quantises, so it is the only one that needs dither; adding noise
   // to a float export would be noise for nothing.
   const dither = bitDepth === 16 && !isSilent(channels);
 
-  let offset = 44;
+  let offset = headerBytes;
   for (let i = 0; i < frames; i++) {
     for (let c = 0; c < numChannels; c++) {
       const raw = channels[c]?.[i] ?? 0;
