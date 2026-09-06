@@ -110,7 +110,7 @@ vi.mock("./context", () => ({
 // Imported after the mock is declared — vi.mock is hoisted above imports by Vitest, so this is
 // equivalent to importing before, but keeping it below reads clearer next to the mock it depends on.
 const { AudioEngine } = await import("./engine");
-const { SCHEDULE_LEAD_S } = await import("./render");
+const { LOOP_LEAD_S, SCHEDULE_LEAD_S } = await import("./render");
 
 function emptyPool(): SourcePool {
   return { get: (): Source | undefined => undefined } as unknown as SourcePool;
@@ -297,6 +297,30 @@ describe("AudioEngine.needsRebuild", () => {
       tracks: p.tracks.map((t) => ({ ...t, eq: { lowDb: 6, midDb: 0, highDb: 0 } })),
     };
     expect(engine.needsRebuild(withEq)).toBe(false);
+    engine.stop();
+  });
+});
+
+describe("the loop restart's schedule lead", () => {
+  it("anchors a restart closer to now than a fresh start", () => {
+    // The lead is a one-off delay when playback starts and SILENCE AT THE SEAM when a loop
+    // restarts, paid every cycle — so a restart takes the shorter one. Measured through the
+    // schedule times themselves: the fake context's clock does not advance on its own, so the
+    // difference between the two anchors is exactly the difference between the two leads.
+    expect(LOOP_LEAD_S).toBeLessThan(SCHEDULE_LEAD_S);
+
+    const engine = new AudioEngine();
+    fakeCtx.currentTime = 10;
+    engine.play(createProject(), emptyPool(), 0, 5, new Set());
+    const fresh = engine.positionS();
+    engine.stop();
+
+    // At the same clock time, a restart is anchored LOOP_LEAD_S ahead rather than
+    // SCHEDULE_LEAD_S, so the same instant is already further into the window.
+    engine.play(createProject(), emptyPool(), 0, 5, new Set(), true);
+    fakeCtx.currentTime = 10 + SCHEDULE_LEAD_S;
+    expect(engine.positionS()).toBeCloseTo(SCHEDULE_LEAD_S - LOOP_LEAD_S, 6);
+    expect(fresh).toBe(0); // a fresh start is still silent through its own lead
     engine.stop();
   });
 });

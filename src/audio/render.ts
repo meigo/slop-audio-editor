@@ -21,6 +21,21 @@ import { masterFadeInSpec, masterFadeSpec, type ScheduledClip } from "./schedule
  *  territory across engines; a 50 ms lead is inaudible and sidesteps it entirely. */
 export const SCHEDULE_LEAD_S = 0.05;
 
+/**
+ * The lead used for a LOOP RESTART, where it is a gap rather than a delay.
+ *
+ * Starting playback is a one-off 50 ms nobody notices. A loop pays it on every cycle, as silence
+ * at the seam, which is audible on a musical phrase. The lead exists only to keep scheduled times
+ * and fade curves out of the past, and building a restart's graph takes a few milliseconds — so
+ * 20 ms keeps the guarantee with roughly a fifth of the audible cost.
+ *
+ * It is not zero, and this is NOT gapless looping: the restart is still triggered by a timer at
+ * the end of the window rather than scheduled before it. Truly seamless needs the next cycle
+ * pre-scheduled against the current one's end time, with two live graphs — a different piece of
+ * work, deliberately not done here.
+ */
+export const LOOP_LEAD_S = 0.02;
+
 /** "Glue": a gentle master-bus band-limit + compression to make disparate sources cohere. Master
  *  level, not per-clip — it never appears in `planSchedule`. */
 const GLUE_HIGHPASS_HZ = 100;

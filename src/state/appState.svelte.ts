@@ -278,7 +278,9 @@ export function togglePlay(): void {
     // `onEnded` on a zero-delay timer, which would land straight back here forever.
     if (state.loop && playEndS() > restartAt) {
       state.playheadS = restartAt;
-      engine.play(state.project, pool, restartAt, playEndS(), activeSoloed());
+      // `looping`: the restart takes the shorter schedule lead, since here the lead is silence at
+      // the seam and is paid on every cycle.
+      engine.play(state.project, pool, restartAt, playEndS(), activeSoloed(), true);
       return;
     }
     state.playing = false;

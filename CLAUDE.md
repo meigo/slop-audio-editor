@@ -262,6 +262,20 @@ from "./state/appState.svelte"`.** Importing it as bare `state` collides with th
     or `ratio` changes the makeup gain the trim needs to cancel, so re-measure it (build the chain
     in an `OfflineAudioContext`, sweep input peak level, read the output) rather than guessing.
 
+12b. **A loop restart uses a SHORTER schedule lead than a fresh start (`LOOP_LEAD_S` 20 ms vs
+`SCHEDULE_LEAD_S` 50 ms), and that is still not gapless looping.** The lead exists only to
+keep scheduled times and fade curves out of the past, which a restart's few-millisecond
+graph build does not need much of — and the two cost different things: 50 ms before
+playback starts is a delay nobody notices, while the same 50 ms at a loop seam is SILENCE,
+paid on every cycle and plainly audible on a musical phrase. `engine.play` takes a
+`looping` flag for it, and the stop timer uses the same lead so the cycle length does not
+drift.
+What this does NOT do is pre-schedule: the restart is still triggered by a timer at the end
+of the window, so a gap of roughly the lead plus timer jitter remains. Seamless would mean
+scheduling the next cycle against the current one's end time, with two live graphs, a
+`positionS` that spans the crossover and a meter tap that follows — deliberately left
+undone, and it can only be judged by ear, which this harness cannot do.
+
 13b. **A loop always restarts at something VISIBLE: the IN marker, or 0 — never where playback
 began.** `loopStartS()` in `appState.svelte.ts` returns `playRange.fromS` or `0`. It used to
 return the press-play position, which made the loop point invisible state that moved silently

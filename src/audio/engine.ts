@@ -7,7 +7,7 @@ import {
 } from "../doc/document";
 import { getAudioContext } from "./context";
 import type { SourcePool } from "./pool";
-import { renderPlan, SCHEDULE_LEAD_S, type RenderedGraph } from "./render";
+import { LOOP_LEAD_S, renderPlan, SCHEDULE_LEAD_S, type RenderedGraph } from "./render";
 import { peakAmplitude } from "./peak";
 import { planSchedule } from "./schedule";
 import { FILTER_HP_MIN_HZ, FILTER_LP_MAX_HZ, panGains } from "../lib/geometry";
@@ -57,12 +57,15 @@ export class AudioEngine {
     return Math.min(this.#endS, this.#startOffsetS + elapsed);
   }
 
+  /** `looping` marks a LOOP RESTART, which takes the shorter `LOOP_LEAD_S`: the lead is silence
+   *  at the seam there, paid on every cycle, rather than a one-off before playback starts. */
   play(
     project: Project,
     pool: SourcePool,
     fromS: number,
     toS: number,
     soloed: ReadonlySet<string>,
+    looping = false,
   ): void {
     this.stop();
     const end = toS > 0 ? toS : projectDurationS(project);
@@ -82,7 +85,8 @@ export class AudioEngine {
 
     const ctx = getAudioContext();
     void ctx.resume();
-    const startAt = ctx.currentTime + SCHEDULE_LEAD_S;
+    const leadS = looping ? LOOP_LEAD_S : SCHEDULE_LEAD_S;
+    const startAt = ctx.currentTime + leadS;
 
     this.#graph = renderPlan(
       ctx,
@@ -120,7 +124,7 @@ export class AudioEngine {
         this.stop();
         this.onEnded?.();
       },
-      (SCHEDULE_LEAD_S + (end - fromS)) * 1000,
+      (leadS + (end - fromS)) * 1000,
     );
   }
 
