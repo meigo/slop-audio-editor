@@ -22,8 +22,8 @@
   import PanSlider from "./PanSlider.svelte";
 
   /** Follows the CURRENT track — the one you last touched, which clicking a clip sets — not the
-   *  selection. That is exactly why it sits on the Clip tab: these are the mix controls for the
-   *  thing you just selected, where the Master tab holds what applies to the whole project. */
+   *  selection. That is what the Track tab MEANS: one tab per level of the document, and the
+   *  panel follows whatever you last touched (see `focusPanel`). */
   const track = $derived(findTrack(appState.project, currentTrackId()));
 
   /** A MIX change: applied live on the retained nodes so a band can be swept while listening, and

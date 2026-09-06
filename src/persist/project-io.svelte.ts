@@ -5,9 +5,11 @@ import {
   deleteSource,
   disableDocumentSaves,
   listSourceIds,
+  pauseDocumentSaves,
   putDocument,
   putSources,
   readAutosave,
+  resumeDocumentSaves,
 } from "./autosave";
 import {
   applyDocumentDefaults,
@@ -108,15 +110,25 @@ export async function openProjectFile(file: File): Promise<void> {
   // failure here leaves the previous session exactly as it was; `putDocument` bypasses the
   // debounce so the two stores never describe different projects; and only then are the sources
   // the replaced session left behind pruned — never the ones just written, which the pool holds.
+  // The debounce is HELD for the whole section. `loadInto`'s swap has already queued a document
+  // save, and `putSources` is the hundreds-of-megabytes write: if it takes longer than the 3 s
+  // debounce, that queued save lands first and the doc store describes this project while the
+  // source store still holds the previous one's audio. Pausing is reversible — nothing has gone
+  // wrong here, the writes are merely out of order — unlike the permanent disable below.
+  pauseDocumentSaves();
   try {
     const previousIds = await listSourceIds();
     await putSources(sources);
-    await putDocument(project);
+    // The CURRENT document, not the one that was loaded: the UI stayed live through a write that
+    // may have taken seconds, and any edit made in that time is already in `appState.project`.
+    // Writing the loaded snapshot would silently roll those edits back on the next reload.
+    await putDocument($state.snapshot(appState.project));
     const written = new Set(sources.map((s) => s.id));
     await pruneUnreferencedSources(
-      project,
+      appState.project,
       previousIds.filter((id) => !written.has(id)),
     );
+    resumeDocumentSaves();
   } catch (err) {
     // The in-memory session has ALREADY been swapped by `loadInto` — deliberately, so a corrupt
     // file cannot destroy the open project. That leaves the app showing a document whose audio

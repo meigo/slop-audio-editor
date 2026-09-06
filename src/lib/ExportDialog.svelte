@@ -16,7 +16,7 @@
   const { onClose }: { onClose: () => void } = $props();
 
   let formats = $state<ExportFormat[]>(["wav16", "wav32"]);
-  let format = $state<ExportFormat>(appState.lastFormat as ExportFormat);
+  let format = $state<ExportFormat>(appState.lastFormat);
   let busy = $state(false);
   let error = $state<string | null>(null);
   /** The rendered mix, kept between the level check and the actual write so acknowledging an over
@@ -133,7 +133,7 @@
         disabled={busy}
         onchange={(e) => {
           acknowledgedOver = false;
-          appState.lastFormat = e.currentTarget.value;
+          appState.lastFormat = e.currentTarget.value as ExportFormat;
         }}
       >
         {#each formats as f (f)}

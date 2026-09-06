@@ -1,3 +1,4 @@
+import { FORMAT_EXT, type ExportFormat } from "../export/formats";
 import { DEFAULT_PX_PER_S, MAX_PX_PER_S, MIN_PX_PER_S } from "../lib/geometry";
 import { clampPanelWidth, DEFAULT_PANEL_WIDTH } from "../lib/panel-layout";
 const KEY = "slop-audio-editor.prefs";
@@ -8,7 +9,9 @@ export interface Preferences {
   pxPerSecond: number;
   snap: boolean;
   trackHeightPx: number;
-  lastFormat: string;
+  /** Typed, because `ExportDialog` hands this straight to the encoder: an unknown string sailed
+   *  through the WAV branch into `formatFor`, which has no default and returns undefined. */
+  lastFormat: ExportFormat;
   /** Loudness target for export, LUFS. `null` means no normalisation. */
   normaliseLufs: number | null;
   /** Side panel expanded, its width in px, and which tab is showing. Working preferences, not
@@ -43,6 +46,12 @@ export function nextTrackHeight(current: number): number {
   return TRACK_HEIGHTS.find((h) => h > current) ?? TRACK_HEIGHTS[0];
 }
 
+/** `FORMAT_EXT` has an entry per format, so it doubles as the list of valid values — one place to
+ *  add a format rather than two that can disagree. */
+function isExportFormat(v: unknown): v is ExportFormat {
+  return typeof v === "string" && Object.hasOwn(FORMAT_EXT, v);
+}
+
 function clamp(v: unknown, lo: number, hi: number, fallback: number): number {
   return typeof v === "number" && Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : fallback;
 }
@@ -54,7 +63,7 @@ export function sanitisePreferences(raw: unknown): Preferences {
     pxPerSecond: clamp(r.pxPerSecond, MIN_PX_PER_S, MAX_PX_PER_S, DEFAULT_PREFERENCES.pxPerSecond),
     snap: typeof r.snap === "boolean" ? r.snap : DEFAULT_PREFERENCES.snap,
     trackHeightPx: clamp(r.trackHeightPx, 40, 300, DEFAULT_PREFERENCES.trackHeightPx),
-    lastFormat: typeof r.lastFormat === "string" ? r.lastFormat : DEFAULT_PREFERENCES.lastFormat,
+    lastFormat: isExportFormat(r.lastFormat) ? r.lastFormat : DEFAULT_PREFERENCES.lastFormat,
     normaliseLufs:
       typeof r.normaliseLufs === "number" && Number.isFinite(r.normaliseLufs)
         ? Math.max(-40, Math.min(0, r.normaliseLufs))

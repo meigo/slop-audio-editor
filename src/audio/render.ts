@@ -78,9 +78,11 @@ export interface RenderedGraph {
   /** Null when the master EQ is flat — in that case no biquads were built at all. */
   masterEq: EqNodes | null;
   sources: AudioBufferSourceNode[];
-  /** Last node before the destination — `masterGain`, or Glue's trim when Glue is on. Metering
-   *  taps THIS, not `masterGain`: Glue's compressor and trim change the level, so a meter on
-   *  `masterGain` would show a number the listener never hears. */
+  /** Last node before the destination: `masterGain` when nothing else is on, otherwise whichever
+   *  of the master EQ, filter, Glue's trim, the saturator or the mix-fade gains ends the chain.
+   *  Metering taps THIS, not `masterGain` — everything after the fader changes the level, so a
+   *  meter on `masterGain` would show a number the listener never hears — and `stop()` disconnects
+   *  THIS, since it is the node actually wired to the destination. */
   output: AudioNode;
 }
 

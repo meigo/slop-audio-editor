@@ -44,13 +44,6 @@ export function packProject(project: Project, sources: readonly SourceRecord[]):
   return zipSync(files);
 }
 
-/** Fill in fields added after a document was written.
- *
- *  Every one of these is an optional field with a well-defined default rather than a shape change,
- *  which is why the file format has no version bump for them. It is exported because BOTH load
- *  paths need it: a `.slopaudio` file goes through `unpackProject`, but an IndexedDB autosave does
- *  not — it is handed to `loadInto` verbatim. Defaulting in only one of them left the autosave path
- *  installing a document with no `eq`, which the inspector dereferences on render. */
 /** Coerces a possibly-absent, possibly-malformed EQ into three real numbers. Shared by tracks and
  *  the master bus, so a document saved before either existed cannot install `undefined` where the
  *  UI dereferences bands on render. */
@@ -72,6 +65,13 @@ function filterOrOff(filter: unknown): TrackFilter {
     : { kind: "off", hz: 0 };
 }
 
+/** Fill in fields added after a document was written.
+ *
+ *  Every one of these is an optional field with a well-defined default rather than a shape change,
+ *  which is why the file format has no version bump for them. It is exported because BOTH load
+ *  paths need it: a `.slopaudio` file goes through `unpackProject`, but an IndexedDB autosave does
+ *  not — it is handed to `loadInto` verbatim. Defaulting in only one of them left the autosave path
+ *  installing a document with no `eq`, which the inspector dereferences on render. */
 export function applyDocumentDefaults(project: Project): void {
   if (typeof project.glue !== "boolean") project.glue = false;
   if (typeof project.duckDepthDb !== "number") project.duckDepthDb = DEFAULT_DUCK_DEPTH_DB;

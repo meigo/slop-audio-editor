@@ -36,6 +36,37 @@ describe("scheduleDocumentSave", () => {
   });
 });
 
+describe("pauseDocumentSaves / resumeDocumentSaves", () => {
+  it("holds a queued save until the replacement is fully written", async () => {
+    // `loadInto` installs the new document before `openProjectFile` persists anything, so the
+    // debounce is already ticking while the SOURCES are being written. That write is hundreds of
+    // megabytes; if it outruns the 3 s debounce, the doc store ends up describing the new project
+    // while the source store still holds the old one's audio.
+    const { pauseDocumentSaves, resumeDocumentSaves, scheduleDocumentSave } = await freshAutosave();
+    scheduleDocumentSave(createProject());
+    pauseDocumentSaves();
+
+    await vi.runAllTimersAsync();
+    expect(warn).not.toHaveBeenCalled(); // nothing ran
+
+    resumeDocumentSaves();
+    scheduleDocumentSave(createProject());
+    await vi.runAllTimersAsync();
+    expect(warn).toHaveBeenCalled(); // ...and saving works again afterwards
+  });
+
+  it("cannot resurrect saves that a failed source write disabled for good", async () => {
+    const { disableDocumentSaves, resumeDocumentSaves, scheduleDocumentSave } =
+      await freshAutosave();
+    disableDocumentSaves();
+    resumeDocumentSaves();
+    scheduleDocumentSave(createProject());
+
+    await vi.runAllTimersAsync();
+    expect(warn).not.toHaveBeenCalled();
+  });
+});
+
 describe("disableDocumentSaves", () => {
   it("cancels a save that was already queued", async () => {
     const { disableDocumentSaves, scheduleDocumentSave } = await freshAutosave();

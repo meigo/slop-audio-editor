@@ -10,10 +10,6 @@ export interface ClipboardEntry {
 
 export interface ClipboardData {
   entries: ClipboardEntry[];
-  /** The track the topmost copied clip came from, or null for an empty clipboard. Lets a paste
-   *  default back to where the copy came from instead of wherever the caller's own idea of the
-   *  "current" track happens to point. */
-  sourceTrackId: string | null;
 }
 
 export function copyClips(p: Project, clipIds: readonly string[]): ClipboardData {
@@ -23,17 +19,15 @@ export function copyClips(p: Project, clipIds: readonly string[]): ClipboardData
     for (const clip of t.clips)
       if (ids.has(clip.id)) found.push({ clip, trackIndex, trackId: t.id });
   });
-  if (found.length === 0) return { entries: [], sourceTrackId: null };
+  if (found.length === 0) return { entries: [] };
 
   const baseTime = Math.min(...found.map((f) => f.clip.startS));
   const baseTrack = Math.min(...found.map((f) => f.trackIndex));
-  const topmost = found.find((f) => f.trackIndex === baseTrack)!;
   return {
     entries: found.map((f) => ({
       clip: { ...f.clip, startS: f.clip.startS - baseTime },
       trackOffset: f.trackIndex - baseTrack,
     })),
-    sourceTrackId: topmost.trackId,
   };
 }
 

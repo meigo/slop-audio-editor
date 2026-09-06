@@ -1,11 +1,12 @@
 import { clipEndS, DEFAULT_DUCK_DEPTH_DB, type Project } from "../doc/document";
 
-/** How far a background track dips while something else is playing. Fixed, like Glue's settings:
- *  the feature is a single toggle, and -12 dB is the common broadcast starting point — clearly
- *  audible ducking without the bed vanishing. */
-/** The depth is adjustable, but the TIMING is not: attack and release are the part that has a
- *  right answer, and exposing them would be four knobs for a feature that earns its keep by
- *  being one toggle. */
+/** How far a background track dips while something else is playing — the DEFAULT depth, which
+ *  `project.duckDepthDb` overrides; -12 dB is the common broadcast starting point, clearly audible
+ *  without the bed vanishing.
+ *
+ *  The depth is adjustable, but the TIMING is not: attack and release are the part that has a
+ *  right answer, and exposing them would be four knobs for a feature that earns its keep by being
+ *  one toggle. */
 export const DUCK_GAIN = 10 ** (DEFAULT_DUCK_DEPTH_DB / 20);
 export const DUCK_ATTACK_S = 0.08;
 export const DUCK_RELEASE_S = 0.4;

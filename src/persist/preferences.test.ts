@@ -117,3 +117,16 @@ describe("normaliseLufs", () => {
     expect(sanitisePreferences({ sidePanelTab: "nope" }).sidePanelTab).toBe("clip");
   });
 });
+
+describe("sanitisePreferences: lastFormat", () => {
+  it("keeps a format the exporter knows", () => {
+    expect(sanitisePreferences({ lastFormat: "mp3" }).lastFormat).toBe("mp3");
+  });
+
+  it("falls back for anything else — the value is handed straight to the encoder", () => {
+    // A hand-edited or renamed value used to sail past the WAV branch into `formatFor`, which has
+    // no default and returns undefined.
+    expect(sanitisePreferences({ lastFormat: "flac" }).lastFormat).toBe("wav16");
+    expect(sanitisePreferences({ lastFormat: 7 }).lastFormat).toBe("wav16");
+  });
+});

@@ -34,6 +34,7 @@
     value={amount}
     oninput={(e) => onInput(snap(Number(e.currentTarget.value)))}
     onpointerup={onCommit}
+    onpointercancel={onCommit}
     onkeyup={onCommit}
   />
   <span class="w-12 text-right text-[10px] text-muted tabular-nums">

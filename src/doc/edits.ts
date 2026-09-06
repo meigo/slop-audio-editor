@@ -67,8 +67,7 @@ export function setTrackMuted(p: Project, trackId: string, muted: boolean): Proj
   return mapTrack(p, trackId, (t) => (t.muted === muted ? t : { ...t, muted }));
 }
 
-/** Mark a track as background: it dips while any other track is playing. See `planDucking`. */
-/** Patch one or more EQ bands on a track. Each band is clamped to +/-EQ_MAX_DB. */
+/** Each EQ band is clamped to +/-EQ_MAX_DB. */
 const clampEqDb = (v: number): number => Math.max(-EQ_MAX_DB, Math.min(EQ_MAX_DB, v));
 
 /**

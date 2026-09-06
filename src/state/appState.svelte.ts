@@ -135,7 +135,7 @@ let gestureKind: GestureKind = "structural";
  *  invisible to the tracker, so the context menu's Paste row stayed greyed out after a copy until
  *  something else happened to invalidate the derived. Any module-level value a component reads
  *  THROUGH A FUNCTION has to be `$state`. */
-let clipboard: ClipboardData = $state({ entries: [], sourceTrackId: null });
+let clipboard: ClipboardData = $state({ entries: [] });
 
 /** Every document reachable through undo or redo, plus the open one.
  *
@@ -405,8 +405,6 @@ export function matchLoudness(): void {
   commit((p) => gains.reduce((proj, g) => setClipGain(proj, g.clipId, g.gain), p));
 }
 
-/** Pastes onto the track the copy came from when that track still exists, falling back to the
- *  resolved current track otherwise. */
 /** Paste lands on the CURRENT track — the one you last touched — not back on the track the clips
  *  were copied from.
  *

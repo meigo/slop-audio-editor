@@ -27,18 +27,6 @@ function snapCandidates(p: Project, movingIds: readonly string[]): number[] {
   return [...all, appState.playheadS, projectDurationS(p)];
 }
 
-/**
- * Drive one clip gesture from pointerdown to pointerup. Everything in between goes through
- * `amend` (no history); `endGesture` writes the single history entry.
- *
- * Every `amend` call below computes from `base` — the project captured once at drag start — not
- * from `appState.project` (the previous frame's result). Applying successive deltas to a moving
- * target would compound: the clip would run away from the cursor instead of tracking it 1:1.
- *
- * Shift disables snapping for the duration of the drag; the check reads `ev.shiftKey` on each
- * move event so toggling Shift mid-drag takes effect immediately, rather than latching whatever
- * state held at pointer-down.
- */
 /** Which clips a drag on `clipId` moves.
  *
  *  A time-range selection counts as well as a clip selection: dragging a box across several clips
@@ -56,6 +44,18 @@ function grabbedGroup(p: Project, clipId: string): string[] {
   return [clipId];
 }
 
+/**
+ * Drive one clip gesture from pointerdown to pointerup. Everything in between goes through
+ * `amend` (no history); `endGesture` writes the single history entry.
+ *
+ * Every `amend` call below computes from `base` — the project captured once at drag start — not
+ * from `appState.project` (the previous frame's result). Applying successive deltas to a moving
+ * target would compound: the clip would run away from the cursor instead of tracking it 1:1.
+ *
+ * Shift disables snapping for the duration of the drag; the check reads `ev.shiftKey` on each
+ * move event so toggling Shift mid-drag takes effect immediately, rather than latching whatever
+ * state held at pointer-down.
+ */
 export function startClipDrag(
   e: PointerEvent,
   clipId: string,
@@ -153,6 +153,22 @@ export function startClipDrag(
  * A range selection carries no history and touches no clip, so unlike `startClipDrag` this never
  * calls `beginGesture`/`amend`/`endGesture` — it only ever assigns `appState.selection`.
  */
+/** Teardown for the range drag in flight, if any. A second finger landing on the viewport turns
+ *  the gesture into a pinch, and the drag has to be called off rather than left painting a
+ *  selection under the zoom. */
+let activeRangeDrag: (() => void) | null = null;
+
+/**
+ * Abandon an in-flight range drag and put the selection back as it was.
+ *
+ * `TimelineViewport` ignores a single touch so it reaches the lane underneath — which means the
+ * first finger has already started a range drag by the time the second one arrives. Without this,
+ * a pinch-zoom also painted a time range, and that range is what `exportWindow` would then use.
+ */
+export function cancelRangeDrag(): void {
+  activeRangeDrag?.();
+}
+
 export function startRangeDrag(e: PointerEvent, trackId: string): void {
   // Primary button only. `pointerdown` fires for a RIGHT-click too, before `contextmenu` — so
   // opening the lane menu used to clear the selection first, and every item the menu is there to
@@ -165,6 +181,7 @@ export function startRangeDrag(e: PointerEvent, trackId: string): void {
   const anchorS = pxToTime(e.clientX - rect.left, appState.scrollS, appState.pxPerSecond);
   const anchorIndex = appState.project.tracks.findIndex((t) => t.id === trackId);
   setCurrentTrack(trackId);
+  const selectionBefore = appState.selection;
   appState.selection = NO_SELECTION;
   target.setPointerCapture(pointerId);
 
@@ -190,8 +207,7 @@ export function startRangeDrag(e: PointerEvent, trackId: string): void {
     };
   }
 
-  function onUp(ev: PointerEvent) {
-    if (ev.pointerId !== pointerId) return;
+  function detach() {
     try {
       target.releasePointerCapture(pointerId);
     } catch {
@@ -200,6 +216,12 @@ export function startRangeDrag(e: PointerEvent, trackId: string): void {
     window.removeEventListener("pointermove", onMove);
     window.removeEventListener("pointerup", onUp);
     window.removeEventListener("pointercancel", onUp);
+    activeRangeDrag = null;
+  }
+
+  function onUp(ev: PointerEvent) {
+    if (ev.pointerId !== pointerId) return;
+    detach();
     // A click with no drag is a deselect, not a zero-length range.
     if (
       appState.selection.kind === "range" &&
@@ -209,6 +231,14 @@ export function startRangeDrag(e: PointerEvent, trackId: string): void {
     }
   }
 
+  activeRangeDrag = () => {
+    detach();
+    // The gesture turned out to be a pinch, so it never happened: put back whatever was selected
+    // before the finger landed, rather than leaving a half-drawn range behind.
+    appState.selection = selectionBefore;
+  };
+
   window.addEventListener("pointermove", onMove);
   window.addEventListener("pointerup", onUp);
+  window.addEventListener("pointercancel", onUp);
 }

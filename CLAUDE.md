@@ -445,8 +445,13 @@ spin forever.
     (18 px), chosen per event from `e.pointerType`, so widening for fingers costs the mouse
     nothing. Touch edges are capped at `widthPx / 3` — 18 px bands on a narrow clip would meet and
     leave no body, making the clip impossible to MOVE, which is the more common gesture.
+    A second finger CANCELS an in-flight range drag (`cancelRangeDrag`), restoring the selection
+    captured before the first finger landed. The viewport ignores a single touch so it reaches the
+    lane underneath — which means the first finger has already started a range drag by the time
+    the pinch begins, and without the cancel a pinch-zoom also painted a time range, which is what
+    `exportWindow` would then use.
     NOT verified, and not verifiable from this harness: single-finger clip dragging on a real
-    touchscreen. Synthetic PointerEvents cannot satisfy `setPointerCapture`, which throws
+    touchscreen, and the pinch-cancels-range-drag path above. Synthetic PointerEvents cannot satisfy `setPointerCapture`, which throws
     `NotFoundError` without a genuine active pointer — the drag path needs a real device. Also
     unaddressed for iPad: the remaining keyboard-only actions (nudge, jump-to-edit, select all,
     zoom to fit) and every modifier-based action (⌘/Shift-click multi-select, Shift to override
@@ -608,6 +613,14 @@ spin forever.
     written. Not "everything unreferenced": a `.slopaudio` can carry sources no clip references
     (`saveProjectFile` packs the whole pool), `loadInto` decodes all of them into the pool, and
     pruning by reference alone would delete bytes that are in memory and expected on disk.
+    The document DEBOUNCE is held across the whole persist section (`pauseDocumentSaves`, lifted
+    on success). `loadInto`'s swap has already queued a save by then, and `putSources` is the
+    hundreds-of-megabytes write: if it outruns the 3 s debounce, that queued save lands first and
+    the doc store describes the new project while the sources are still the previous one's. The
+    document written afterwards is a snapshot of the CURRENT project, not the loaded one — the UI
+    stayed live through a write that may have taken seconds, and writing the loaded snapshot would
+    roll any edit made in that time back on the next reload. Pausing is reversible; the failure
+    path still uses the permanent `disableDocumentSaves`.
     Still open: after a failed source write the in-memory session has ALREADY been swapped, so
     the user's next edit schedules a document save whose audio was never stored. The autosave is
     consistent until then. Closing that needs a session-level "autosave unavailable" state and a

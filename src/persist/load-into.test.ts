@@ -61,6 +61,17 @@ vi.mock("./autosave", () => ({
   },
   readAutosave: async () => null,
   scheduleDocumentSave: () => {},
+  // The debounce is held across the whole persist section, so the doc store cannot be written by
+  // a timer while `putSources` is still running.
+  pauseDocumentSaves: () => {
+    auto.calls.push("pauseDocumentSaves");
+  },
+  resumeDocumentSaves: () => {
+    auto.calls.push("resumeDocumentSaves");
+  },
+  disableDocumentSaves: () => {
+    auto.calls.push("disableDocumentSaves");
+  },
 }));
 
 const { __resetIds, createProject, newId } = await import("../doc/document");
@@ -70,8 +81,9 @@ const { openProjectFile } = await import("./project-io.svelte");
 const appState = await import("../state/appState.svelte");
 
 /** A one-clip project referencing `src-1`, packed as a .slopaudio file. `extraIds` become sources
- *  carried in the file that no clip references — the shape `saveProjectFile` really produces,
- *  since it packs every source in the pool rather than only the reachable ones. */
+ *  carried in the file that no clip references. `saveProjectFile` no longer produces that shape —
+ *  `packCurrentProject` packs only referenced audio — but a file written by an older version can,
+ *  and `loadInto` decodes whatever the file holds, so the pruning rule still has to cope with it. */
 function packedFile(extraIds: string[] = []): File {
   let p = createProject();
   p = addClip(p, p.tracks[0].id, makeClip("src-1", 0, 1));
@@ -151,6 +163,25 @@ describe("openProjectFile's autosave rewrite", () => {
     // is still there, so the next launch restores what it would have restored anyway.
     expect(auto.document).toBe(null);
     expect(auto.deleted).toEqual([]);
+  });
+
+  it("holds the document debounce until the sources are down, and lifts it after", async () => {
+    // `loadInto`'s swap has already queued a save by the time this runs, and `putSources` is the
+    // hundreds-of-megabytes write: if it outruns the 3 s debounce, that queued save lands first
+    // and the doc store describes this project while the sources are still the previous one's.
+    await openProjectFile(packedFile());
+
+    expect(auto.calls.indexOf("pauseDocumentSaves")).toBeLessThan(auto.calls.indexOf("putSources"));
+    expect(auto.calls.indexOf("resumeDocumentSaves")).toBeGreaterThan(
+      auto.calls.indexOf("putDocument"),
+    );
+  });
+
+  it("leaves saves disabled, not merely paused, when the source write fails", async () => {
+    auto.failSources = true;
+    await expect(openProjectFile(packedFile())).rejects.toThrow();
+    expect(auto.calls).toContain("disableDocumentSaves");
+    expect(auto.calls).not.toContain("resumeDocumentSaves");
   });
 
   it("prunes the replaced session's sources but not the ones it just wrote", async () => {

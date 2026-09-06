@@ -27,6 +27,10 @@
 </script>
 
 <div class="flex items-center gap-1">
+  <!-- The gesture commits on `pointercancel` as well as `pointerup`: a ride cancelled by an edge
+       swipe, palm rejection or a system alert otherwise leaves it open — the live gain is in the
+       document but never recorded, so the next unrelated `endGesture` swallows it. Every slider in
+       this app does the same. -->
   <input
     type="range"
     class="slider w-24"
@@ -48,6 +52,7 @@
       onInput(dbToGain(targetDb));
     }}
     onpointerup={onCommit}
+    onpointercancel={onCommit}
     onkeyup={onCommit}
   />
   <span class="w-16 shrink-0 text-right text-[10px] text-muted tabular-nums">

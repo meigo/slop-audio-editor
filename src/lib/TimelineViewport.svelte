@@ -1,5 +1,6 @@
 <script lang="ts">
   import { state as appState } from "../state/appState.svelte";
+  import { cancelRangeDrag } from "./clip-drag.svelte";
   import { MAX_PX_PER_S, MIN_PX_PER_S, pinchUpdate, pxToTime, type PinchStart } from "./geometry";
 
   const { children }: { children: import("svelte").Snippet } = $props();
@@ -23,6 +24,10 @@
     const rect = el!.getBoundingClientRect();
     touches.set(e.pointerId, { x: e.clientX - rect.left });
     if (touches.size === 2) {
+      // The first finger already started a range drag on the lane underneath — a single touch is
+      // deliberately left to reach it. Without this, a pinch-zoom painted a time range as well,
+      // and that range is what an export would use.
+      cancelRangeDrag();
       pinch = {
         pxPerSecond: appState.pxPerSecond,
         scrollS: appState.scrollS,

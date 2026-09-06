@@ -104,6 +104,34 @@ export async function deleteSource(id: string): Promise<void> {
 
 let timer: ReturnType<typeof setTimeout> | null = null;
 let documentSavesDisabled = false;
+let documentSavesPaused = false;
+
+/**
+ * Hold document autosaves — and cancel one already queued — while a session is being replaced.
+ *
+ * `loadInto` installs the new document BEFORE `openProjectFile` persists anything (deliberately:
+ * a corrupt file must not destroy the open project), so the 3 s debounce is already ticking while
+ * `putSources` writes what can be hundreds of megabytes. If that write outruns the debounce, the
+ * doc store ends up describing the NEW project while the source store still holds the old one's
+ * audio — a reload in that window restores clips that resolve to nothing.
+ *
+ * Unlike `disableDocumentSaves` this is reversible: nothing has gone wrong, the writes are merely
+ * out of order. The caller resumes once the sources are down and the document has been written
+ * explicitly.
+ */
+export function pauseDocumentSaves(): void {
+  documentSavesPaused = true;
+  if (timer !== null) {
+    clearTimeout(timer);
+    timer = null;
+  }
+}
+
+/** Let the debounce run again. Deliberately cannot undo `disableDocumentSaves`: that flag means
+ *  this session's audio is not on disk, which resuming would not change. */
+export function resumeDocumentSaves(): void {
+  documentSavesPaused = false;
+}
 
 /** Stops document autosaving for the rest of the session AND cancels any save already queued.
  *
@@ -127,7 +155,7 @@ export function disableDocumentSaves(): void {
  *  not available here, and IndexedDB cannot structured-clone a `$state` proxy. The caller in
  *  `appState.svelte.ts` takes the snapshot. */
 export function scheduleDocumentSave(project: Project): void {
-  if (documentSavesDisabled) return;
+  if (documentSavesDisabled || documentSavesPaused) return;
   if (timer !== null) clearTimeout(timer);
   timer = setTimeout(async () => {
     timer = null;

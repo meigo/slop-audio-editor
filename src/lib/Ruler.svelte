@@ -52,17 +52,25 @@
     apply(e.clientX);
 
     function onMove(ev: PointerEvent) {
+      if (ev.pointerId !== e.pointerId) return; // a second finger is not this gesture
       apply(ev.clientX);
     }
 
+    // `pointercancel` as well as `pointerup`: an edge swipe, palm rejection or a system alert ends
+    // the pointer stream with no `pointerup` at all, and these listeners are on the WINDOW — so
+    // without it the gesture leaked and every later movement kept seeking (or kept dragging a
+    // marker) with no button down. `clip-drag` has documented the same failure for a while.
     function onUp(ev: PointerEvent) {
-      el!.releasePointerCapture(ev.pointerId);
+      if (ev.pointerId !== e.pointerId) return;
+      if (el?.hasPointerCapture(ev.pointerId)) el.releasePointerCapture(ev.pointerId);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
     }
 
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
   }
 </script>
 
