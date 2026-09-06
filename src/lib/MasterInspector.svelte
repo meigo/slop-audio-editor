@@ -5,6 +5,7 @@
     EQ_MAX_DB,
     EQ_MID_HZ,
     type EqBands,
+    type Project,
     type TrackFilter,
   } from "../doc/document";
   import {
@@ -61,6 +62,35 @@
   function onBandCommit() {
     if (!dragging) return;
     dragging = false;
+    endGesture();
+  }
+
+  /**
+   * The mix fades update the document on every step of a scrub, like a clip's own fades, so the
+   * curve `MasterFadeOverlay` draws across the tracks follows the drag.
+   *
+   * A "structural" gesture, unlike everything above it here: the mix fades are automation written
+   * into the schedule, not a retained node the engine can sweep, so `amend` moves the drawing
+   * without rescheduling and the single `endGesture` on release is what makes it audible. The
+   * whole drag is one undo entry either way.
+   */
+  let fading = false;
+
+  function onFade(set: (p: Project, v: number) => Project, v: number) {
+    if (!fading) {
+      fading = true;
+      beginGesture();
+    }
+    amend((p) => set(p, v));
+  }
+
+  function commitFade(set: (p: Project, v: number) => Project, v: number) {
+    if (!fading) {
+      commit((p) => set(p, v)); // typed, not dragged
+      return;
+    }
+    amend((p) => set(p, v));
+    fading = false;
     endGesture();
   }
 
@@ -136,14 +166,16 @@
       value={appState.project.fadeInS}
       suffix="s"
       title="Fades the WHOLE MIX up from the project's start — everything playing, together. Anchored to t = 0, which cannot move."
-      onCommit={(v) => commit((p) => setMasterFadeIn(p, v))}
+      onInput={(v) => onFade(setMasterFadeIn, v)}
+      onCommit={(v) => commitFade(setMasterFadeIn, v)}
     />
     <NumberField
       label="out"
       value={appState.project.fadeOutS}
       suffix="s"
       title="Fades the WHOLE MIX at the end of the project — everything still playing, together. Anchored to the project end, so a range export of the middle does not invent one."
-      onCommit={(v) => commit((p) => setMasterFadeOut(p, v))}
+      onInput={(v) => onFade(setMasterFadeOut, v)}
+      onCommit={(v) => commitFade(setMasterFadeOut, v)}
     />
   </section>
 

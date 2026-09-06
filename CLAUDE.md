@@ -1007,8 +1007,9 @@ command}` that `HelpOverlay.svelte` renders. `resolveShortcut` was deliberately 
     dragged to — a band slider measures 87 px at the 190 px minimum and 297 px at 400.
 
 47. **Number fields scrub, and a scrub can be LIVE.**
-    The fade lengths pass `onInput` as well as `onCommit`, so every step of the drag writes the
-    document and the fade overlay on the clip follows the pointer — a shape you cannot see until
+    The fade lengths — a clip's own, and the MASTER mix fades — pass `onInput` as well as
+    `onCommit`, so every step of the drag writes the document and the overlay follows the pointer
+    (the wedge on the clip, and `MasterFadeOverlay`'s curve across the tracks) — a shape you cannot see until
     you let go is a shape you have to guess at, and the overlay is traced from the engine's own
     curves (Gotcha 17). It is a "structural" gesture, not a "mix" one: a fade is baked into the
     schedule, so `amend` draws it without rescheduling and the single `endGesture` on release is
