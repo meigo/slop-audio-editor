@@ -613,8 +613,16 @@ describe("playheadFollower", () => {
   // makes a loop restart a crossing: `onEnded` assigns the playhead straight to the loop start
   // between frames, so reading `wasInView` from the live playhead saw it already off-screen and
   // took that for a manual scroll. That is exactly how the first version failed.
+  it("never flips on its first frame — it has seen nothing to have crossed", () => {
+    // It takes no starting position on purpose: building it from `appState.playheadS` made that a
+    // tracked read in the caller's `$effect`, which then re-ran every frame and rebuilt the
+    // follower with its memory already at the jumped-to position.
+    expect(playheadFollower()(50, 0, 100, 1000)).toBeNull();
+  });
+
   it("flips forward, then follows a loop restart back", () => {
-    const step = playheadFollower(9);
+    const step = playheadFollower();
+    expect(step(9, 4, 100, 1000)).toBeNull(); // first frame: no memory yet
     expect(step(9.5, 4, 100, 1000)).toBeNull(); // in view of 4..14
     const scrollAfterFlip = step(14.2, 4, 100, 1000); // crossed the right edge
     expect(scrollAfterFlip).not.toBeNull();
@@ -626,7 +634,8 @@ describe("playheadFollower", () => {
   });
 
   it("still leaves a manual scroll alone", () => {
-    const step = playheadFollower(5);
+    const step = playheadFollower();
+    step(5, 0, 100, 1000); // first frame
     step(5.1, 0, 100, 1000); // in view
     // The user scrolls to 40 s; the playhead is now off-screen but did not move.
     expect(step(5.2, 40, 100, 1000)).toBeNull();

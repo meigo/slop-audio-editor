@@ -3,17 +3,22 @@
   import { playheadFollower, timeToPx } from "./geometry";
 
   // While playing, the position comes from the audio clock — never from a counter.
-  // The same loop keeps the playhead on screen by PAGE FLIP (`pageFlipScroll`, through
-  // `playheadFollower`): the view jumps when the playhead crosses an edge and otherwise holds
-  // still. The follower remembers the position it last saw, and decides from THAT rather than
-  // from `appState.playheadS` — a loop restart assigns the playhead straight to the loop start
-  // between frames, so the live value was already off-screen by the time this loop looked, and
-  // read as a manual scroll. A playhead the user scrolled away from still stays put: it was not
-  // in view last frame either.
+  // The same loop keeps the playhead on screen by PAGE FLIP, through `playheadFollower`: the view
+  // jumps when the playhead crosses an edge and otherwise holds still, and a playhead the user
+  // scrolled away from stays put because it was not in view last frame either.
+  //
+  // This effect reads `appState.playing` AND NOTHING ELSE from the store. It used to build the
+  // follower from `appState.playheadS`, which is a TRACKED read: the tick writes that field every
+  // frame, so the effect re-ran every frame, tearing the loop down and rebuilding the follower
+  // with its memory set to the CURRENT position. A loop restart assigns the playhead from outside
+  // this loop (`onEnded`), so the rebuild happened before the next frame could see the jump — the
+  // follower was handed the already-jumped position and read it as a manual scroll, and the view
+  // never came back. The reads inside `tick` are safe: an rAF callback runs outside the effect's
+  // tracked scope.
   $effect(() => {
     if (!appState.playing) return;
     let raf = 0;
-    const step = playheadFollower(appState.playheadS);
+    const step = playheadFollower();
     const tick = () => {
       const { scrollS, pxPerSecond, timelineWidthPx } = appState;
       appState.playheadS = engine.positionS();

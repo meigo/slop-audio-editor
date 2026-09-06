@@ -292,13 +292,22 @@ export function pageFlipScroll(
  * looked, the playhead was already off-screen and that read as "the user scrolled away" — the
  * view never followed a loop back. The follower's own memory is what turns that jump into a
  * crossing. Returns the new scroll, or null to leave the view alone.
+ *
+ * It takes NO starting position, and that is load-bearing rather than tidiness: the caller is an
+ * `$effect`, and passing `appState.playheadS` made that a TRACKED read, so the effect re-ran on
+ * every frame and rebuilt the follower with its memory already set to the jumped-to position —
+ * defeating the whole mechanism. See the effect in `Playhead.svelte`.
  */
-export function playheadFollower(
-  initialS: number,
-): (nowS: number, scrollS: number, pxPerSecond: number, widthPx: number) => number | null {
-  let lastS = initialS;
+export function playheadFollower(): (
+  nowS: number,
+  scrollS: number,
+  pxPerSecond: number,
+  widthPx: number,
+) => number | null {
+  let lastS: number | null = null;
   return (nowS, scrollS, pxPerSecond, widthPx) => {
-    const wasInView = isInView(lastS, scrollS, pxPerSecond, widthPx);
+    // No memory yet on the very first frame, so it cannot have crossed anything.
+    const wasInView = lastS !== null && isInView(lastS, scrollS, pxPerSecond, widthPx);
     lastS = nowS;
     return pageFlipScroll(nowS, scrollS, pxPerSecond, widthPx, wasInView);
   };

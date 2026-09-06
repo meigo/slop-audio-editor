@@ -550,12 +550,23 @@ spin forever.
     back to it, which is what keeps auto-scroll from fighting a manual one. Page flip rather than
     continuous scroll because nothing drifts and the picture holds still while you audition.
     `Playhead.svelte`'s frame loop goes through `playheadFollower`, which remembers the position
-    it LAST SAW and decides from that. Reading `wasInView` from the live `appState.playheadS` was
-    the first version's bug: a loop restart assigns the playhead straight to the loop start
-    between frames (`onEnded`), so by the time the loop looked the playhead was already off-screen
-    and read as "the user scrolled away" — the view never followed a loop back. Found by the
-    user; the pure-function tests had passed because the function was right and the wiring was
-    not, which is why the follower is now the tested unit. The loop is `requestAnimationFrame`, which is frozen in a background tab
+    it LAST SAW. That memory is the mechanism: a loop restart assigns the playhead straight to the
+    loop start from OUTSIDE this loop (`onEnded`), so anything reading the live `appState.playheadS`
+    sees a value that has already jumped and reads it as "the user scrolled away".
+    **The follower takes no starting position, and that is load-bearing.** Passing
+    `appState.playheadS` into it made that a TRACKED read inside the `$effect` — and the tick
+    writes that field every frame, so the effect re-ran every frame, tore the loop down and
+    rebuilt the follower with its memory already set to the jumped-to position. The mechanism
+    defeated itself, silently, and only on the backward jump: forward motion's previous position
+    is in view either way, so forward flips kept working and the bug looked like "loop is not
+    followed". The effect now reads `appState.playing` and nothing else; the reads inside `tick`
+    are safe because an rAF callback runs outside the tracked scope.
+    Two failed fixes preceded this one, both shipped after passing pure-function tests that could
+    not see the wiring. What finally settled it was reproducing the failure in the real component:
+    shim `requestAnimationFrame` onto `setTimeout` (rAF is frozen in a background tab), stub
+    `engine.positionS`, and assign `state.playheadS` from OUTSIDE the loop the way `onEnded` does
+    — a jump driven THROUGH `positionS` does not reproduce it, which is why the first attempt at
+    that check passed on broken code. The loop is `requestAnimationFrame`, which is frozen in a background tab
     (the same reason the meter cannot be watched here), and the MCP tab is background — so the
     four lines of wiring rest on the pure function's tests and a read-through, not on a browser.
     Keyboard zoom (`+`/`−`) anchors on the playhead when it is on screen, else the view's centre,
@@ -770,6 +781,16 @@ command}` that `HelpOverlay.svelte` renders. `resolveShortcut` was deliberately 
     row false. Importing those constants instead would be worse: `long-press.ts` reaches into
     `appState`, and `shortcuts.ts` is deliberately pure. The one thing a test CAN see is a
     duplicated row, and one checks for that.
+
+33b. **An `$effect` that reads state its own callback writes re-runs every frame — and rebuilds
+    whatever per-run memory it was holding.** `Playhead.svelte` built its page-flip follower from
+    `appState.playheadS`, a tracked read, while its rAF tick wrote that same field: the effect
+    re-created the follower on every frame, wiping the memory the follower existed to keep. The
+    rule is the mirror of Gotcha 34's: 34 says a value a component reads THROUGH A FUNCTION must
+    be `$state` or the read is invisible; this says a value an effect writes must NOT be read in
+    that effect's tracked scope, or the effect restarts forever. Reads inside a `requestAnimationFrame`
+    or `setTimeout` callback are outside the tracked scope and are safe; reads in the effect body
+    are not. `untrack()` is the escape hatch when a starting value is genuinely needed.
 
 34. **Undo/redo history is `$state`, and it has to be — the toolbar buttons read it through a
     function.** `canUndoNow()`/`canRedoNow()` are called inside `disabled={!canUndoNow()}`, and
