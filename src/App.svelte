@@ -2,10 +2,9 @@
   import { Plus, Rows2, Rows3, Rows4, Trash2 } from "@lucide/svelte";
   import { addTrack, removeTrack } from "./doc/edits";
   import { TRACK_HEIGHTS } from "./persist/preferences";
-  import Inspector from "./lib/Inspector.svelte";
   import ContextMenu from "./lib/ContextMenu.svelte";
   import KeyboardShortcuts from "./lib/KeyboardShortcuts.svelte";
-  import MixPanel from "./lib/MixPanel.svelte";
+  import SidePanel from "./lib/SidePanel.svelte";
   import Playhead from "./lib/Playhead.svelte";
   import RangeOverlay from "./lib/RangeOverlay.svelte";
   import Ruler from "./lib/Ruler.svelte";
@@ -171,10 +170,9 @@
       <Playhead />
     </div>
 
-    <MixPanel />
+    <SidePanel />
   </div>
 
-  <Inspector />
   <StatusBar />
   <ContextMenu />
 </div>

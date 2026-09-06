@@ -1,3 +1,4 @@
+import { clampPanelWidth, DEFAULT_PANEL_WIDTH } from "../lib/panel-layout";
 const KEY = "slop-audio-editor.prefs";
 
 export interface Preferences {
@@ -7,9 +8,11 @@ export interface Preferences {
   lastFormat: string;
   /** Loudness target for export, LUFS. `null` means no normalisation. */
   normaliseLufs: number | null;
-  /** Master panel expanded. Persisted because it is a working preference, not document state —
-   *  the same reason zoom and snap live here. */
-  masterPanelOpen: boolean;
+  /** Side panel expanded, its width in px, and which tab is showing. Working preferences, not
+   *  document state — the same reason zoom and snap live here. */
+  sidePanelOpen: boolean;
+  sidePanelWidth: number;
+  sidePanelTab: "clip" | "mix";
 }
 
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -18,7 +21,9 @@ export const DEFAULT_PREFERENCES: Preferences = {
   trackHeightPx: 88,
   lastFormat: "wav16",
   normaliseLufs: null,
-  masterPanelOpen: false,
+  sidePanelOpen: true,
+  sidePanelWidth: DEFAULT_PANEL_WIDTH,
+  sidePanelTab: "clip",
 };
 
 /** The three track heights the UI offers. The MIDDLE one is the long-standing default, so the
@@ -51,10 +56,17 @@ export function sanitisePreferences(raw: unknown): Preferences {
       typeof r.normaliseLufs === "number" && Number.isFinite(r.normaliseLufs)
         ? Math.max(-40, Math.min(0, r.normaliseLufs))
         : null,
-    masterPanelOpen:
-      typeof r.masterPanelOpen === "boolean"
-        ? r.masterPanelOpen
-        : DEFAULT_PREFERENCES.masterPanelOpen,
+    sidePanelOpen:
+      typeof r.sidePanelOpen === "boolean" ? r.sidePanelOpen : DEFAULT_PREFERENCES.sidePanelOpen,
+    // Clamped against a nominal wide viewport, not the real one: this runs before layout, and the
+    // panel re-clamps itself against the actual window on mount and on resize.
+    sidePanelWidth: clampPanelWidth(
+      typeof r.sidePanelWidth === "number" && Number.isFinite(r.sidePanelWidth)
+        ? r.sidePanelWidth
+        : DEFAULT_PANEL_WIDTH,
+      Number.MAX_SAFE_INTEGER,
+    ),
+    sidePanelTab: r.sidePanelTab === "mix" ? "mix" : DEFAULT_PREFERENCES.sidePanelTab,
   };
 }
 

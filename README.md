@@ -83,7 +83,7 @@ A few decisions shape the whole codebase:
 ```bash
 npm install
 npm run dev       # Vite dev server
-npm test          # Vitest — 503 tests
+npm test          # Vitest — 515 tests
 npm run check     # svelte-check
 npm run lint      # ESLint
 npm run format    # Prettier

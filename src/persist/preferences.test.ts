@@ -1,3 +1,4 @@
+import { DEFAULT_PANEL_WIDTH, MIN_PANEL_WIDTH } from "../lib/panel-layout";
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_PREFERENCES,
@@ -20,7 +21,9 @@ describe("sanitisePreferences", () => {
       trackHeightPx: 64,
       lastFormat: "m4a",
       normaliseLufs: -16,
-      masterPanelOpen: true,
+      sidePanelOpen: true,
+      sidePanelWidth: 260,
+      sidePanelTab: "mix",
     });
     expect(p).toEqual({
       pxPerSecond: 120,
@@ -28,7 +31,9 @@ describe("sanitisePreferences", () => {
       trackHeightPx: 64,
       lastFormat: "m4a",
       normaliseLufs: -16,
-      masterPanelOpen: true,
+      sidePanelOpen: true,
+      sidePanelWidth: 260,
+      sidePanelTab: "mix",
     });
   });
 
@@ -91,8 +96,20 @@ describe("normaliseLufs", () => {
     expect(sanitisePreferences({ normaliseLufs: -99 }).normaliseLufs).toBe(-40);
   });
 
-  it("defaults the master panel to closed, and ignores a non-boolean", () => {
-    expect(sanitisePreferences({}).masterPanelOpen).toBe(false);
-    expect(sanitisePreferences({ masterPanelOpen: "yes" }).masterPanelOpen).toBe(false);
+  it("keeps the side panel open by default, and ignores a non-boolean", () => {
+    expect(sanitisePreferences({}).sidePanelOpen).toBe(true);
+    expect(sanitisePreferences({ sidePanelOpen: "yes" }).sidePanelOpen).toBe(true);
+  });
+
+  it("clamps a stored panel width and falls back for junk", () => {
+    expect(sanitisePreferences({ sidePanelWidth: 20 }).sidePanelWidth).toBe(MIN_PANEL_WIDTH);
+    expect(sanitisePreferences({ sidePanelWidth: "wide" }).sidePanelWidth).toBe(
+      DEFAULT_PANEL_WIDTH,
+    );
+  });
+
+  it("only accepts a tab it knows", () => {
+    expect(sanitisePreferences({ sidePanelTab: "mix" }).sidePanelTab).toBe("mix");
+    expect(sanitisePreferences({ sidePanelTab: "nope" }).sidePanelTab).toBe("clip");
   });
 });

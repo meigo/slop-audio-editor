@@ -42,7 +42,9 @@ export const state = $state({
    *  property of how you work, not of the document. */
   lastFormat: prefs.lastFormat,
   normaliseLufs: prefs.normaliseLufs,
-  masterPanelOpen: prefs.masterPanelOpen,
+  sidePanelOpen: prefs.sidePanelOpen,
+  sidePanelWidth: prefs.sidePanelWidth,
+  sidePanelTab: prefs.sidePanelTab,
   importing: null as { name: string; fraction: number } | null,
   /** Context menu position in viewport pixels, or null when closed. Session state because two
    *  unrelated components open it (a clip and the lane behind it) and neither owns it. */
@@ -93,7 +95,9 @@ $effect.root(() => {
       snap: state.snap,
       trackHeightPx: state.trackHeightPx,
       lastFormat: state.lastFormat,
-      masterPanelOpen: state.masterPanelOpen,
+      sidePanelOpen: state.sidePanelOpen,
+      sidePanelWidth: state.sidePanelWidth,
+      sidePanelTab: state.sidePanelTab,
       normaliseLufs: state.normaliseLufs,
     });
   });

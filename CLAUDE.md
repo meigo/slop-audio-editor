@@ -115,7 +115,8 @@ src/
 
   lib/               Svelte components — Toolbar, Ruler, TimelineViewport, TrackHeader, TrackLane,
                      ClipView, Waveform, Playhead, RangeOverlay, Inspector, NumberField, Fader,
-                     ContextMenu, ExportDialog, KeyboardShortcuts, MixPanel, ShortcutHelp, ToolbarMenu; clip-drag.svelte.ts holds drag-gesture logic
+                     ClipInspector, ContextMenu, ExportDialog, KeyboardShortcuts, MasterInspector,
+                     ShortcutHelp, SidePanel, ToolbarMenu, TrackInspector; clip-drag.svelte.ts holds drag-gesture logic
 ```
 
 ## Gotchas
@@ -815,6 +816,42 @@ command}` that `ShortcutHelp.svelte` renders. `resolveShortcut` was deliberately
     needs no new node — with the same caveat as EQ: a filter that was OFF at schedule time built
     nothing, so the sweep is silent until the next play.
 
+43. **One side panel with two tabs replaced the split between a bottom Inspector bar and a right
+    mix panel — and the tabs divide by WHAT YOU SELECTED, not by kind of control.** Clip
+    properties were in a horizontal bar under the timeline while track and master mixing were in
+    a panel on the right, so editing one clip meant looking in two places. Everything now lives in
+    `SidePanel.svelte`.
+    The Clip tab holds the clip's own fields AND the current track's EQ and filter; the Master tab
+    holds the master EQ, Glue and duck depth. Splitting it "clip fields here, all mixing there"
+    was the first attempt and it was wrong: track EQ follows `currentTrackId()`, which is set by
+    clicking a clip, so it is a property of the thing you just selected and belongs beside it.
+    Master is the only genuinely project-wide part.
+    Fields are grouped with rules between them — where the clip sits and how fast it plays, then
+    its level and the envelope shaping that level. Seven fields in a flat column read as a list to
+    scan rather than three things to adjust. The rule between the clip and its track spans the
+    full width while the within-tab rules are inset, which is the hierarchy: tab section versus
+    field group.
+    The bar's removal gives ~40 px of height back to the timeline, and the vertical column suits
+    `NumberField` better than the bar did, where seven fields competed for one line and it
+    scrolled sideways.
+    **No auto-switch to the Clip tab on selection.** Clips are clicked constantly just to move
+    them; switching tabs on selection would make the panel flicker during ordinary dragging.
+
+44. **The panel's width is resizable, and the arithmetic is a pure function because the pointer
+    plumbing cannot be tested here.** `panel-layout.ts` mirrors slop-animator's module of the same
+    name: `clampPanelWidth` holds [MIN, half the viewport] with MIN always winning, so a narrow
+    window cannot produce a panel narrower than its own sliders and a stored width from a bigger
+    screen cannot leave the timeline with nothing.
+    `resizedPanelWidth(gripStartW, gripStartX, clientX, viewportW)` exists as its own tested
+    function for two reasons. It recomputes from the values captured at pointer-DOWN rather than
+    accumulating per frame, or rounding walks the edge away from the pointer over a long drag —
+    the same rule the pinch gesture follows. And the subtraction looks wrong and is not: the panel
+    is docked RIGHT, so moving the grip LEFT must make it WIDER, which is the classic bug with a
+    right-docked panel and is now pinned by a test.
+    NOT verified: the drag itself. `setPointerCapture` rejects synthetic pointer events, and this
+    harness delivers no real button presses to the grip — a `left_click` on it produced only a
+    `pointermove`. The clamp and the arithmetic are tested; the wiring between them needs a human.
+
 ## Testing
 
 Vitest, `node` environment, no DOM (`src/**/*.test.ts`, see `vite.config.ts`). Pure logic
@@ -824,7 +861,7 @@ Vitest, `node` environment, no DOM (`src/**/*.test.ts`, see `vite.config.ts`). P
 `export/wav.ts`, `export/normalise.ts`, `persist/project-file.ts` (including
 `packCurrentProject`), `persist/autosave.ts`'s `disableDocumentSaves`, `persist/preferences.ts`,
 `lib/geometry.ts`,
-`lib/hit-test.ts` (including `hitTestRuler`), `lib/shortcuts.ts`, `lib/status.ts`, `state/history.ts`) is
+`lib/panel-layout.ts`, `lib/hit-test.ts` (including `hitTestRuler`), `lib/shortcuts.ts`, `lib/status.ts`, `state/history.ts`) is
 unit-tested. Canvas rendering, drag interactions (the `Ruler`'s in/out marker drag included), the master
 meter's animation (its scale mapping is `meterFillPct`, which IS tested; the `requestAnimationFrame`
 loop cannot run in a backgrounded tab, so the bar and peak-hold need a foreground eyeball), real
