@@ -9,7 +9,7 @@ under the voice, and export a mastered file — all locally, with no upload and 
 
 **→ [slop-audio-editor.meigo.workers.dev](https://slop-audio-editor.meigo.workers.dev)**
 
-![Slop Audio Editor — five tracks of waveforms with ducking envelopes drawn on the music beds, an in/out loop range on the ruler, and the master EQ, filter, saturation and Glue in the side panel](docs/screenshot.webp)
+![Slop Audio Editor — five tracks of waveforms with ducking envelopes drawn on the music beds, the mix fade-in and fade-out curves arcing across the whole timeline, an in/out loop range on the ruler, and the master EQ, filter, saturation, Glue and mix fades in the side panel](docs/screenshot.webp)
 
 **Stack:** Svelte 5 (runes) + TypeScript + Vite + Tailwind 4, on the Web Audio API.
 
