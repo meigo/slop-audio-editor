@@ -37,7 +37,7 @@
      should be reachable only by opening a panel. -->
 <div class="flex flex-col gap-3 p-2">
   <section
-    class="grid items-center gap-x-2 gap-y-1.5 border-t border-line pt-2"
+    class="grid items-center gap-x-2 gap-y-3 border-t border-line pt-2"
     style="grid-template-columns: auto minmax(0, 1fr) auto"
   >
     <h3 class="col-span-3 text-[11px] tracking-wide text-muted uppercase">Master</h3>
@@ -79,7 +79,7 @@
   </section>
 
   <section
-    class="grid items-center gap-x-2 gap-y-1.5 border-t border-line pt-2"
+    class="grid items-center gap-x-2 gap-y-3 border-t border-line pt-2"
     style="grid-template-columns: auto minmax(0, 1fr) auto"
   >
     <h3 class="col-span-3 text-[11px] tracking-wide text-muted uppercase">Duck</h3>

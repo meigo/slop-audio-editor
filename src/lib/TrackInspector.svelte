@@ -74,7 +74,7 @@
          dragged to. Set inline because Tailwind will not generate an arbitrary value containing a
          comma. -->
     <section
-      class="grid items-center gap-x-2 gap-y-1.5"
+      class="grid items-center gap-x-2 gap-y-3"
       style="grid-template-columns: auto minmax(0, 1fr) auto"
       data-hint="Three-band tone control for the current track. Click a track header to switch tracks."
     >
