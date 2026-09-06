@@ -5,6 +5,7 @@ import { renderPlan, SCHEDULE_LEAD_S, type RenderedGraph } from "./render";
 import { peakAmplitude } from "./peak";
 import { panGains } from "../lib/geometry";
 import { planSchedule } from "./schedule";
+import { saturationCurve } from "./saturation";
 
 /** The app always renders stereo: `AudioContext`'s default destination, and
  *  `OfflineAudioContext(2, …)` for export. The meter splits those same two channels. */
@@ -198,6 +199,15 @@ export class AudioEngine {
     if (!node || filter.kind === "off") return;
     node.type = filter.kind;
     node.frequency.value = filter.hz;
+  }
+
+  /** Live saturation change. Like the EQ and filters, does nothing when saturation was OFF at
+   *  schedule time, since no waveshaper was built then. */
+  setSaturation(amount: number): void {
+    const node = this.#graph?.saturator;
+    const curve = saturationCurve(amount);
+    if (!node || !curve) return;
+    node.curve = curve;
   }
 
   setMasterGain(gain: number): void {

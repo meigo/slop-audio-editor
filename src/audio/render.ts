@@ -10,6 +10,7 @@ import {
   type EqBands,
 } from "../doc/document";
 import { planDucking } from "./ducking";
+import { saturationCurve } from "./saturation";
 import { panGains } from "../lib/geometry";
 import { FADE_CURVE_POINTS, fadeInCurve, fadeOutCurve } from "./fades";
 import type { Source } from "./pool";
@@ -66,6 +67,8 @@ export interface RenderedGraph {
   trackFilters: Map<string, BiquadFilterNode>;
   /** Null when the master filter is off — in that case no biquad was built. */
   masterFilter: BiquadFilterNode | null;
+  /** Null when saturation is off. */
+  saturator: WaveShaperNode | null;
   /** Only tracks that are actually panned. The pair is [left, right] channel gains. */
   trackPans: Map<string, { left: GainNode; right: GainNode }>;
   masterGain: GainNode;
@@ -235,12 +238,29 @@ export function renderPlan(
     highpass.connect(lowpass);
     lowpass.connect(compressor);
     compressor.connect(trim);
-    trim.connect(ctx.destination);
     glueNodes.push(highpass, lowpass, compressor, trim);
     output = trim;
-  } else {
-    masterFilter.tail.connect(ctx.destination);
   }
+
+  /** Saturation is LAST, after Glue: tape goes after the bus compressor, and it is the final
+   *  colour rather than something the compressor then reacts to.
+   *
+   *  `oversample: "4x"` because a waveshaper aliases — it generates harmonics above Nyquist that
+   *  fold back as inharmonic tones. Low fidelity is fine as a character; aliasing is not a
+   *  character, it is a defect, and one master-bus node can afford the oversampling.
+   *
+   *  The metering tap follows `output`, so it reads AFTER this — the same reason it moved past
+   *  Glue's trim. */
+  const curve = saturationCurve(project.saturation);
+  let saturator: WaveShaperNode | null = null;
+  if (curve) {
+    saturator = ctx.createWaveShaper();
+    saturator.curve = curve;
+    saturator.oversample = "4x";
+    output.connect(saturator);
+    output = saturator;
+  }
+  output.connect(ctx.destination);
 
   const sources: AudioBufferSourceNode[] = [];
   const toStart: { node: AudioBufferSourceNode; when: number; offset: number; duration: number }[] =
@@ -324,6 +344,7 @@ export function renderPlan(
     for (const n of panNodes) n.disconnect();
     for (const n of sources) n.disconnect();
     for (const g of glueNodes) g.disconnect();
+    saturator?.disconnect();
     throw err;
   }
 
@@ -336,6 +357,7 @@ export function renderPlan(
     trackPans,
     masterEq: master.nodes,
     masterFilter: masterFilter.node,
+    saturator,
     masterGain,
     sources,
     output,

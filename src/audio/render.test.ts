@@ -43,6 +43,11 @@ class FakeGainNode extends FakeNode {
   };
 }
 
+class FakeWaveShaperNode extends FakeNode {
+  curve: Float32Array | null = null;
+  oversample = "none";
+}
+
 class FakeBiquadNode extends FakeNode {
   type = "";
   frequency = { value: 0 };
@@ -64,6 +69,7 @@ class FakeBufferSourceNode extends FakeNode {
 function makeFakeCtx(throwOnCall = Infinity) {
   const gains: FakeGainNode[] = [];
   const biquads: FakeBiquadNode[] = [];
+  const shapers: FakeWaveShaperNode[] = [];
   const bufferSources: FakeBufferSourceNode[] = [];
   const destination = new FakeNode();
   let curveCalls = 0;
@@ -78,6 +84,11 @@ function makeFakeCtx(throwOnCall = Infinity) {
       gains.push(g);
       return g;
     },
+    createWaveShaper: (): FakeWaveShaperNode => {
+      const n = new FakeWaveShaperNode();
+      shapers.push(n);
+      return n;
+    },
     createChannelSplitter: (): FakeNode => new FakeNode(),
     createChannelMerger: (): FakeNode => new FakeNode(),
     createBiquadFilter: (): FakeBiquadNode => {
@@ -91,7 +102,14 @@ function makeFakeCtx(throwOnCall = Infinity) {
       return s;
     },
   };
-  return { ctx: ctx as unknown as BaseAudioContext, gains, biquads, bufferSources, destination };
+  return {
+    ctx: ctx as unknown as BaseAudioContext,
+    gains,
+    biquads,
+    shapers,
+    bufferSources,
+    destination,
+  };
 }
 
 function fakeProject(trackIds: string[]): Project {
@@ -102,6 +120,7 @@ function fakeProject(trackIds: string[]): Project {
     duckDepthDb: -12,
     masterEq: { lowDb: 0, midDb: 0, highDb: 0 },
     masterFilter: { kind: "off" as const, hz: 0 },
+    saturation: 0,
     tracks: trackIds.map((id) => ({
       id,
       name: id,
@@ -408,5 +427,33 @@ describe("master filter", () => {
       "lowpass",
       "highpass",
     ]);
+  });
+});
+
+describe("master saturation", () => {
+  const clip = fakeScheduledClip();
+  const pool = { get: (): Source => fakeSource("s1") };
+  const driven = (saturation: number): Project => ({ ...fakeProject(["t1"]), saturation });
+
+  it("builds NO waveshaper at zero drive", () => {
+    const { ctx, shapers } = makeFakeCtx();
+    const graph = renderPlan(ctx, [clip], pool, driven(0), 0, WINDOW);
+    expect(shapers.length).toBe(0);
+    expect(graph.saturator).toBe(null);
+  });
+
+  it("builds one when driven, oversampled against aliasing", () => {
+    const { ctx, shapers } = makeFakeCtx();
+    renderPlan(ctx, [clip], pool, driven(0.5), 0, WINDOW);
+    expect(shapers.length).toBe(1);
+    expect(shapers[0].oversample).toBe("4x");
+    expect(shapers[0].curve?.length).toBeGreaterThan(1000);
+  });
+
+  // The meter must read what leaves the app, and saturation is the last thing to touch it.
+  it("is the graph's output node, so the meter reads through it", () => {
+    const { ctx } = makeFakeCtx();
+    const graph = renderPlan(ctx, [clip], pool, driven(0.5), 0, WINDOW);
+    expect(graph.output).toBe(graph.saturator);
   });
 });

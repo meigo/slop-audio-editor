@@ -7,7 +7,7 @@
     type EqBands,
     type TrackFilter,
   } from "../doc/document";
-  import { setDuckDepth, setGlue, setMasterEq, setMasterFilter } from "../doc/edits";
+  import { setDuckDepth, setGlue, setMasterEq, setMasterFilter, setSaturation } from "../doc/edits";
   import {
     amend,
     beginGesture,
@@ -17,6 +17,7 @@
     state as appState,
   } from "../state/appState.svelte";
   import BandSlider from "./BandSlider.svelte";
+  import DriveSlider from "./DriveSlider.svelte";
   import FilterSlider from "./FilterSlider.svelte";
   import NumberField from "./NumberField.svelte";
 
@@ -38,6 +39,15 @@
     }
     amend((p) => setMasterFilter(p, filter));
     engine.setMasterFilter(appState.project.masterFilter);
+  }
+
+  function onDrive(amount: number) {
+    if (!dragging) {
+      dragging = true;
+      beginGesture("mix");
+    }
+    amend((p) => setSaturation(p, amount));
+    engine.setSaturation(appState.project.saturation);
   }
 
   function onBandCommit() {
@@ -87,6 +97,13 @@
       filter={appState.project.masterFilter}
       title="Sweepable filter on the whole mix. Left is a high-pass, right a low-pass, centre off. Separate from Glue's own fixed band-limit."
       onInput={onFilter}
+      onCommit={onBandCommit}
+    />
+    <DriveSlider
+      label="drive"
+      amount={appState.project.saturation}
+      title="Tape-style saturation on the whole mix. Quiet material passes untouched; peaks bend. Sits after Glue, so it is the last colour before the meter."
+      onInput={onDrive}
       onCommit={onBandCommit}
     />
     <button

@@ -77,6 +77,10 @@ export function applyDocumentDefaults(project: Project): void {
   if (typeof project.duckDepthDb !== "number") project.duckDepthDb = DEFAULT_DUCK_DEPTH_DB;
   project.masterEq = eqOrFlat(project.masterEq);
   project.masterFilter = filterOrOff(project.masterFilter);
+  project.saturation =
+    typeof project.saturation === "number" && project.saturation > 0
+      ? Math.min(1, project.saturation)
+      : 0;
   for (const t of project.tracks) {
     if (typeof t.ducked !== "boolean") t.ducked = false;
     t.eq = eqOrFlat(t.eq);

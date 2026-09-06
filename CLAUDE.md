@@ -67,6 +67,7 @@ src/
                      `gatedLoudnessFromBlockPowers`) that `pool.ts`'s `computeLoudnessChunked` uses
                      to spread the same computation across yielding chunks, the way
                      `computePeaksChunked` does for peaks
+    saturation.ts    saturationCurve(amount, points) — tanh waveshaping for the master bus, pure
     ducking.ts       planDucking(project, fromS, toS) — pure. Gain envelopes for every track
                      marked `ducked`, dipping DUCK_DEPTH_DB (-12) while any unmuted, non-ducked
                      track has a clip. Derived from clip POSITIONS, not audio content, which is
@@ -956,6 +957,28 @@ command}` that `ShortcutHelp.svelte` renders. `resolveShortcut` was deliberately
     The slider detents to dead centre within 0.03, for the same reason the EQ bands and the filter
     do: a track left at 0.02 is not centred, so it would keep five nodes in the graph forever.
     Ordering is free — pan, duck and the track fader are all gains, so they commute.
+
+49. **Master saturation is `tanh` normalised so the SLOPE AT ZERO is 1, and its hardness was
+    chosen by measuring LEVEL, not by looking at the curve.** `tanh(k*x)` has a slope of `k` near
+    zero, so using it raw would multiply quiet material by `k` — a volume control wearing a
+    different name, which is the exact failure Glue's trim exists to prevent (Gotcha 12).
+    Dividing by `k` leaves small signals untouched and bends only the peaks. Measured through
+    `renderPlan` with a 200 Hz tone: at an input of 0.02 the change is 0.00 dB at ANY drive; at
+    0.3 it is -0.96 dB at full drive; at 0.9 it is -5.58, with the third harmonic rising from
+    -77 dB to -16 dB as level and drive increase. That progression IS the effect.
+    `SATURATION_MAX_K` is 2, and the first attempt at 8 was wrong for a reason worth remembering:
+    8 was picked because `tanh` stops changing SHAPE much above it, which is true and irrelevant.
+    Peak reduction at full scale runs -2.37 dB at k=1, -6.34 at k=2, -12.05 at k=4, -18.06 at k=8
+    — so a moderate drive of 0.6 was taking 12.7 dB off a hot mix. That is heavy limiting, not
+    saturation. A control's range has to be chosen by what it DOES, not by where the maths stops
+    being interesting.
+    `oversample: "4x"`, because a waveshaper generates harmonics above Nyquist that fold back as
+    inharmonic tones. Low fidelity is a fine character; aliasing is a defect, and one master-bus
+    node can afford it.
+    It sits LAST, after Glue — tape goes after the bus compressor — which makes it the graph's
+    `output`, so the meter reads through it (Gotcha 18's rule, applied again). Zero drive builds
+    no node at all, and the curve has an ODD point count so silence maps to an exact zero rather
+    than an interpolated one.
 
 ## Testing
 

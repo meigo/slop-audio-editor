@@ -426,3 +426,9 @@ export function setMasterFilter(p: Project, filter: TrackFilter): Project {
   const cur = p.masterFilter;
   return cur.kind === next.kind && cur.hz === next.hz ? p : { ...p, masterFilter: next };
 }
+
+/** Master-bus saturation, clamped to 0..1. */
+export function setSaturation(p: Project, amount: number): Project {
+  const next = Math.max(0, Math.min(1, amount));
+  return p.saturation === next ? p : { ...p, saturation: next };
+}

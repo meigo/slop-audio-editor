@@ -119,6 +119,8 @@ export interface Project {
   /** Master-bus filter, the same one knob a track has. Independent of Glue's FIXED band-limit:
    *  that one is part of what Glue is, this one is a control. */
   masterFilter: TrackFilter;
+  /** Master-bus saturation, 0 (off, and no node at all) to 1. */
+  saturation: number;
   /** How far tracks marked `ducked` dip, in dB. One value for the whole project: the feature is
    *  meant to stay a single toggle plus a single strength, not a per-track mixer. 0 disables it. */
   duckDepthDb: number;
@@ -173,6 +175,7 @@ export function createProject(name = "Untitled"): Project {
     glue: false,
     masterEq: { ...FLAT_EQ },
     masterFilter: { ...FILTER_OFF },
+    saturation: 0,
     duckDepthDb: DEFAULT_DUCK_DEPTH_DB,
   };
 }
