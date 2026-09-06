@@ -21,11 +21,20 @@
 
   let canvas = $state<HTMLCanvasElement | null>(null);
 
+  /** The clip's own edge is an `outline` at `-outline-offset-1`, so it occupies the outermost
+   *  pixel of the box. `widthPx`/`heightPx` describe that whole box, and a canvas filling it
+   *  painted its first and last columns — and a full-scale sample's top and bottom — straight over
+   *  that outline, so the border and the waveform read as one thick smudge. Drawing 1px inside on
+   *  every side is the same rule the fade and duck overlays already follow. */
+  const INSET_PX = 1;
+  const drawW = $derived(Math.max(1, Math.round(widthPx - 2 * INSET_PX)));
+  const drawH = $derived(Math.max(1, Math.round(heightPx - 2 * INSET_PX)));
+
   $effect(() => {
     const el = canvas;
     const source = pool.get(sourceId);
-    const w = Math.max(1, Math.round(widthPx));
-    const h = Math.max(1, Math.round(heightPx));
+    const w = drawW;
+    const h = drawH;
     const g = gain; // read in the tracked scope: redraw on Match loudness (or any gain edit)
     if (!el || !source) return;
 
@@ -66,6 +75,6 @@
 
 <canvas
   bind:this={canvas}
-  class="pointer-events-none absolute inset-0 size-full"
-  style="width: {widthPx}px; height: {heightPx}px"
+  class="pointer-events-none absolute inset-px"
+  style="width: {drawW}px; height: {drawH}px"
 ></canvas>

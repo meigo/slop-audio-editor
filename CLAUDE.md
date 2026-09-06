@@ -303,6 +303,10 @@ spin forever.
     `<select>`, which only SETS it. All three shapes drew identically, so switching a fade to
     exponential changed what you heard and nothing you saw. Same failure as Gotcha 15: derive the
     picture from the audio's source of truth rather than maintaining a parallel guess.
+    The WAVEFORM CANVAS follows the same rule and for the same reason, which was missed until a
+    screenshot showed it: `Waveform.svelte` draws into a box 1px smaller on every side than the
+    clip, so its first and last pixel columns — and a full-scale sample's top and bottom — stop
+    short of the outline instead of painting over it.
     Every overlay SVG — fade and duck alike — is inset 1px on ALL FOUR sides (`inset-px` plus a
     `calc(100% - 2px)` size, or `left-px`/`right-px` with a width 1px short for the fades, which
     only touch one horizontal edge). The clip's own edge is an `outline` at `-outline-offset-1`,
