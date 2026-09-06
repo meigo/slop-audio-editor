@@ -1,3 +1,4 @@
+import { FILTER_OFF } from "../doc/document";
 import { describe, expect, it } from "vitest";
 import {
   dbToGain,
@@ -21,6 +22,14 @@ import {
   snapBandDb,
   snapTime,
   timeToPx,
+  FILTER_DETENT,
+  FILTER_HP_MAX_HZ,
+  FILTER_HP_MIN_HZ,
+  FILTER_LP_MAX_HZ,
+  FILTER_LP_MIN_HZ,
+  filterFromPosition,
+  filterPosition,
+  formatFilter,
 } from "./geometry";
 import { fadeInCurve, fadeOutCurve } from "../audio/fades";
 
@@ -400,5 +409,51 @@ describe("formatSignedDb", () => {
 
   it("shows flat without a sign", () => {
     expect(formatSignedDb(0)).toBe("0.0 dB");
+  });
+});
+
+describe("the one-knob track filter", () => {
+  it("is off in the dead zone at the centre", () => {
+    expect(filterFromPosition(0).kind).toBe("off");
+    expect(filterFromPosition(FILTER_DETENT).kind).toBe("off");
+    expect(filterFromPosition(-FILTER_DETENT).kind).toBe("off");
+    // Just outside it, the filter engages.
+    expect(filterFromPosition(FILTER_DETENT + 0.01).kind).toBe("lowpass");
+    expect(filterFromPosition(-FILTER_DETENT - 0.01).kind).toBe("highpass");
+  });
+
+  it("sweeps a high-pass UP to the left and a low-pass DOWN to the right", () => {
+    expect(filterFromPosition(-1)).toEqual({ kind: "highpass", hz: FILTER_HP_MAX_HZ });
+    expect(filterFromPosition(1)).toEqual({ kind: "lowpass", hz: FILTER_LP_MIN_HZ });
+    // Just off centre each filter starts at the harmless end of its range. The tolerance is
+    // relative: a nudge of 1e-9 past the detent lands 1e-4 Hz off 20 kHz, which is exact enough.
+    expect(filterFromPosition(-FILTER_DETENT - 1e-9).hz).toBeCloseTo(FILTER_HP_MIN_HZ, 3);
+    expect(filterFromPosition(FILTER_DETENT + 1e-9).hz / FILTER_LP_MAX_HZ).toBeCloseTo(1, 6);
+  });
+
+  it("moves logarithmically, so the knob feels even across the audible range", () => {
+    // Halfway along the high-pass travel is the geometric mean, not the arithmetic one.
+    const mid = filterFromPosition(-(FILTER_DETENT + (1 - FILTER_DETENT) / 2));
+    expect(mid.hz).toBeCloseTo(Math.sqrt(FILTER_HP_MIN_HZ * FILTER_HP_MAX_HZ), 6);
+  });
+
+  // The document stores the filter, not the knob position, so the slider has to be able to put
+  // its thumb back exactly where the user left it.
+  it("round-trips position through the stored filter", () => {
+    for (const p of [-1, -0.7, -0.2, 0, 0.2, 0.7, 1]) {
+      const expected = Math.abs(p) <= FILTER_DETENT ? 0 : p;
+      expect(filterPosition(filterFromPosition(p)), `position ${p}`).toBeCloseTo(expected, 9);
+    }
+  });
+
+  it("clamps positions beyond the ends of the travel", () => {
+    expect(filterFromPosition(-5)).toEqual(filterFromPosition(-1));
+    expect(filterFromPosition(5)).toEqual(filterFromPosition(1));
+  });
+
+  it("reads out in the units the number actually has", () => {
+    expect(formatFilter(FILTER_OFF)).toBe("off");
+    expect(formatFilter({ kind: "highpass", hz: 120.4 })).toBe("HP 120 Hz");
+    expect(formatFilter({ kind: "lowpass", hz: 4200 })).toBe("LP 4.2 kHz");
   });
 });

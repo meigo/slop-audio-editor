@@ -3,6 +3,7 @@ import {
   DEFAULT_DUCK_DEPTH_DB,
   referencedSourceIdsAcross,
   type Project,
+  type TrackFilter,
   type EqBands,
 } from "../doc/document";
 
@@ -69,6 +70,11 @@ export function applyDocumentDefaults(project: Project): void {
   for (const t of project.tracks) {
     if (typeof t.ducked !== "boolean") t.ducked = false;
     t.eq = eqOrFlat(t.eq);
+    const f = t.filter as Partial<TrackFilter> | undefined;
+    t.filter =
+      (f?.kind === "highpass" || f?.kind === "lowpass") && typeof f.hz === "number" && f.hz > 0
+        ? { kind: f.kind, hz: f.hz }
+        : { kind: "off", hz: 0 };
     for (const c of t.clips) {
       if (typeof c.speed !== "number" || !(c.speed > 0)) c.speed = 1;
     }

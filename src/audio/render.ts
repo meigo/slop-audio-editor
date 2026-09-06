@@ -1,9 +1,11 @@
 import {
   EQ_HIGH_HZ,
+  FILTER_Q,
   EQ_LOW_HZ,
   EQ_MID_HZ,
   EQ_MID_Q,
   isFlatEq,
+  type TrackFilter,
   type Project,
   type EqBands,
 } from "../doc/document";
@@ -59,6 +61,8 @@ export interface RenderedGraph {
   trackGains: Map<string, GainNode>;
   /** Only tracks whose EQ is NOT flat appear here. */
   trackEqs: Map<string, EqNodes>;
+  /** Only tracks whose filter is NOT off appear here — the rest built no node to adjust. */
+  trackFilters: Map<string, BiquadFilterNode>;
   masterGain: GainNode;
   /** Null when the master EQ is flat — in that case no biquads were built at all. */
   masterEq: EqNodes | null;
@@ -103,6 +107,7 @@ export function renderPlan(
 
   const trackGains = new Map<string, GainNode>();
   const trackEqs = new Map<string, EqNodes>();
+  const trackFilters = new Map<string, BiquadFilterNode>();
   const eqNodes: BiquadFilterNode[] = [];
   const duckGains: GainNode[] = [];
 
@@ -130,6 +135,24 @@ export function renderPlan(
     low.connect(mid);
     mid.connect(high);
     return { tail: high, nodes: { low, mid, high } };
+  }
+
+  /** One biquad, or the input untouched when the filter is off — the same rule the EQ follows,
+   *  and for the same reason: a "neutral" biquad is not bit-transparent, and a project that never
+   *  touches the filter must render exactly the graph it always did.
+   *
+   *  Cascaded linear filters commute, so where this sits relative to the EQ makes no difference
+   *  to the result; it goes after for no deeper reason than reading order. */
+  function withFilter(input: AudioNode, trackId: string, filter: TrackFilter): AudioNode {
+    if (filter.kind === "off") return input;
+    const n = ctx.createBiquadFilter();
+    n.type = filter.kind;
+    n.frequency.value = filter.hz;
+    n.Q.value = FILTER_Q;
+    eqNodes.push(n);
+    trackFilters.set(trackId, n);
+    input.connect(n);
+    return n;
   }
 
   // Master EQ sits between the fader and Glue, so Glue's compressor reacts to the shaped signal
@@ -187,8 +210,8 @@ export function renderPlan(
         // EQ sits AFTER the fader: the fader is only a level, so filtering before or after it is
         // equivalent, and this way one chain per track covers every clip on it.
         const trackEq = buildEq(trackGain, track?.eq ?? { lowDb: 0, midDb: 0, highDb: 0 });
-        const tail = trackEq.tail;
         if (trackEq.nodes) trackEqs.set(sc.trackId, trackEq.nodes);
+        const tail = withFilter(trackEq.tail, sc.trackId, track?.filter ?? { kind: "off", hz: 0 });
         const points = duck.get(sc.trackId);
         if (points && points.length > 0) {
           // A SEPARATE node from the fader's. Writing the envelope onto `trackGain` itself would
@@ -254,5 +277,13 @@ export function renderPlan(
 
   for (const { node, when, offset, duration } of toStart) node.start(when, offset, duration);
 
-  return { trackGains, trackEqs, masterEq: master.nodes, masterGain, sources, output };
+  return {
+    trackGains,
+    trackEqs,
+    trackFilters,
+    masterEq: master.nodes,
+    masterGain,
+    sources,
+    output,
+  };
 }

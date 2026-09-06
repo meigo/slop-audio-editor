@@ -7,8 +7,9 @@
     EQ_MID_HZ,
     findTrack,
     type EqBands,
+    type TrackFilter,
   } from "../doc/document";
-  import { setDuckDepth, setGlue, setMasterEq, setTrackEq } from "../doc/edits";
+  import { setDuckDepth, setGlue, setMasterEq, setTrackEq, setTrackFilter } from "../doc/edits";
   import {
     amend,
     beginGesture,
@@ -19,6 +20,7 @@
     state as appState,
   } from "../state/appState.svelte";
   import BandSlider from "./BandSlider.svelte";
+  import FilterSlider from "./FilterSlider.svelte";
   import NumberField from "./NumberField.svelte";
 
   /** A MIX change, exactly like the track EQ in the Inspector: applied live on the retained
@@ -48,6 +50,14 @@
     amend((p) => setTrackEq(p, id, patch));
     const next = findTrack(appState.project, id)?.eq;
     if (next) engine.setTrackEq(id, next);
+  }
+
+  function onFilter(filter: TrackFilter) {
+    const id = currentTrackId();
+    startSweep();
+    amend((p) => setTrackFilter(p, id, filter));
+    const next = findTrack(appState.project, id)?.filter;
+    if (next) engine.setTrackFilter(id, next);
   }
 
   function onBandCommit() {
@@ -117,6 +127,12 @@
             maxDb={EQ_MAX_DB}
             title="High shelf at {EQ_HIGH_HZ} Hz — cut to soften sibilance, boost for air"
             onInput={(v) => onTrackBand({ highDb: v })}
+            onCommit={onBandCommit}
+          />
+          <FilterSlider
+            filter={track.filter}
+            title="Sweepable filter. Left is a high-pass climbing from 20 Hz — the one thing the shelves cannot do, since a shelf plateaus and this keeps falling. Right is a low-pass. Centre is off."
+            onInput={onFilter}
             onCommit={onBandCommit}
           />
         </section>

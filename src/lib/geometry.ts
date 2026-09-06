@@ -1,3 +1,4 @@
+import { FILTER_OFF, type TrackFilter } from "../doc/document";
 export function timeToPx(s: number, scrollS: number, pxPerSecond: number): number {
   return (s - scrollS) * pxPerSecond;
 }
@@ -270,4 +271,59 @@ export function fadeAreaPoints(curve: Float32Array): string {
     .reverse()
     .map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`)
     .join(" ")}`;
+}
+
+/** The one-knob track filter. Position runs -1 (full high-pass) to +1 (full low-pass), with a
+ *  dead zone at the centre meaning bypass — the same idiom as an EQ band's flat detent, and for
+ *  the same reason: a filter left at 0.02 is not "off", so it would keep a biquad in the graph
+ *  forever. */
+export const FILTER_DETENT = 0.04;
+/** High-pass sweeps UP from here; low-pass sweeps DOWN from here. Neither goes to the extreme of
+ *  hearing — a high-pass at 20 kHz is just silence, and nobody needs it. */
+export const FILTER_HP_MIN_HZ = 20;
+export const FILTER_HP_MAX_HZ = 2000;
+export const FILTER_LP_MIN_HZ = 200;
+export const FILTER_LP_MAX_HZ = 20000;
+
+const logMap = (t: number, lo: number, hi: number): number => lo * (hi / lo) ** t;
+const logUnmap = (hz: number, lo: number, hi: number): number =>
+  Math.log(hz / lo) / Math.log(hi / lo);
+
+/**
+ * Knob position to a real filter.
+ *
+ * The DOCUMENT stores the filter, not the position: "high-pass at 120 Hz" keeps its meaning if
+ * this curve is ever retuned, whereas a stored -0.42 would quietly change what a saved project
+ * sounds like. This mapping is therefore a UI concern, and its inverse below is what puts the
+ * thumb back where the user left it.
+ */
+export function filterFromPosition(position: number): TrackFilter {
+  const p = Math.max(-1, Math.min(1, position));
+  if (Math.abs(p) <= FILTER_DETENT) return FILTER_OFF;
+  // Re-spread the travel outside the dead zone, so the knob reaches its extremes at +/-1 rather
+  // than stopping a detent short.
+  const t = (Math.abs(p) - FILTER_DETENT) / (1 - FILTER_DETENT);
+  return p < 0
+    ? { kind: "highpass", hz: logMap(t, FILTER_HP_MIN_HZ, FILTER_HP_MAX_HZ) }
+    : { kind: "lowpass", hz: logMap(1 - t, FILTER_LP_MIN_HZ, FILTER_LP_MAX_HZ) };
+}
+
+/** Inverse of `filterFromPosition`, so the slider shows where the stored filter actually sits. */
+export function filterPosition(filter: TrackFilter): number {
+  if (filter.kind === "off") return 0;
+  const t =
+    filter.kind === "highpass"
+      ? logUnmap(filter.hz, FILTER_HP_MIN_HZ, FILTER_HP_MAX_HZ)
+      : 1 - logUnmap(filter.hz, FILTER_LP_MIN_HZ, FILTER_LP_MAX_HZ);
+  const p = FILTER_DETENT + Math.max(0, Math.min(1, t)) * (1 - FILTER_DETENT);
+  return filter.kind === "highpass" ? -p : p;
+}
+
+/** "off", "HP 120 Hz", "LP 4.2 kHz" — the readout beside the knob. */
+export function formatFilter(filter: TrackFilter): string {
+  if (filter.kind === "off") return "off";
+  const label = filter.kind === "highpass" ? "HP" : "LP";
+  return filter.hz >= 1000
+    ? `${label} ${(filter.hz / 1000).toFixed(1)} kHz`
+    : `${label} ${Math.round(filter.hz)} Hz`;
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Project } from "../doc/document";
+import { FILTER_Q, type Project } from "../doc/document";
 import type { Source } from "./pool";
 import { renderPlan, scaleCurve } from "./render";
 import type { ScheduledClip } from "./schedule";
@@ -104,6 +104,7 @@ function fakeProject(trackIds: string[]): Project {
       muted: false,
       ducked: false,
       eq: { lowDb: 0, midDb: 0, highDb: 0 },
+      filter: { kind: "off" as const, hz: 0 },
     })),
   };
 }
@@ -254,5 +255,45 @@ describe("varispeed in the graph", () => {
       WINDOW,
     );
     expect(bufferSources[0].startCalls[0].duration).toBe(2.5);
+  });
+});
+
+describe("the track filter", () => {
+  const clip = fakeScheduledClip();
+  const pool = { get: (): Source => fakeSource("s1") };
+  const withFilter = (filter: Project["tracks"][number]["filter"]): Project => {
+    const base = fakeProject(["t1"]);
+    return { ...base, tracks: base.tracks.map((t) => ({ ...t, filter })) };
+  };
+
+  it("builds NOTHING when off, so an untouched project renders the old graph", () => {
+    const { ctx, biquads } = makeFakeCtx();
+    renderPlan(ctx, [clip], pool, withFilter({ kind: "off", hz: 0 }), 0, WINDOW);
+    expect(biquads.length).toBe(0);
+  });
+
+  it("builds one biquad of the requested kind", () => {
+    const { ctx, biquads } = makeFakeCtx();
+    renderPlan(ctx, [clip], pool, withFilter({ kind: "highpass", hz: 120 }), 0, WINDOW);
+    expect(biquads.map((b) => [b.type, b.frequency.value])).toEqual([["highpass", 120]]);
+    // In dB, not a quality factor — see FILTER_Q. 0.707 would ask for a resonant bump.
+    expect(biquads[0].Q.value).toBe(FILTER_Q);
+  });
+
+  it("is independent of the EQ — a shaped track with a filter builds four", () => {
+    const { ctx, biquads } = makeFakeCtx();
+    const base = fakeProject(["t1"]);
+    const project: Project = {
+      ...base,
+      tracks: base.tracks.map((t) => ({
+        ...t,
+        eq: { lowDb: -3, midDb: 0, highDb: 0 },
+        filter: { kind: "lowpass" as const, hz: 4000 },
+      })),
+    };
+
+    renderPlan(ctx, [clip], pool, project, 0, WINDOW);
+
+    expect(biquads.map((b) => b.type)).toEqual(["lowshelf", "peaking", "highshelf", "lowpass"]);
   });
 });

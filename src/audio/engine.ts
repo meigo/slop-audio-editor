@@ -1,4 +1,4 @@
-import { projectDurationS, type Project, type EqBands } from "../doc/document";
+import { projectDurationS, type EqBands, type Project, type TrackFilter } from "../doc/document";
 import { getAudioContext } from "./context";
 import type { SourcePool } from "./pool";
 import { renderPlan, SCHEDULE_LEAD_S, type RenderedGraph } from "./render";
@@ -166,6 +166,17 @@ export class AudioEngine {
     nodes.low.gain.value = eq.lowDb;
     nodes.mid.gain.value = eq.midDb;
     nodes.high.gain.value = eq.highDb;
+  }
+
+  /** Live filter sweep — no rescheduling, same as the EQ. Silently does nothing when the filter
+   *  was OFF at schedule time: no node was built, so there is nothing to adjust and the caller's
+   *  `commit` rebuilds the graph on the next play. A biquad's `type` can change in place, so
+   *  sweeping across from high-pass to low-pass needs no new node. */
+  setTrackFilter(trackId: string, filter: TrackFilter): void {
+    const node = this.#graph?.trackFilters.get(trackId);
+    if (!node || filter.kind === "off") return;
+    node.type = filter.kind;
+    node.frequency.value = filter.hz;
   }
 
   setMasterGain(gain: number): void {

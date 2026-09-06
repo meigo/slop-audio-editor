@@ -15,6 +15,7 @@ import {
   type Project,
   type Track,
   type EqBands,
+  type TrackFilter,
 } from "./document";
 import { clampFades, insertClip, sliceClip } from "./overlap";
 
@@ -399,4 +400,14 @@ export function setClipFade(
       ? c
       : clamped;
   });
+}
+
+/** Set a track's one-knob filter. `{ kind: "off" }` is the bypass, and the no-op guard is what
+ *  stops a sweep that lands back where it started pushing a junk undo entry. */
+export function setTrackFilter(p: Project, trackId: string, filter: TrackFilter): Project {
+  const next: TrackFilter =
+    filter.kind === "off" ? { kind: "off", hz: 0 } : { kind: filter.kind, hz: filter.hz };
+  return mapTrack(p, trackId, (t) =>
+    t.filter.kind === next.kind && t.filter.hz === next.hz ? t : { ...t, filter: next },
+  );
 }

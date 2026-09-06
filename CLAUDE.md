@@ -781,6 +781,40 @@ command}` that `ShortcutHelp.svelte` renders. `resolveShortcut` was deliberately
     No resampling quality control, deliberately. The browser interpolates how it likes; that is
     the character, not a defect.
 
+41. **`BiquadFilterNode.Q` is in DECIBELS for `lowpass` and `highpass` — the textbook 0.707 asks
+    for a resonant bump.** The spec converts it as `Q_linear = 10^(Q_dB/20)`, so setting the
+    Butterworth quality factor 0.707 means 0.7 dB of RESONANCE: measured at an 80 Hz corner it
+    gives +0.71 dB AT the corner and +1.25 dB just above it — a lift sitting exactly where a
+    high-pass is meant to be cleaning up. Butterworth is `20*log10(0.7071)` = **-3.01 dB**, which
+    measures -3.01 at the corner and then -0.97 / -0.26 / -0.02 at 113 / 160 / 320 Hz: monotonic,
+    no bump. `FILTER_Q` is -3.0103 for that reason.
+    Peaking and shelf types take a REAL quality factor, which is why `EQ_MID_Q` is 0.8 and this is
+    not. Same shape of trap as Gotcha 12's compressor makeup gain: a spec behaviour that looks
+    like the textbook parameter and is not, caught only by measuring.
+    Worth repeating how it was found, because the first two measurements were wrong: a peak-based
+    reading gave nonsense, and the RMS reading looked wrong until a FLAT control proved the method
+    exact (0.00 dB at every frequency). Only then was the +0.7 dB real enough to chase, and
+    `getFrequencyResponse` confirmed the render matched the browser's own filter exactly — so the
+    graph was right all along and the constant was wrong.
+
+42. **The one-knob track filter is what the three-band EQ structurally cannot do.** A shelf
+    PLATEAUS: the low shelf at -12 dB leaves 20 Hz only 12 dB down, however far it is pushed. A
+    high-pass keeps falling at 12 dB/octave. Measured through `renderPlan` at 20 Hz: low shelf
+    -12.0 dB, high-pass at 80 Hz **-24.1 dB**. Removing rumble and plosive thump is the commonest
+    corrective move on voice and the EQ alone cannot make it.
+    ONE bipolar knob, not two controls: centre is bypass, left sweeps a high-pass up from 20 Hz,
+    right sweeps a low-pass down from 20 kHz. It cannot do both ends at once, which is the
+    deliberate simplification — the shelves cover the rest.
+    The DOCUMENT stores `{ kind, hz }`, never the knob position: "high-pass at 120 Hz" keeps its
+    meaning if the mapping curve is ever retuned, where a stored -0.42 would silently change what
+    a saved project sounds like. `filterFromPosition`/`filterPosition` (`geometry.ts`) are that
+    mapping and its inverse, unit-tested for round-trip.
+    `{ kind: "off" }` builds NO node, the same guarantee EQ and Glue make. Cascaded linear filters
+    commute, so its position relative to the EQ is arbitrary. `engine.setTrackFilter` sweeps it
+    live on the retained biquad — a biquad's `type` can change in place, so crossing the centre
+    needs no new node — with the same caveat as EQ: a filter that was OFF at schedule time built
+    nothing, so the sweep is silent until the next play.
+
 ## Testing
 
 Vitest, `node` environment, no DOM (`src/**/*.test.ts`, see `vite.config.ts`). Pure logic

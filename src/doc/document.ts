@@ -34,6 +34,29 @@ export interface EqBands {
 
 export const FLAT_EQ: EqBands = { lowDb: 0, midDb: 0, highDb: 0 };
 
+export type FilterKind = "off" | "highpass" | "lowpass";
+export interface TrackFilter {
+  kind: FilterKind;
+  hz: number;
+}
+export const FILTER_OFF: TrackFilter = { kind: "off", hz: 0 };
+/**
+ * Resonance for the sweepable filter, in DECIBELS — not a quality factor.
+ *
+ * The Web Audio spec is surprising here: for `lowpass` and `highpass`, `BiquadFilterNode.Q` is
+ * interpreted in dB and converted internally as `Q_linear = 10^(Q_dB/20)`. Setting it to the
+ * textbook Butterworth 0.707 therefore asks for 0.7 dB of RESONANCE, which measures +0.71 dB at
+ * the corner and +1.25 dB just above it — a bump sitting exactly where a high-pass is supposed to
+ * be cleaning up. Butterworth (linear Q = 0.7071) is `20*log10(0.7071)` = -3.01 dB.
+ *
+ * Measured with `getFrequencyResponse` at an 80 Hz corner: -3.01 dB at 80, then -0.97 / -0.26 /
+ * -0.02 at 113 / 160 / 320 Hz — monotonic, no bump — and -24.1 dB at 20 Hz.
+ *
+ * Peaking and shelf types (the EQ) take a real quality factor, which is why `EQ_MID_Q` is 0.8 and
+ * this is not.
+ */
+export const FILTER_Q = -3.0103;
+
 export function isFlatEq(eq: EqBands): boolean {
   return eq.lowDb === 0 && eq.midDb === 0 && eq.highDb === 0;
 }
@@ -76,6 +99,10 @@ export interface Track {
   /** Three-band tone control. Flat by default, and when flat NO filter nodes are built at all —
    *  the graph stays bit-identical to one without EQ, the same guarantee Glue makes. */
   eq: EqBands;
+  /** One-knob sweepable filter. A shelf PLATEAUS — a low shelf at its limit still leaves rumble
+   *  only 12 dB down — while a high-pass keeps falling at 12 dB/octave, which is the thing the
+   *  three-band EQ structurally cannot do. `{ kind: "off" }` builds no node at all. */
+  filter: TrackFilter;
 }
 
 export interface Project {
@@ -128,6 +155,7 @@ export function createTrack(name: string): Track {
     muted: false,
     ducked: false,
     eq: { ...FLAT_EQ },
+    filter: { ...FILTER_OFF },
   };
 }
 
