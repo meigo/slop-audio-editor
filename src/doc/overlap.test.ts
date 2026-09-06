@@ -9,6 +9,7 @@ function clip(over: Partial<Clip> = {}): Clip {
     startS: 0,
     inS: 0,
     durS: 10,
+    speed: 1,
     gain: 1,
     fadeInS: 0,
     fadeOutS: 0,

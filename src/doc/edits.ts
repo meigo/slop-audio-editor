@@ -3,7 +3,9 @@
 
 import {
   EQ_MAX_DB,
+  MAX_SPEED,
   MIN_CLIP_S,
+  MIN_SPEED,
   clipEndS,
   createTrack,
   findClip,
@@ -67,6 +69,29 @@ export function setTrackMuted(p: Project, trackId: string, muted: boolean): Proj
 /** Patch one or more EQ bands on a track. Each band is clamped to +/-EQ_MAX_DB. */
 const clampEqDb = (v: number): number => Math.max(-EQ_MAX_DB, Math.min(EQ_MAX_DB, v));
 
+/**
+ * Set a clip's playback rate, keeping the SOURCE REGION and rescaling the timeline length.
+ *
+ * Speeding a clip up makes it shorter, which is what tape does and what the gesture means: the
+ * same audio, played faster. The alternative — a fixed timeline length that eats more source —
+ * would make a clip trimmed to the whole file impossible to speed up at all.
+ *
+ * Growing (slowing down) is clamped against the next clip exactly as `trimClipEnd` is, so the
+ * non-overlap invariant holds without the caller thinking about it. The clamp costs the tail of
+ * the source, the same way trimming does.
+ */
+export function setClipSpeed(p: Project, clipId: string, speed: number): Project {
+  const next = Math.max(MIN_SPEED, Math.min(MAX_SPEED, speed));
+  return mapClip(p, clipId, (c, t) => {
+    if (next === c.speed) return c;
+    const i = t.clips.indexOf(c);
+    const nextStart = i < t.clips.length - 1 ? t.clips[i + 1].startS : Infinity;
+    const wanted = (c.durS * c.speed) / next;
+    const durS = Math.max(MIN_CLIP_S, Math.min(wanted, nextStart - c.startS));
+    return clampFades({ ...c, speed: next, durS });
+  });
+}
+
 export function setTrackEq(p: Project, trackId: string, patch: Partial<EqBands>): Project {
   return mapTrack(p, trackId, (t) => {
     const next: EqBands = {
@@ -118,6 +143,7 @@ export function makeClip(sourceId: string, startS: number, durS: number, inS = 0
     startS,
     inS,
     durS,
+    speed: 1,
     gain: 1,
     fadeInS: 0,
     fadeOutS: 0,
@@ -215,11 +241,20 @@ export function trimClipStart(p: Project, clipId: string, deltaS: number): Proje
   return mapClip(p, clipId, (c, t) => {
     const i = t.clips.indexOf(c);
     const prevEnd = i > 0 ? clipEndS(t.clips[i - 1]) : 0;
-    const lo = Math.max(-c.inS, prevEnd - c.startS); // no negative in-point, no eating the neighbour
+    // `deltaS` is TIMELINE seconds; the in-point moves by `deltaS * speed` source seconds, so the
+    // in-point floor converts the other way. At speed 1 this is the original `-c.inS`.
+    const lo = Math.max(-c.inS / c.speed, prevEnd - c.startS);
     const hi = c.durS - MIN_CLIP_S;
     const d = Math.max(lo, Math.min(deltaS, hi));
     if (d === 0) return c;
-    return clampFades({ ...c, startS: c.startS + d, inS: c.inS + d, durS: c.durS - d });
+    // ONE clamped delta drives both fields, scaled for each — clamping them separately lets the
+    // position on the timeline and the offset into the source drift apart.
+    return clampFades({
+      ...c,
+      startS: c.startS + d,
+      inS: c.inS + d * c.speed,
+      durS: c.durS - d,
+    });
   });
 }
 
@@ -235,7 +270,8 @@ export function trimClipEnd(
     const i = t.clips.indexOf(c);
     const nextStart = i < t.clips.length - 1 ? t.clips[i + 1].startS : Infinity;
     const lo = MIN_CLIP_S - c.durS;
-    const hi = Math.min(sourceDurS - c.inS - c.durS, nextStart - clipEndS(c));
+    // Source remaining, expressed in TIMELINE seconds — one timeline second eats `speed` of them.
+    const hi = Math.min((sourceDurS - c.inS) / c.speed - c.durS, nextStart - clipEndS(c));
     const d = Math.max(lo, Math.min(deltaS, hi));
     if (d === 0) return c;
     return clampFades({ ...c, durS: c.durS + d });

@@ -230,6 +230,10 @@ export function renderPlan(
       const node = ctx.createBufferSource();
       node.buffer = source.buffer;
       node.connect(clipGain);
+      // `sc.duration` is in the BUFFER's timebase (measured: `start`'s duration argument is not
+      // wall time), so the rate is what turns it back into the right span of wall clock. Set
+      // before `start`, which the second pass below calls.
+      node.playbackRate.value = sc.speed;
       sources.push(node);
       toStart.push({
         node,

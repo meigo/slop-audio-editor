@@ -41,7 +41,12 @@ export interface ScheduledClip {
   when: number;
   /** Seconds into the source buffer. */
   sourceOffset: number;
+  /** SOURCE seconds to play, not timeline seconds. `AudioBufferSourceNode.start`'s duration
+   *  argument is in the buffer's own timebase — measured, not assumed — so at speed 2 a clip
+   *  occupying 5 s of timeline passes 10 here and still sounds for 5. */
   duration: number;
+  /** `playbackRate` for the source node. Changes speed and pitch together. */
+  speed: number;
   /** The CLIP's own gain only — track and master gain are separate nodes, so the faders can be
    *  ridden during playback without rescheduling. */
   gain: number;
@@ -98,8 +103,12 @@ export function playsContinuouslyInto(prev: Clip, next: Clip): boolean {
   return (
     prev.sourceId === next.sourceId &&
     prev.gain === next.gain &&
+    // Two halves at DIFFERENT speeds are a genuine discontinuity in pitch, so they get their
+    // declick ramps even though the samples are adjacent.
+    prev.speed === next.speed &&
     Math.abs(clipEndS(prev) - next.startS) < eps &&
-    Math.abs(prev.inS + prev.durS - next.inS) < eps
+    // Source seconds, not timeline seconds: the previous clip consumed `durS * speed` of them.
+    Math.abs(prev.inS + prev.durS * prev.speed - next.inS) < eps
   );
 }
 
@@ -155,8 +164,9 @@ function scheduleClip(
     trackId,
     sourceId: c.sourceId,
     when: s - fromS,
-    sourceOffset: c.inS + (s - start),
-    duration: e - s,
+    sourceOffset: c.inS + (s - start) * c.speed,
+    duration: (e - s) * c.speed,
+    speed: c.speed,
     gain: c.gain,
     fadeIn,
     fadeOut,

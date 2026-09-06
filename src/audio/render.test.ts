@@ -49,6 +49,7 @@ class FakeBiquadNode extends FakeNode {
 
 class FakeBufferSourceNode extends FakeNode {
   buffer: unknown = null;
+  playbackRate = { value: 1 };
   startCalls: { when: number; offset: number; duration: number }[] = [];
   start(when: number, offset: number, duration: number): void {
     this.startCalls.push({ when, offset, duration });
@@ -126,6 +127,7 @@ function fakeScheduledClip(overrides: Partial<ScheduledClip> = {}): ScheduledCli
     when: 0,
     sourceOffset: 0,
     duration: 1,
+    speed: 1,
     gain: 1,
     fadeIn: null,
     fadeOut: null,
@@ -224,5 +226,33 @@ describe("master EQ", () => {
     expect(biquads.length).toBe(6);
     expect(graph.masterEq?.low.gain.value).toBe(3);
     expect(graph.trackEqs.get("t1")?.low.gain.value).toBe(-3);
+  });
+});
+
+describe("varispeed in the graph", () => {
+  it("sets playbackRate from the plan — without it a 'speed' change is silent", () => {
+    const { ctx, bufferSources } = makeFakeCtx();
+    renderPlan(
+      ctx,
+      [fakeScheduledClip({ speed: 2, duration: 10 })],
+      { get: (): Source => fakeSource("s1") },
+      fakeProject(["t1"]),
+      0,
+      WINDOW,
+    );
+    expect(bufferSources[0].playbackRate.value).toBe(2);
+  });
+
+  it("passes the plan's duration through untouched — it is already in buffer time", () => {
+    const { ctx, bufferSources } = makeFakeCtx();
+    renderPlan(
+      ctx,
+      [fakeScheduledClip({ speed: 0.5, duration: 2.5 })],
+      { get: (): Source => fakeSource("s1") },
+      fakeProject(["t1"]),
+      0,
+      WINDOW,
+    );
+    expect(bufferSources[0].startCalls[0].duration).toBe(2.5);
   });
 });

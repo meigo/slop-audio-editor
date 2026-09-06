@@ -140,10 +140,12 @@
   }}
   style="left: {x}px; width: {w}px; height: {heightPx - 8}px; cursor: {CURSORS[zone]}"
 >
+  <!-- `durS * speed` is the SOURCE region, not the timeline length: at 2x, a 5 s clip is drawn
+       from 10 s of audio squeezed into its box. -->
   <Waveform
     sourceId={clip.sourceId}
     inS={clip.inS}
-    durS={clip.durS}
+    durS={clip.durS * clip.speed}
     widthPx={w}
     heightPx={heightPx - 8}
     gain={clip.gain}

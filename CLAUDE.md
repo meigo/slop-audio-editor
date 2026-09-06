@@ -747,6 +747,33 @@ command}` that `ShortcutHelp.svelte` renders. `resolveShortcut` was deliberately
     `clip-drag` could not be tested without real touch hardware. Right-click is verified; the
     long-press path is NOT — `setPointerCapture` rejects synthetic pointer events.
 
+40. **Varispeed: `Clip.speed` scales the TIMELINE length and keeps the source region, and
+    `start()`'s duration argument is in BUFFER time — measured, not assumed.** The measurement is
+    the load-bearing fact: at `playbackRate` 2, `start(0, 0, 1)` produces 0.5 s of output, and at
+    0.5 it produces 2 s. So `duration` is source seconds, and `planSchedule` passes
+    `timelineSpan * speed` while `renderPlan` sets `playbackRate` — the two together are what make
+    a clip sound for exactly the span it occupies. Setting one without the other is silent: the
+    first attempt here changed clip lengths and left the pitch untouched, because the `renderPlan`
+    edit had silently failed to match a line Prettier had rewrapped, and only a browser render
+    caught it (492 unit tests did not).
+    `durS` stays TIMELINE seconds. That is what lets every overlap check, drag, drawing and
+    selection calculation remain speed-agnostic; the source consumed is `durS * speed`. The cost
+    is that four places converting between the two timebases have to scale, and all four are
+    mutation-tested: `sliceClip` (which is where BOTH `splitAt` and drop-to-overwrite compute a
+    new in-point), `trimClipStart` (the in-point moves by `d * speed` while `startS` moves by `d`
+    — Gotcha 2's one-clamped-delta rule still holds, the two fields just scale differently),
+    `trimClipEnd`'s source-remaining clamp, and `planSchedule`'s window clipping.
+    `setClipSpeed` rescales `durS` inversely so the SOURCE REGION survives: speeding a clip up
+    makes it shorter, as tape does. The alternative — fixed length, eating more source — makes a
+    clip trimmed to the whole file impossible to speed up at all. Growing is clamped against the
+    next clip exactly as `trimClipEnd` is.
+    `playsContinuouslyInto` requires EQUAL speeds and compares source-scaled in-points: two split
+    halves at different rates are a genuine pitch discontinuity and must keep their declick ramps.
+    Verified through the real render path: 1x/2x/0.5x/4x give 500/999/250/1998 Hz from a 500 Hz
+    tone, with timeline spans of 4/2/8/1 s and audio filling each exactly.
+    No resampling quality control, deliberately. The browser interpolates how it likes; that is
+    the character, not a defect.
+
 ## Testing
 
 Vitest, `node` environment, no DOM (`src/**/*.test.ts`, see `vite.config.ts`). Pure logic

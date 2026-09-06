@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { findClip, type FadeShape } from "../doc/document";
-  import { setClipFade, setClipGain, trimClipEnd, trimClipStart } from "../doc/edits";
+  import { findClip, MIN_SPEED, type FadeShape } from "../doc/document";
+  import { setClipFade, setClipGain, setClipSpeed, trimClipEnd, trimClipStart } from "../doc/edits";
   import { commit, pool, state as appState } from "../state/appState.svelte";
   import { dbToGain, gainToDb } from "./geometry";
   import NumberField from "./NumberField.svelte";
@@ -57,6 +57,14 @@
       suffix="dB"
       title="Clip volume in dB"
       onCommit={(v) => commit((p) => setClipGain(p, clip.id, v <= -60 ? 0 : dbToGain(v)))}
+    />
+    <NumberField
+      label="speed"
+      value={clip.speed}
+      min={MIN_SPEED}
+      suffix="×"
+      title="Playback rate. Changes speed and pitch together, like tape — 2 is twice as fast and an octave up. The clip's length on the timeline changes to match."
+      onCommit={(v) => commit((p) => setClipSpeed(p, clip.id, v))}
     />
     <NumberField
       label="fade in"

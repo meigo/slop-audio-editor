@@ -20,6 +20,10 @@ export const EQ_HIGH_HZ = 6000;
 /** Per band. Wide enough to rescue a bad source, narrow enough that it cannot be used as a fader. */
 export const EQ_MAX_DB = 12;
 
+/** Varispeed range, +/- two octaves of pitch. */
+export const MIN_SPEED = 0.25;
+export const MAX_SPEED = 4;
+
 /** Three fixed bands, used for BOTH a track and the master bus — same frequencies, same Q, so
  *  one set of controls and one graph builder serve both. */
 export interface EqBands {
@@ -43,8 +47,13 @@ export interface Clip {
   startS: number;
   /** Offset into the source buffer, seconds. */
   inS: number;
-  /** Length on the timeline == length of source consumed, seconds. */
+  /** Length on the TIMELINE, seconds. At `speed` other than 1 this is NOT the length of source
+   *  consumed — that is `durS * speed`. Keeping this in timeline seconds is what lets every
+   *  overlap check, drag and drawing calculation stay speed-agnostic. */
   durS: number;
+  /** Playback rate. Changes speed and pitch together, like tape — there is no independent pitch
+   *  shift in the Web Audio API. 1 is unchanged. */
+  speed: number;
   /** Linear. */
   gain: number;
   fadeInS: number;

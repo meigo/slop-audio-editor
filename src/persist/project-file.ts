@@ -69,6 +69,9 @@ export function applyDocumentDefaults(project: Project): void {
   for (const t of project.tracks) {
     if (typeof t.ducked !== "boolean") t.ducked = false;
     t.eq = eqOrFlat(t.eq);
+    for (const c of t.clips) {
+      if (typeof c.speed !== "number" || !(c.speed > 0)) c.speed = 1;
+    }
   }
 }
 

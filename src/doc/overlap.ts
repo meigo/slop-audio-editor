@@ -31,7 +31,9 @@ export function sliceClip(c: Clip, fromS: number, toS: number): Clip | null {
   const e = Math.min(clipEndS(c), toS);
   const durS = e - s;
   if (durS < MIN_CLIP_S) return null;
-  return clampFades({ ...c, startS: s, inS: c.inS + (s - c.startS), durS });
+  // `s - c.startS` is TIMELINE seconds; the in-point advances by that many SOURCE seconds,
+  // which at speed != 1 is not the same number. Split and drop-to-overwrite both land here.
+  return clampFades({ ...c, startS: s, inS: c.inS + (s - c.startS) * c.speed, durS });
 }
 
 /** Place `incoming` into `clips`, overwriting whatever it lands on: the dragged clip wins.

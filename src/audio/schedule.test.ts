@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { __resetIds, createProject, type Project } from "../doc/document";
+import { __resetIds, createProject, type Project, type Clip } from "../doc/document";
 import {
   addClip,
   addTrack,
@@ -9,7 +9,7 @@ import {
   setTrackMuted,
   splitAt,
 } from "../doc/edits";
-import { DECLICK_S, planSchedule } from "./schedule";
+import { DECLICK_S, planSchedule, playsContinuouslyInto } from "./schedule";
 
 const NO_SOLO: ReadonlySet<string> = new Set();
 
@@ -263,5 +263,51 @@ describe("declick at a seam between contiguous clips", () => {
     // neighbour: the previous audio was never played.
     const plan = planSchedule(splitOnce(), 20, 100, NO_SOLO);
     expect(plan[0].fadeIn).toMatchObject({ atS: 0, durS: DECLICK_S });
+  });
+});
+
+describe("varispeed", () => {
+  const fast = (over: Partial<Clip> = {}): Clip => ({
+    ...makeClip("s1", 0, 5),
+    speed: 2,
+    ...over,
+  });
+
+  it("passes SOURCE seconds as the duration, so the clip still sounds for its timeline length", () => {
+    const base = createProject();
+    const p = addClip(base, base.tracks[0].id, fast());
+    const plan = planSchedule(p, 0, 60, new Set());
+    // 5 s of timeline at 2x consumes 10 s of source; start()'s duration is in buffer time.
+    expect(plan[0].duration).toBeCloseTo(10, 9);
+    expect(plan[0].speed).toBe(2);
+  });
+
+  it("scales the in-point when the window cuts into a sped-up clip", () => {
+    let p = createProject();
+    p = addClip(p, p.tracks[0].id, fast({ startS: 0, inS: 4 }));
+    const plan = planSchedule(p, 1, 60, new Set()); // window starts 1 timeline second in
+
+    expect(plan[0].sourceOffset).toBeCloseTo(4 + 2, 9); // one timeline second = two source seconds
+    expect(plan[0].duration).toBeCloseTo(8, 9);
+  });
+});
+
+describe("playsContinuouslyInto with speed", () => {
+  it("is true for split halves that share a speed", () => {
+    const prev = { ...makeClip("s1", 0, 5), speed: 2 };
+    const next = { ...makeClip("s1", 5, 5), speed: 2, inS: 10 }; // 5 s at 2x consumed 10 s
+    expect(playsContinuouslyInto(prev, next)).toBe(true);
+  });
+
+  it("is false when the speeds differ — a pitch step is a real discontinuity", () => {
+    const prev = { ...makeClip("s1", 0, 5), speed: 2 };
+    const next = { ...makeClip("s1", 5, 5), speed: 1, inS: 10 };
+    expect(playsContinuouslyInto(prev, next)).toBe(false);
+  });
+
+  it("uses SOURCE seconds for the in-point join, not timeline seconds", () => {
+    const prev = { ...makeClip("s1", 0, 5), speed: 2 };
+    // 5 timeline seconds at 2x is 10 source seconds; an in-point of 5 would be the speed-1 answer.
+    expect(playsContinuouslyInto(prev, { ...makeClip("s1", 5, 5), speed: 2, inS: 5 })).toBe(false);
   });
 });
