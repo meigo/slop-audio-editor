@@ -45,7 +45,6 @@
   );
 
   let timelineWidth = $state(0);
-  let loadError = $state<string | null>(null);
 
   // Runs once on mount: pull yesterday's session back in before the user touches anything.
   $effect(() => {
@@ -54,7 +53,7 @@
         // A corrupt or half-written autosave must not look like "your work vanished". The editor
         // is still usable with an empty project, so degrade to that — but say what happened, or
         // the user has no way to tell a restore failure from never having had a session at all.
-        loadError =
+        appState.fileError =
           "Could not restore your last session: " +
           (err instanceof Error ? err.message : String(err));
       })
@@ -74,11 +73,12 @@
     const files = Array.from(e.dataTransfer?.files ?? []);
     if (files.length === 0) return;
     const projectFile = files.find((f) => f.name.endsWith(PROJECT_FILE_EXT));
+    appState.fileError = null; // a successful retry must clear the last failure
     try {
       if (projectFile) await openProjectFile(projectFile);
       else await importFiles(files, dropTargetTrackId(e), appState.playheadS);
     } catch (err) {
-      loadError = err instanceof Error ? err.message : String(err);
+      appState.fileError = err instanceof Error ? err.message : String(err);
     }
   }
 </script>
@@ -94,12 +94,16 @@
       Loading {appState.importing.name} — {Math.round(appState.importing.fraction * 100)}%
     </div>
   {/if}
-  {#if loadError}
+  <!-- ONE banner for every file error — restoring an autosave, opening a project, importing
+       audio. Absolutely positioned, so it cannot move anything: the toolbar used to carry the
+       open/import errors as a `<span>` in its own flow, which shoved every control to its right
+       and, with nothing ever clearing it, left them there for the session. -->
+  {#if appState.fileError}
     <button
       class="absolute inset-x-0 top-0 z-50 bg-danger/25 px-2 py-1 text-left text-xs"
-      onclick={() => (loadError = null)}
+      onclick={() => (appState.fileError = null)}
     >
-      {loadError} — click to dismiss
+      {appState.fileError} — click to dismiss
     </button>
   {/if}
 

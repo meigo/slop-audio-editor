@@ -57,6 +57,13 @@ export const state = $state({
   /** Keyboard-shortcut overlay. Session state: two unrelated components open it (the `?` key and
    *  the toolbar button), so it lives here rather than being drilled through props. */
   helpOpen: false,
+  /** Export dialog. Here rather than local to the toolbar so `KeyboardShortcuts` can see that a
+   *  modal is open — typing behind a dialog used to edit the document underneath it. */
+  exportOpen: false,
+  /** Whatever went wrong loading, opening or importing a file. Shown as an out-of-flow banner:
+   *  it used to be a `<span>` in the TOOLBAR's flow, so an error shoved every control to its
+   *  right — and, since nothing cleared it, left them there for the rest of the session. */
+  fileError: null as string | null,
   dirty: false,
   /** Set when a source write to IndexedDB has failed, which makes autosave unsafe for the rest
    *  of the session: `openProjectFile` swaps the in-memory session BEFORE it persists (so a bad
@@ -450,4 +457,10 @@ export function duplicateSelection(): void {
  */
 export function focusPanel(tab: SidePanelTab): void {
   state.sidePanelTab = tab;
+}
+
+/** Is a modal covering the document? Keyboard shortcuts must not reach the timeline behind one:
+ *  the document is still there and still editable, and an edit you cannot see is not a feature. */
+export function modalOpen(): boolean {
+  return state.helpOpen || state.exportOpen;
 }

@@ -52,9 +52,7 @@
 
   let fileInput = $state<HTMLInputElement | null>(null);
   let projectInput = $state<HTMLInputElement | null>(null);
-  let fileError = $state<string | null>(null);
   let masterDragging = false;
-  let exporting = $state(false);
 
   // Inline rather than an `@apply` rule: in Tailwind 4 an `@apply` inside a component <style>
   // block needs an `@reference` to the stylesheet in every file, which is more ceremony than
@@ -154,7 +152,7 @@
       <button
         class={MENU_ITEM}
         onclick={() => {
-          exporting = true;
+          appState.exportOpen = true;
           close();
         }}
       >
@@ -171,16 +169,14 @@
       const f = e.currentTarget.files?.[0];
       e.currentTarget.value = "";
       if (!f) return;
+      appState.fileError = null; // a successful retry must clear the last failure
       try {
         await openProjectFile(f);
       } catch (err) {
-        fileError = err instanceof Error ? err.message : String(err);
+        appState.fileError = err instanceof Error ? err.message : String(err);
       }
     }}
   />
-  {#if fileError}
-    <span class="text-xs text-danger">{fileError}</span>
-  {/if}
 
   <input
     bind:this={fileInput}
@@ -197,13 +193,14 @@
       const files = Array.from(e.currentTarget.files ?? []);
       e.currentTarget.value = ""; // reset after copying, so re-picking the same file still works
       if (files.length === 0) return;
+      appState.fileError = null; // a successful retry must clear the last failure
       try {
         await importFiles(files, currentTrackId(), appState.playheadS);
       } catch (err) {
         // A decode or autosave-write failure must be visible here, not console-only: this is the
         // main way audio enters the app, and the user needs to know if what they just imported
         // will not survive a reload.
-        fileError = err instanceof Error ? err.message : String(err);
+        appState.fileError = err instanceof Error ? err.message : String(err);
       }
     }}
   />
@@ -314,8 +311,8 @@
   </div>
 </div>
 
-{#if exporting}
-  <ExportDialog onClose={() => (exporting = false)} />
+{#if appState.exportOpen}
+  <ExportDialog onClose={() => (appState.exportOpen = false)} />
 {/if}
 
 {#if appState.helpOpen}

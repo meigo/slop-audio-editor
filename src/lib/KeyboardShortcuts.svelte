@@ -8,6 +8,7 @@
     copySelection,
     currentTrackId,
     cutSelection,
+    modalOpen,
     deleteSelection,
     duplicateSelection,
     pasteAtPlayhead,
@@ -34,10 +35,16 @@
   function onKeyDown(e: KeyboardEvent) {
     if (isTextTarget(e.target)) return;
 
-    // While the overlay is up, the only keys that do anything are the ones that dismiss it.
-    // Editing the project behind a modal you cannot see the result through is not a feature.
-    if (appState.helpOpen) {
-      if (e.key === "Escape" || e.key === "?") {
+    // While ANY modal is up, the only keys that do anything are the ones that dismiss it. Editing
+    // the project behind a dialog you cannot see the result through is not a feature — and the
+    // export dialog is the worse case of the two, since it holds a rendered buffer of a mix the
+    // edit would invalidate.
+    if (modalOpen()) {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        appState.helpOpen = false;
+        appState.exportOpen = false;
+      } else if (e.key === "?" && appState.helpOpen) {
         e.preventDefault();
         appState.helpOpen = false;
       }

@@ -990,6 +990,16 @@ command}` that `ShortcutHelp.svelte` renders. `resolveShortcut` was deliberately
     no node at all, and the curve has an ODD point count so silence maps to an exact zero rather
     than an interpolated one.
 
+50. **Every file error goes through ONE out-of-flow banner.** Open, import and autosave-restore
+    failures all set `state.fileError`, and `App.svelte` renders it as an absolutely-positioned
+    dismissible banner. It used to be TWO things: that banner for restore failures, and a `<span>`
+    in the TOOLBAR's own flow for open/import ones — which shoved every control to its right the
+    moment anything failed, and, since nothing ever cleared it, left them there for the rest of
+    the session. State must never move the layout (Gotcha 25a); an error is not an exception to
+    that.
+    Each attempt clears it first, so a successful retry removes the last failure rather than
+    leaving a stale message that describes a problem the user has already fixed.
+
 ## Testing
 
 Vitest, `node` environment, no DOM (`src/**/*.test.ts`, see `vite.config.ts`). Pure logic
