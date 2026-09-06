@@ -166,7 +166,7 @@ describe("a clip already shorter than MIN_CLIP_S", () => {
   function butted(): Project {
     const base = createProject();
     const t = base.tracks[0].id;
-    let p = addClip(base, t, { ...makeClip("s", 0, 0.005), id: "tiny" });
+    const p = addClip(base, t, { ...makeClip("s", 0, 0.005), id: "tiny" });
     return addClip(p, t, makeClip("s", 0.005, 1));
   }
 

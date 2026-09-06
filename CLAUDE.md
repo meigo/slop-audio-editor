@@ -297,6 +297,13 @@ spin forever.
     not conflate the two or "fix" Split to use the current track without asking; that was
     explicitly scoped out when this was added.
 
+14b. **Peaks are the extremes ACROSS channels, never their mean.** `computePeaks` averaged the
+    channels, so anti-phase stereo (L = -R) summed to zero and drew as a FLAT LINE — audible
+    material shown as silence — and anything hard-panned drew at half its real height. What you
+    hear is the loudest channel, which is also what the meter reports (`peakAmplitude` takes the
+    max across channels), so the picture now agrees with both. The old behaviour had a test
+    asserting it; changing the contract meant replacing that test, not loosening it.
+
 15. **`Waveform.svelte` scales its drawn peaks by the clip's `gain` — the canvas does NOT show raw
     source amplitude.** `ClipView.svelte` passes `clip.gain` in as a prop, and the `$effect` reads
     it directly in its tracked scope (like `widthPx`) so the canvas redraws whenever gain changes,
@@ -731,6 +738,23 @@ spin forever.
     a stereo node sees the channels averaged, one fed from a splitter output sees its channel
     alone — because without that distinction no test can tell a per-channel meter from a
     down-mixing one. Still sample peak, not true peak (Gotcha 18).
+
+31b. **Save writes back to a FILE HANDLE where the browser has one, and the unsaved mark is only
+    trusted on that path.** `saveRoute` (`persist/save-target.ts`) is the pure decision: a handle
+    from an earlier save means write straight to it, no handle (or Save As) means show the picker,
+    and no `showSaveFilePicker` at all — Firefox, Safari — means the old download. The point is
+    not the dialog but the OVERWRITE: Save used to drop `Untitled (3).slopaudio` into Downloads
+    every time, because an anchor download cannot write back to anywhere. It also makes `dirty`
+    honest: a download reports nothing, so cancelling the browser's own dialog was indistinguishable
+    from saving and the mark cleared anyway. On the handle and picker routes the mark clears only
+    after the write reports success, and a dismissed picker (`AbortError`) leaves the document
+    dirty and says nothing — the user made a decision, not an error.
+    `forgetSaveTarget()` is called wherever the open document is REPLACED — `loadInto` and New
+    project — or the next Save would write this document over the file the PREVIOUS one came from.
+    Both entry points (⌘S and the menu) go through a wrapper that routes a rejected write to
+    `state.fileError`, the same banner every other file error uses; an async save that rejects
+    into nothing would otherwise be a console-only failure of the one action whose whole purpose
+    is not losing work.
 
 32. **`saveProjectFile` packs only the audio the document references.** `packCurrentProject`
     (`project-file.ts`), not `packProject` with `pool.records()` — the pool holds every source

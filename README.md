@@ -103,6 +103,10 @@ The build gate is **0 errors and 0 warnings**.
 one restores the session exactly; the audio is stored as imported, so a 30 MB MP3 stays 30 MB
 rather than becoming PCM.
 
+Save writes back to the file you chose, so saving twice overwrites rather than filling your
+downloads folder with copies — in browsers without the File System Access API (Firefox,
+Safari) it falls back to a plain download.
+
 ## Limitations
 
 - One sample rate (48 kHz) — files are resampled on import

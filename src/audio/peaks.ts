@@ -2,8 +2,14 @@ import { PEAK_SAMPLES_PER_PAIR } from "../doc/document";
 
 /**
  * Downsample to interleaved `[min, max]` pairs, one pair per `samplesPerPair` input samples,
- * channels averaged to mono. Computed ONCE per imported source; every zoom level is drawn by
- * aggregating from this one array (see `aggregatePeaks`).
+ * taking the extremes ACROSS every channel. Computed ONCE per imported source; every zoom level is
+ * drawn by aggregating from this one array (see `aggregatePeaks`).
+ *
+ * Across, not averaged. Averaging summed L and R and divided, so anti-phase stereo (L = -R) drew
+ * as a FLAT LINE — audible material shown as silence — and anything hard-panned drew at half its
+ * real height. The waveform is meant to show what you will hear, and what you hear is the loudest
+ * channel, not their mean. It also matches the meter, which takes the max across channels for the
+ * same reason (see `peakAmplitude`).
  */
 export function computePeaks(
   channels: readonly Float32Array[],
@@ -11,7 +17,6 @@ export function computePeaks(
 ): Float32Array {
   const n = channels[0]?.length ?? 0;
   if (n === 0) return new Float32Array(0);
-  const chCount = channels.length;
   const pairs = Math.ceil(n / samplesPerPair);
   const out = new Float32Array(pairs * 2);
 
@@ -20,12 +25,12 @@ export function computePeaks(
     const end = Math.min(n, start + samplesPerPair);
     let min = Infinity;
     let max = -Infinity;
-    for (let i = start; i < end; i++) {
-      let sum = 0;
-      for (let c = 0; c < chCount; c++) sum += channels[c][i];
-      const v = sum / chCount;
-      if (v < min) min = v;
-      if (v > max) max = v;
+    for (const ch of channels) {
+      for (let i = start; i < end; i++) {
+        const v = ch[i];
+        if (v < min) min = v;
+        if (v > max) max = v;
+      }
     }
     out[p * 2] = min;
     out[p * 2 + 1] = max;

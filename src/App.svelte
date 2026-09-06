@@ -74,6 +74,17 @@
     return (el as HTMLElement | null)?.dataset.trackId ?? currentTrackId();
   }
 
+  /** ⌘S. Same wrapper as the menu's Save: a rejected write must reach the error banner rather
+   *  than an unhandled rejection in the console. */
+  async function onSaveShortcut() {
+    appState.fileError = null;
+    try {
+      await saveProjectFile();
+    } catch (err) {
+      appState.fileError = err instanceof Error ? err.message : String(err);
+    }
+  }
+
   async function onDrop(e: DragEvent) {
     e.preventDefault();
     const files = Array.from(e.dataTransfer?.files ?? []);
@@ -113,7 +124,7 @@
     </button>
   {/if}
 
-  <KeyboardShortcuts onSave={saveProjectFile} />
+  <KeyboardShortcuts onSave={onSaveShortcut} />
   <Toolbar />
 
   <div class="flex min-h-0 flex-1">

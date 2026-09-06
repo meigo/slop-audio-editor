@@ -17,9 +17,11 @@
   import { createProject } from "../doc/document";
   import { setMasterGain, splitAt } from "../doc/edits";
   import {
+    forgetSaveTarget,
     openProjectFile,
     pruneUnreferencedSources,
     saveProjectFile,
+    saveTargetName,
   } from "../persist/project-io.svelte";
   import {
     amend,
@@ -83,6 +85,17 @@
   const toggleIconClass = (on: boolean): string =>
     `${CONTROL_H} w-6 ` + (on ? "bg-accent text-ground" : "text-text hover:bg-raised");
 
+  /** A save that reports its failure instead of rejecting into nothing — a quota error or a
+   *  revoked permission must reach the same banner every other file error uses. */
+  async function save(saveAs = false) {
+    appState.fileError = null;
+    try {
+      await saveProjectFile(saveAs);
+    } catch (err) {
+      appState.fileError = err instanceof Error ? err.message : String(err);
+    }
+  }
+
   function onMasterGain(g: number) {
     if (!masterDragging) {
       masterDragging = true;
@@ -126,6 +139,7 @@
             return;
           }
           commit(() => createProject());
+          forgetSaveTarget(); // a new document must not save over the old one's file
           // The same reset `loadInto` does: a selection, in/out range or solo left over from the
           // old document would still be read by the export window and the transport.
           resetSessionState();
@@ -151,12 +165,23 @@
       </button>
       <button
         class={MENU_ITEM}
+        title={saveTargetName() ? `Save over ${saveTargetName()}` : "Choose where to save"}
         onclick={() => {
-          saveProjectFile();
+          void save();
           close();
         }}
       >
         Save project<span class="ml-auto pl-4 text-muted">⌘S</span>
+      </button>
+      <button
+        class={MENU_ITEM}
+        title="Save to a new file, leaving the current one untouched"
+        onclick={() => {
+          void save(true);
+          close();
+        }}
+      >
+        Save project as…
       </button>
       <div class="my-1 border-t border-line"></div>
       <button

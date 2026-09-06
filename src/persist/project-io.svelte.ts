@@ -20,6 +20,7 @@ import {
   type SourceRecord,
 } from "./project-file";
 import { exportFilename } from "../export/formats";
+import { saveRoute } from "./save-target";
 
 function download(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
@@ -30,15 +31,85 @@ function download(blob: Blob, filename: string): void {
   URL.revokeObjectURL(url);
 }
 
-export function saveProjectFile(): void {
+/** Minimal shape of the File System Access API this module uses. Typed here rather than pulled in
+ *  wholesale: it is two calls, and the DOM lib's own definitions are not in every TS version. */
+interface FileHandle {
+  name: string;
+  createWritable(): Promise<{ write(data: Blob): Promise<void>; close(): Promise<void> }>;
+}
+type PickerWindow = Window & {
+  showSaveFilePicker?: (options: {
+    suggestedName?: string;
+    types?: { description: string; accept: Record<string, string[]> }[];
+  }) => Promise<FileHandle>;
+};
+
+/** The file this session is saving to, so a second Save OVERWRITES it. Session state, not
+ *  document state — it describes where the project came from, not what it is, and it cannot be
+ *  serialised anyway. */
+let fileHandle: FileHandle | null = null;
+
+/** Cleared whenever the open document is REPLACED, or Save would write the new project over the
+ *  file the previous one came from. */
+export function forgetSaveTarget(): void {
+  fileHandle = null;
+}
+
+/** The name of the file being saved to, for the UI. Null when there is none yet. */
+export function saveTargetName(): string | null {
+  return fileHandle?.name ?? null;
+}
+
+/**
+ * Save the project.
+ *
+ * With the File System Access API this writes back to the handle the user chose, so Save means
+ * save rather than "add another copy to Downloads", and the unsaved mark clears only once the
+ * write has actually reported success. Without it (Firefox, Safari) this is the old download, and
+ * `dirty` is cleared optimistically because a download gives no signal at all — see `saveRoute`.
+ */
+export async function saveProjectFile(saveAs = false): Promise<void> {
+  const win = window as PickerWindow;
+  const route = saveRoute({
+    canPick: typeof win.showSaveFilePicker === "function",
+    hasHandle: fileHandle !== null,
+    saveAs,
+  });
   const bytes = packCurrentProject($state.snapshot(appState.project), pool.records());
   // `packCurrentProject`'s return type is the bare `Uint8Array`, which TS widens to
   // `Uint8Array<ArrayBufferLike>` — Blob wants the concrete `ArrayBuffer` form. `zipSync` (its
   // implementation) always backs the array with a real ArrayBuffer, so this narrows a type, not a fact.
-  download(
-    new Blob([bytes as Uint8Array<ArrayBuffer>], { type: "application/zip" }),
-    exportFilename(appState.project.name, PROJECT_FILE_EXT.slice(1)),
-  );
+  const blob = new Blob([bytes as Uint8Array<ArrayBuffer>], { type: "application/zip" });
+  const filename = exportFilename(appState.project.name, PROJECT_FILE_EXT.slice(1));
+
+  if (route.kind === "download") {
+    download(blob, filename);
+    appState.dirty = false;
+    return;
+  }
+
+  if (route.kind === "picker") {
+    try {
+      fileHandle = await win.showSaveFilePicker!({
+        suggestedName: filename,
+        types: [
+          {
+            description: "Slop audio project",
+            accept: { "application/zip": [PROJECT_FILE_EXT] },
+          },
+        ],
+      });
+    } catch (err) {
+      // The user dismissed the dialog. That is a decision, not a failure: leave the document
+      // dirty and say nothing.
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      throw err;
+    }
+  }
+
+  const writable = await fileHandle!.createWritable();
+  await writable.write(blob);
+  await writable.close();
   appState.dirty = false;
 }
 
@@ -86,6 +157,9 @@ async function loadInto(project: typeof appState.project, sources: SourceRecord[
   // Session state first: it is keyed to the OUTGOING document, and stopping the engine before the
   // pool is emptied means nothing is left playing buffers this project no longer owns.
   resetSessionState();
+  // The handle points at where the PREVIOUS project came from; keeping it would let the next Save
+  // write this document straight over that file.
+  forgetSaveTarget();
   pool.clear();
   for (const d of decoded) pool.add(d);
   appState.project = project;

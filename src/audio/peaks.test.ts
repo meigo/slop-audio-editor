@@ -22,12 +22,24 @@ describe("computePeaks", () => {
     expect(peaks[1]).toBeCloseTo(0.5);
   });
 
-  it("averages channels to mono", () => {
+  it("takes the extremes ACROSS channels, so anti-phase stereo is not drawn as silence", () => {
+    // This used to average the channels, which for L = -R summed to zero: a real, audible signal
+    // drawn as a flat line. Hard-panned material had the same problem at half strength — a clip
+    // playing only on the left drew half height. The waveform is meant to show what you will
+    // hear, and the loudest channel is what you hear.
     const l = new Float32Array([1, 1]);
     const r = new Float32Array([-1, -1]);
     const peaks = computePeaks([l, r], 2);
-    expect(peaks[0]).toBeCloseTo(0);
-    expect(peaks[1]).toBeCloseTo(0);
+    expect(peaks[0]).toBeCloseTo(-1); // min across both channels
+    expect(peaks[1]).toBeCloseTo(1); // max across both channels
+  });
+
+  it("draws a hard-panned source at its own height, not half of it", () => {
+    const loud = new Float32Array([0.8, -0.8]);
+    const silent = new Float32Array([0, 0]);
+    const peaks = computePeaks([loud, silent], 2);
+    expect(peaks[0]).toBeCloseTo(-0.8);
+    expect(peaks[1]).toBeCloseTo(0.8);
   });
 
   it("handles a final partial bucket", () => {
