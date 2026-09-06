@@ -10,6 +10,7 @@ import {
   type EqBands,
 } from "../doc/document";
 import { planDucking } from "./ducking";
+import { panGains } from "../lib/geometry";
 import { FADE_CURVE_POINTS, fadeInCurve, fadeOutCurve } from "./fades";
 import type { Source } from "./pool";
 import type { ScheduledClip } from "./schedule";
@@ -63,6 +64,8 @@ export interface RenderedGraph {
   trackEqs: Map<string, EqNodes>;
   /** Only tracks whose filter is NOT off appear here — the rest built no node to adjust. */
   trackFilters: Map<string, BiquadFilterNode>;
+  /** Only tracks that are actually panned. The pair is [left, right] channel gains. */
+  trackPans: Map<string, { left: GainNode; right: GainNode }>;
   masterGain: GainNode;
   /** Null when the master EQ is flat — in that case no biquads were built at all. */
   masterEq: EqNodes | null;
@@ -108,6 +111,8 @@ export function renderPlan(
   const trackGains = new Map<string, GainNode>();
   const trackEqs = new Map<string, EqNodes>();
   const trackFilters = new Map<string, BiquadFilterNode>();
+  const trackPans = new Map<string, { left: GainNode; right: GainNode }>();
+  const panNodes: AudioNode[] = [];
   const eqNodes: BiquadFilterNode[] = [];
   const duckGains: GainNode[] = [];
 
@@ -153,6 +158,45 @@ export function renderPlan(
     trackFilters.set(trackId, n);
     input.connect(n);
     return n;
+  }
+
+  /**
+   * Equal-power pan, as an explicit per-channel balance rather than a `StereoPannerNode`.
+   *
+   * MEASURED, because the obvious choice is wrong here. `StereoPannerNode` applies two different
+   * laws: a mono input gets textbook equal power, but a STEREO input gets the spec's folding
+   * algorithm, which mixes the far channel into the near one. A track carrying both a mono clip
+   * and a stereo clip sums to two channels at its gain node, and panning that hard left measured
+   * +12.04 dB — instant clipping. The same case through this network measures +6.02 dB, which is
+   * just the two sources summing, and a mono-only track measures identically to the node's own
+   * mono law (-3.01 dB centre, 0.00 hard left).
+   *
+   * The `widen` gain is not optional: a `ChannelSplitter` up-mixes DISCRETELY, so feeding it a
+   * mono signal leaves the right channel silent. Forcing two channels with `speakers`
+   * interpretation duplicates it first, which is what the rest of the graph does anyway.
+   */
+  function withPan(input: AudioNode, trackId: string, pan: number): AudioNode {
+    if (pan === 0) return input;
+    const { left, right } = panGains(pan);
+    const widen = ctx.createGain();
+    widen.channelCount = 2;
+    widen.channelCountMode = "explicit";
+    widen.channelInterpretation = "speakers";
+    const splitter = ctx.createChannelSplitter(2);
+    const gainL = ctx.createGain();
+    const gainR = ctx.createGain();
+    const merger = ctx.createChannelMerger(2);
+    gainL.gain.value = left;
+    gainR.gain.value = right;
+    input.connect(widen);
+    widen.connect(splitter);
+    splitter.connect(gainL, 0);
+    splitter.connect(gainR, 1);
+    gainL.connect(merger, 0, 0);
+    gainR.connect(merger, 0, 1);
+    trackPans.set(trackId, { left: gainL, right: gainR });
+    panNodes.push(widen, splitter, gainL, gainR, merger);
+    return merger;
   }
 
   // Master EQ sits between the fader and Glue, so Glue's compressor reacts to the shaped signal
@@ -211,7 +255,12 @@ export function renderPlan(
         // equivalent, and this way one chain per track covers every clip on it.
         const trackEq = buildEq(trackGain, track?.eq ?? { lowDb: 0, midDb: 0, highDb: 0 });
         if (trackEq.nodes) trackEqs.set(sc.trackId, trackEq.nodes);
-        const tail = withFilter(trackEq.tail, sc.trackId, track?.filter ?? { kind: "off", hz: 0 });
+        const filtered = withFilter(
+          trackEq.tail,
+          sc.trackId,
+          track?.filter ?? { kind: "off", hz: 0 },
+        );
+        const tail = withPan(filtered, sc.trackId, track?.pan ?? 0);
         const points = duck.get(sc.trackId);
         if (points && points.length > 0) {
           // A SEPARATE node from the fader's. Writing the envelope onto `trackGain` itself would
@@ -270,6 +319,7 @@ export function renderPlan(
     for (const g of trackGains.values()) g.disconnect();
     for (const g of duckGains) g.disconnect();
     for (const n of eqNodes) n.disconnect();
+    for (const n of panNodes) n.disconnect();
     for (const n of sources) n.disconnect();
     for (const g of glueNodes) g.disconnect();
     throw err;
@@ -281,6 +331,7 @@ export function renderPlan(
     trackGains,
     trackEqs,
     trackFilters,
+    trackPans,
     masterEq: master.nodes,
     masterGain,
     sources,

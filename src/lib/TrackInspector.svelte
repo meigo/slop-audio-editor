@@ -8,7 +8,7 @@
     type EqBands,
     type TrackFilter,
   } from "../doc/document";
-  import { setTrackEq, setTrackFilter } from "../doc/edits";
+  import { setTrackEq, setTrackFilter, setTrackPan } from "../doc/edits";
   import {
     amend,
     beginGesture,
@@ -19,6 +19,7 @@
   } from "../state/appState.svelte";
   import BandSlider from "./BandSlider.svelte";
   import FilterSlider from "./FilterSlider.svelte";
+  import PanSlider from "./PanSlider.svelte";
 
   /** Follows the CURRENT track — the one you last touched, which clicking a clip sets — not the
    *  selection. That is exactly why it sits on the Clip tab: these are the mix controls for the
@@ -49,6 +50,13 @@
     amend((p) => setTrackFilter(p, id, filter));
     const next = findTrack(appState.project, id)?.filter;
     if (next) engine.setTrackFilter(id, next);
+  }
+
+  function onPan(pan: number) {
+    const id = currentTrackId();
+    startSweep();
+    amend((p) => setTrackPan(p, id, pan));
+    engine.setTrackPan(id, appState.project.tracks.find((t) => t.id === id)?.pan ?? 0);
   }
 
   function onBandCommit() {
@@ -95,6 +103,12 @@
         maxDb={EQ_MAX_DB}
         title="High shelf at {EQ_HIGH_HZ} Hz — cut to soften sibilance, boost for air"
         onInput={(v) => onBand({ highDb: v })}
+        onCommit={onBandCommit}
+      />
+      <PanSlider
+        pan={track.pan}
+        title="Stereo position. Equal power, so the perceived level stays the same as it moves — centre sits at −3 dB on both sides."
+        onInput={onPan}
         onCommit={onBandCommit}
       />
       <FilterSlider

@@ -70,6 +70,7 @@ export function applyDocumentDefaults(project: Project): void {
   for (const t of project.tracks) {
     if (typeof t.ducked !== "boolean") t.ducked = false;
     t.eq = eqOrFlat(t.eq);
+    if (typeof t.pan !== "number" || !Number.isFinite(t.pan)) t.pan = 0;
     const f = t.filter as Partial<TrackFilter> | undefined;
     t.filter =
       (f?.kind === "highpass" || f?.kind === "lowpass") && typeof f.hz === "number" && f.hz > 0

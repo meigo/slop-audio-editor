@@ -327,3 +327,34 @@ export function formatFilter(filter: TrackFilter): string {
     ? `${label} ${(filter.hz / 1000).toFixed(1)} kHz`
     : `${label} ${Math.round(filter.hz)} Hz`;
 }
+
+/**
+ * Equal-power pan law, NORMALISED so the centre is unity.
+ *
+ * Equal power, not linear: `left^2 + right^2` is constant, so the perceived loudness does not
+ * change as a source moves across the image. A linear law dips audibly in the middle.
+ *
+ * The `sqrt(2)` is what makes it usable HERE. A centred track builds no pan nodes at all — the
+ * same "neutral builds nothing" rule the EQ and filter follow — so a centred track renders at
+ * unity. The textbook law puts its centre at -3.01 dB, which meant nudging pan off centre dropped
+ * the level by 3 dB with an audible step. Scaling the whole law up by sqrt(2) makes the centre
+ * agree with the bypass exactly, at the cost of hard-panned material peaking +3.01 dB in the
+ * channel it lands in. That is the honest trade: the total power is still constant everywhere, an
+ * existing project renders bit-identically, and the peak is visible on the meter and caught by
+ * the export's peak check.
+ */
+export function panGains(pan: number): { left: number; right: number } {
+  const x = (Math.max(-1, Math.min(1, pan)) + 1) / 2;
+  return {
+    left: Math.SQRT2 * Math.cos((x * Math.PI) / 2),
+    right: Math.SQRT2 * Math.sin((x * Math.PI) / 2),
+  };
+}
+
+/** "C", "L50", "R100" — how far off centre, in the units a mixer uses. */
+export function formatPan(pan: number): string {
+  const p = Math.max(-1, Math.min(1, pan));
+  const amount = Math.round(Math.abs(p) * 100);
+  if (amount === 0) return "C";
+  return `${p < 0 ? "L" : "R"}${amount}`;
+}

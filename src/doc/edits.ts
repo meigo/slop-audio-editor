@@ -411,3 +411,10 @@ export function setTrackFilter(p: Project, trackId: string, filter: TrackFilter)
     t.filter.kind === next.kind && t.filter.hz === next.hz ? t : { ...t, filter: next },
   );
 }
+
+/** Stereo position for a track, clamped to [-1, 1]. The no-op guard keeps a sweep that lands back
+ *  at its starting point from pushing a history entry. */
+export function setTrackPan(p: Project, trackId: string, pan: number): Project {
+  const next = Math.max(-1, Math.min(1, pan));
+  return mapTrack(p, trackId, (t) => (t.pan === next ? t : { ...t, pan: next }));
+}

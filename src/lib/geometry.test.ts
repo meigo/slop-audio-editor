@@ -30,6 +30,8 @@ import {
   filterFromPosition,
   filterPosition,
   formatFilter,
+  formatPan,
+  panGains,
 } from "./geometry";
 import { fadeInCurve, fadeOutCurve } from "../audio/fades";
 
@@ -455,5 +457,46 @@ describe("the one-knob track filter", () => {
     expect(formatFilter(FILTER_OFF)).toBe("off");
     expect(formatFilter({ kind: "highpass", hz: 120.4 })).toBe("HP 120 Hz");
     expect(formatFilter({ kind: "lowpass", hz: 4200 })).toBe("LP 4.2 kHz");
+  });
+});
+
+describe("panGains", () => {
+  // Centre must be UNITY, not the textbook -3 dB: a centred track builds no pan nodes at all, so
+  // a -3 dB centre would make nudging pan off centre drop the level with an audible step.
+  it("is unity at centre, matching the bypass a centred track gets", () => {
+    const c = panGains(0);
+    expect(c.left).toBeCloseTo(1, 9);
+    expect(c.right).toBeCloseTo(1, 9);
+  });
+
+  it("puts the far side in silence and the near side +3 dB at the extremes", () => {
+    expect(panGains(-1).right).toBeCloseTo(0, 9);
+    expect(panGains(1).left).toBeCloseTo(0, 9);
+    expect(20 * Math.log10(panGains(-1).left)).toBeCloseTo(3.01, 2);
+  });
+
+  it("keeps constant POWER all the way across, which is what stops the loudness moving", () => {
+    for (const p of [-1, -0.6, -0.2, 0, 0.3, 0.8, 1]) {
+      const g = panGains(p);
+      expect(g.left ** 2 + g.right ** 2, `pan ${p}`).toBeCloseTo(2, 9);
+    }
+  });
+
+  it("clamps out-of-range positions", () => {
+    expect(panGains(-5)).toEqual(panGains(-1));
+    expect(panGains(5)).toEqual(panGains(1));
+  });
+});
+
+describe("formatPan", () => {
+  it("reads out in mixer units", () => {
+    expect(formatPan(0)).toBe("C");
+    expect(formatPan(-0.5)).toBe("L50");
+    expect(formatPan(1)).toBe("R100");
+    expect(formatPan(0.07)).toBe("R7");
+  });
+
+  it("calls a hair off centre the centre, not L0", () => {
+    expect(formatPan(0.001)).toBe("C");
   });
 });

@@ -44,7 +44,7 @@ under the voice, and export a mastered file — all locally, with no upload and 
 
 ### Mixing
 
-- Per-track gain, mute, solo, and a three-band EQ (150 Hz shelf, 1.2 kHz peak, 6 kHz shelf)
+- Per-track gain, pan, mute, solo, and a three-band EQ (150 Hz shelf, 1.2 kHz peak, 6 kHz shelf)
 - A sweepable **filter** per track — one knob, high-pass left and low-pass right. A shelf
   plateaus; a filter keeps falling, which is what actually removes rumble
 - **Ducking**: mark a track `D` and it dips under any other track that has audio playing.
@@ -85,7 +85,7 @@ A few decisions shape the whole codebase:
 ```bash
 npm install
 npm run dev       # Vite dev server
-npm test          # Vitest — 519 tests
+npm test          # Vitest — 529 tests
 npm run check     # svelte-check
 npm run lint      # ESLint
 npm run format    # Prettier

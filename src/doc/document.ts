@@ -99,6 +99,8 @@ export interface Track {
   /** Three-band tone control. Flat by default, and when flat NO filter nodes are built at all —
    *  the graph stays bit-identical to one without EQ, the same guarantee Glue makes. */
   eq: EqBands;
+  /** Stereo position, -1 hard left to 1 hard right. 0 builds no nodes at all. */
+  pan: number;
   /** One-knob sweepable filter. A shelf PLATEAUS — a low shelf at its limit still leaves rumble
    *  only 12 dB down — while a high-pass keeps falling at 12 dB/octave, which is the thing the
    *  three-band EQ structurally cannot do. `{ kind: "off" }` builds no node at all. */
@@ -155,6 +157,7 @@ export function createTrack(name: string): Track {
     muted: false,
     ducked: false,
     eq: { ...FLAT_EQ },
+    pan: 0,
     filter: { ...FILTER_OFF },
   };
 }

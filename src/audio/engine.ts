@@ -3,6 +3,7 @@ import { getAudioContext } from "./context";
 import type { SourcePool } from "./pool";
 import { renderPlan, SCHEDULE_LEAD_S, type RenderedGraph } from "./render";
 import { peakAmplitude } from "./peak";
+import { panGains } from "../lib/geometry";
 import { planSchedule } from "./schedule";
 
 /** The app always renders stereo: `AudioContext`'s default destination, and
@@ -177,6 +178,17 @@ export class AudioEngine {
     if (!node || filter.kind === "off") return;
     node.type = filter.kind;
     node.frequency.value = filter.hz;
+  }
+
+  /** Live pan sweep, like the EQ and filter. Does nothing when the track was CENTRED at schedule
+   *  time, since no nodes were built then — the caller's `commit` rebuilds the graph on the next
+   *  play. */
+  setTrackPan(trackId: string, pan: number): void {
+    const nodes = this.#graph?.trackPans.get(trackId);
+    if (!nodes) return;
+    const { left, right } = panGains(pan);
+    nodes.left.gain.value = left;
+    nodes.right.gain.value = right;
   }
 
   setMasterGain(gain: number): void {

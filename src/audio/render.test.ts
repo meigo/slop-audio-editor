@@ -34,6 +34,9 @@ class FakeNode {
 }
 
 class FakeGainNode extends FakeNode {
+  channelCount = 2;
+  channelCountMode = "max";
+  channelInterpretation = "speakers";
   gain = {
     value: 1,
     setValueCurveAtTime: (_curve: Float32Array, _at: number, _durS: number): void => {},
@@ -75,6 +78,8 @@ function makeFakeCtx(throwOnCall = Infinity) {
       gains.push(g);
       return g;
     },
+    createChannelSplitter: (): FakeNode => new FakeNode(),
+    createChannelMerger: (): FakeNode => new FakeNode(),
     createBiquadFilter: (): FakeBiquadNode => {
       const n = new FakeBiquadNode();
       biquads.push(n);
@@ -104,6 +109,7 @@ function fakeProject(trackIds: string[]): Project {
       muted: false,
       ducked: false,
       eq: { lowDb: 0, midDb: 0, highDb: 0 },
+      pan: 0,
       filter: { kind: "off" as const, hz: 0 },
     })),
   };
@@ -295,5 +301,56 @@ describe("the track filter", () => {
     renderPlan(ctx, [clip], pool, project, 0, WINDOW);
 
     expect(biquads.map((b) => b.type)).toEqual(["lowshelf", "peaking", "highshelf", "lowpass"]);
+  });
+});
+
+describe("track pan", () => {
+  const clip = fakeScheduledClip();
+  const pool = { get: (): Source => fakeSource("s1") };
+  const panned = (pan: number): Project => {
+    const base = fakeProject(["t1"]);
+    return { ...base, tracks: base.tracks.map((t) => ({ ...t, pan })) };
+  };
+
+  it("builds NOTHING when centred, so an unpanned project renders the old graph", () => {
+    const { ctx, gains } = makeFakeCtx();
+    const before = gains.length;
+    renderPlan(ctx, [clip], pool, panned(0), 0, WINDOW);
+    // Only the clip, track and master gains — no widen, no channel gains.
+    expect(gains.length - before).toBe(3);
+  });
+
+  it("builds the balance network when panned, and retains both channel gains", () => {
+    const { ctx } = makeFakeCtx();
+    const graph = renderPlan(ctx, [clip], pool, panned(-1), 0, WINDOW);
+    const nodes = graph.trackPans.get("t1");
+    expect(nodes).toBeDefined();
+    expect(nodes?.left.gain.value).toBeCloseTo(Math.SQRT2, 9);
+    expect(nodes?.right.gain.value).toBeCloseTo(0, 9);
+  });
+
+  // The fake context cannot model channel up-mixing, so the one property combination that makes
+  // the widen node work is pinned structurally instead. Without `speakers`, a ChannelSplitter
+  // up-mixes DISCRETELY and a mono track loses its right channel entirely — measured in a browser,
+  // invisible here.
+  it("forces two channels with speakers interpretation before splitting", () => {
+    const { ctx, gains } = makeFakeCtx();
+    renderPlan(ctx, [clip], pool, panned(-0.5), 0, WINDOW);
+    const widen = gains.find(
+      (g) => g.channelCountMode === "explicit" && g.channelInterpretation === "speakers",
+    );
+    expect(widen, "no widen gain was built").toBeDefined();
+    expect(widen?.channelCount).toBe(2);
+  });
+
+  it("uses the EQUAL POWER law at centre-ish positions, not a linear one", () => {
+    const { ctx } = makeFakeCtx();
+    const graph = renderPlan(ctx, [clip], pool, panned(0.0001), 0, WINDOW);
+    const n = graph.trackPans.get("t1");
+    // Both sides near -3 dB, and the squares summing to 1 is what "equal power" means.
+    const l = n?.left.gain.value ?? 0;
+    const r = n?.right.gain.value ?? 0;
+    expect(l ** 2 + r ** 2).toBeCloseTo(2, 6);
+    expect(l).toBeCloseTo(1, 3); // unity at centre, so the bypass and the network agree
   });
 });

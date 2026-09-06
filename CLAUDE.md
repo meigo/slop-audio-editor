@@ -928,6 +928,29 @@ command}` that `ShortcutHelp.svelte` renders. `resolveShortcut` was deliberately
     cannot satisfy capture. Verified: 50 px at 0.01/px moves 1.50 to 2.00, Shift moves it 0.05,
     and one undo reverts the whole scrub.
 
+48. **Panning is a hand-built balance network, NOT `StereoPannerNode` — measured, because the
+    obvious choice clips.** `StereoPannerNode` applies two different laws depending on its input:
+    a MONO input gets textbook equal power, but a STEREO input gets the spec's folding algorithm,
+    which mixes the far channel into the near one. That matters here because a track carrying both
+    a mono clip and a stereo clip sums to two channels at its gain node — and panning that hard
+    left measured **+12.04 dB**. The same case through the balance network measures +6.02 dB,
+    which is just two sources summing.
+    The network is `widen → splitter → gainL/gainR → merger`. The `widen` gain (channelCount 2,
+    `explicit`, `speakers`) is not optional: a `ChannelSplitter` up-mixes DISCRETELY, so feeding it
+    a mono signal leaves the RIGHT CHANNEL SILENT. That one is invisible to the node-level tests —
+    the fake context cannot model channel mixing — so the three properties are pinned structurally
+    instead, and the behaviour itself was found by rendering.
+    **The law is normalised to unity at CENTRE**, i.e. `sqrt(2) * cos/sin`, not the textbook
+    `cos/sin`. A centred track builds no pan nodes at all (the "neutral builds nothing" rule), so
+    it renders at unity; a textbook law puts its centre at -3.01 dB, which made nudging pan off
+    centre drop the level by 3 dB with an audible step. Normalising makes the bypass and the
+    network agree exactly. The cost is that hard-panned material peaks +3.01 dB in the channel it
+    lands in — visible on the meter and caught by the export peak check. Verified through
+    `renderPlan`: total power is 0.00 dB at every position from hard left to hard right.
+    The slider detents to dead centre within 0.03, for the same reason the EQ bands and the filter
+    do: a track left at 0.02 is not centred, so it would keep five nodes in the graph forever.
+    Ordering is free — pan, duck and the track fader are all gains, so they commute.
+
 ## Testing
 
 Vitest, `node` environment, no DOM (`src/**/*.test.ts`, see `vite.config.ts`). Pure logic
