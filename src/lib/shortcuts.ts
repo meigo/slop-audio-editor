@@ -258,3 +258,55 @@ export const SHORTCUTS: readonly ShortcutDoc[] = [
 export const SHORTCUT_GROUPS: readonly ShortcutDoc["group"][] = [
   ...new Set(SHORTCUTS.map((s) => s.group)),
 ];
+
+export interface GestureDoc {
+  group: "Clips" | "Timeline" | "Tracks" | "Panels";
+  /** How the gesture is performed — the chip's text. */
+  gesture: string;
+  label: string;
+}
+
+/**
+ * Pointer and touch gestures, for the same overlay as `SHORTCUTS`.
+ *
+ * Nothing here can be checked the way the key table is: `resolveShortcut` is a pure function a
+ * test can drive, while these gestures live in `clip-drag`, `hit-test`, `long-press` and the
+ * components' own handlers, with no single function to ask. So this table is documentation that
+ * can drift — the same hole that already exists for a shortcut's LABEL (see `ShortcutDoc`).
+ *
+ * The mitigation is to name no NUMBERS: no hit-zone widths, no long-press duration, no scrub
+ * step. A gesture description stays true when a constant is retuned; a number quietly stops being
+ * true. Importing those constants instead would be worse here — `long-press.ts` reaches into
+ * `appState`, and this module is deliberately pure.
+ */
+export const GESTURES: readonly GestureDoc[] = [
+  { group: "Clips", gesture: "Drag", label: "Move the clip, or the whole selection" },
+  { group: "Clips", gesture: "Drag an edge", label: "Trim the start or the end" },
+  { group: "Clips", gesture: "⌘ or ⇧ click", label: "Add or remove a clip from the selection" },
+  { group: "Clips", gesture: "⇧ while dragging", label: "Ignore snapping" },
+  { group: "Clips", gesture: "Right-click", label: "Cut, copy, paste, delete, zoom to fit" },
+  { group: "Clips", gesture: "Press and hold", label: "The same menu, on a touchscreen" },
+
+  { group: "Timeline", gesture: "Drag empty lane", label: "Select a time range" },
+  { group: "Timeline", gesture: "Click or drag the ruler", label: "Move the playhead" },
+  { group: "Timeline", gesture: "Drag an in/out marker", label: "Move that end of the play range" },
+  { group: "Timeline", gesture: "⌘ wheel", label: "Zoom about the pointer" },
+  { group: "Timeline", gesture: "Wheel or two-finger swipe", label: "Scroll through time" },
+  { group: "Timeline", gesture: "Pinch", label: "Zoom and pan together, on a touchscreen" },
+
+  { group: "Tracks", gesture: "Drag the grip", label: "Reorder the track" },
+  { group: "Tracks", gesture: "Double-click the name", label: "Rename the track" },
+  {
+    group: "Tracks",
+    gesture: "Click a header",
+    label: "Make it the current track, which M, ⇧S and paste act on",
+  },
+
+  { group: "Panels", gesture: "Drag a number field", label: "Scrub its value (⇧ for finer steps)" },
+  { group: "Panels", gesture: "Drag the panel's edge", label: "Resize the side panel" },
+];
+
+/** Group order for the overlay, derived like `SHORTCUT_GROUPS`. */
+export const GESTURE_GROUPS: readonly GestureDoc["group"][] = [
+  ...new Set(GESTURES.map((g) => g.group)),
+];

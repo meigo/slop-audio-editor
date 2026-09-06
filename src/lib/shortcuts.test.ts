@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { resolveShortcut, SHORTCUTS, type KeyEventLike } from "./shortcuts";
+import {
+  GESTURE_GROUPS,
+  GESTURES,
+  resolveShortcut,
+  SHORTCUTS,
+  type KeyEventLike,
+} from "./shortcuts";
 
 function key(k: string, mods: Partial<KeyEventLike> = {}): KeyEventLike {
   return { key: k, metaKey: false, ctrlKey: false, shiftKey: false, altKey: false, ...mods };
@@ -166,5 +172,19 @@ describe("the documented shortcut list", () => {
     }
 
     expect([...resolvable].sort()).toEqual([...new Set(SHORTCUTS.map((s) => s.command))].sort());
+  });
+});
+
+describe("GESTURES", () => {
+  // Nothing here can be joined to a parser the way the key table is (see the table's own comment),
+  // so this only catches a duplicated row — a real copy-paste slip, and the one mistake in that
+  // table a test CAN see.
+  it("lists each gesture once per group", () => {
+    const keys = GESTURES.map((g) => `${g.group}/${g.gesture}`);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it("orders the groups by first appearance, with none left stranded", () => {
+    expect(new Set(GESTURES.map((g) => g.group))).toEqual(new Set(GESTURE_GROUPS));
   });
 });

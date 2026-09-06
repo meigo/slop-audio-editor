@@ -47,7 +47,7 @@
   } from "../state/appState.svelte";
   import ExportDialog from "./ExportDialog.svelte";
   import ToolbarMenu from "./ToolbarMenu.svelte";
-  import ShortcutHelp from "./ShortcutHelp.svelte";
+  import HelpOverlay from "./HelpOverlay.svelte";
   import Meter from "./Meter.svelte";
   import Fader from "./Fader.svelte";
   import { formatTime } from "./geometry";
@@ -300,7 +300,7 @@
 
   <!-- A button as well as the `?` key: the whole point of the overlay is to reach people who do
        not know the shortcuts, so reaching it can't require knowing one. -->
-  <button class={BTN} title="Keyboard shortcuts (?)" onclick={() => (appState.helpOpen = true)}>
+  <button class={BTN} title="Shortcuts and gestures (?)" onclick={() => (appState.helpOpen = true)}>
     <Keyboard size={16} />
   </button>
 
@@ -326,5 +326,5 @@
 {/if}
 
 {#if appState.helpOpen}
-  <ShortcutHelp onClose={() => (appState.helpOpen = false)} />
+  <HelpOverlay onClose={() => (appState.helpOpen = false)} />
 {/if}

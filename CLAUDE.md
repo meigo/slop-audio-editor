@@ -117,7 +117,7 @@ src/
   lib/               Svelte components — Toolbar, Ruler, TimelineViewport, TrackHeader, TrackLane,
                      ClipView, Waveform, Playhead, RangeOverlay, Inspector, NumberField, Fader,
                      ClipInspector, ContextMenu, ExportDialog, KeyboardShortcuts, MasterInspector,
-                     ShortcutHelp, SidePanel, ToolbarMenu, TrackInspector; clip-drag.svelte.ts holds drag-gesture logic
+                     HelpOverlay, SidePanel, ToolbarMenu, TrackInspector; clip-drag.svelte.ts holds drag-gesture logic
 ```
 
 ## Gotchas
@@ -610,7 +610,7 @@ spin forever.
 
 33. **The shortcut overlay's list is checked against the parser by tests, not maintained beside
     it.** `SHORTCUTS` (`src/lib/shortcuts.ts`) is a table of `{group, keys, label, event,
-command}` that `ShortcutHelp.svelte` renders. `resolveShortcut` was deliberately NOT
+command}` that `HelpOverlay.svelte` renders. `resolveShortcut` was deliberately NOT
     refactored to consume it: that parser is small, pure and well tested, and turning it into a
     data-driven dispatcher so it could generate its own documentation would put the riskier code
     in the more important place. Two tests join them instead:
@@ -634,6 +634,19 @@ command}` that `ShortcutHelp.svelte` renders. `resolveShortcut` was deliberately
     the tallest section in the row, which left a large gap under the short columns. And the key
     chips need `justify-self-start`, or each one stretches to the width of its column's widest
     entry and "L" renders as a box the width of "Space".
+    The overlay also documents POINTER AND TOUCH gestures, from a second table `GESTURES`, which
+    is why it is called `HelpOverlay` and titled "Shortcuts" rather than "Keyboard shortcuts": the
+    gestures were discoverable nowhere at all — ⌘/⇧-click to multi-select, dragging a clip edge to
+    trim, the header grip, scrubbing a number field, pinch, long-press. Both tables render through
+    ONE `{#snippet}`, so the two halves cannot drift apart visually.
+    `GESTURES` gets none of the guarantees above and cannot: those gestures live in `clip-drag`,
+    `hit-test`, `long-press` and the components' own handlers, with no pure function a test can
+    drive, so it is the same "wrong label" hole (a) and (b) leave open for keys, widened to the
+    whole row. The mitigation is a rule rather than a test — **name no numbers**: no hit-zone
+    width, no long-press duration, no scrub step, so a retuned constant cannot silently make a
+    row false. Importing those constants instead would be worse: `long-press.ts` reaches into
+    `appState`, and `shortcuts.ts` is deliberately pure. The one thing a test CAN see is a
+    duplicated row, and one checks for that.
 
 34. **Undo/redo history is `$state`, and it has to be — the toolbar buttons read it through a
     function.** `canUndoNow()`/`canRedoNow()` are called inside `disabled={!canUndoNow()}`, and
