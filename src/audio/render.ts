@@ -14,7 +14,7 @@ import { saturationCurve } from "./saturation";
 import { panGains } from "../lib/geometry";
 import { FADE_CURVE_POINTS, fadeInCurve, fadeOutCurve } from "./fades";
 import type { Source } from "./pool";
-import { masterFadeSpec, type ScheduledClip } from "./schedule";
+import { masterFadeInSpec, masterFadeSpec, type ScheduledClip } from "./schedule";
 
 /** How far ahead of `ctx.currentTime` a live render is anchored, so every scheduled time and
  *  every fade curve lands in the future. `setValueCurveAtTime` in the past is undefined-ish
@@ -69,8 +69,9 @@ export interface RenderedGraph {
   masterFilter: BiquadFilterNode | null;
   /** Null when saturation is off. */
   saturator: WaveShaperNode | null;
-  /** Null when the project has no mix fade, or the window does not reach it. */
-  masterFade: GainNode | null;
+  /** Null when the project has no mix fade at that end, or the window does not reach it. */
+  masterFadeIn: GainNode | null;
+  masterFadeOut: GainNode | null;
   /** Only tracks that are actually panned. The pair is [left, right] channel gains. */
   trackPans: Map<string, { left: GainNode; right: GainNode }>;
   masterGain: GainNode;
@@ -262,24 +263,40 @@ export function renderPlan(
     output.connect(saturator);
     output = saturator;
   }
-  /** The mix fade rides its OWN gain node, never `masterGain`: an automation curve written onto
-   *  the fader would fight `setMasterGain`, so riding the master while a fade is scheduled would
-   *  cancel one or the other — the same reason ducking has a separate node from the track fader.
+  /** Each mix fade rides its OWN gain node, and never `masterGain`: an automation curve written
+   *  onto the fader would fight `setMasterGain`, so riding the master during a scheduled fade
+   *  would cancel one or the other — the same reason ducking has a node of its own.
    *
-   *  It is last, so it fades everything including Glue and saturation, and it becomes the graph's
-   *  `output`, which is what the meter taps: you watch the mix fade rather than watching the level
-   *  before the fade. */
-  const fade = masterFadeSpec(project, window);
-  let masterFade: GainNode | null = null;
-  if (fade) {
-    masterFade = ctx.createGain();
-    masterFade.gain.setValueCurveAtTime(
-      fadeOutCurve(fade.shape, FADE_CURVE_POINTS, fade.fromT, fade.toT),
-      startAt + fade.atS,
-      fade.durS,
+   *  A node PER FADE rather than two curves on one param, because `setValueCurveAtTime` throws on
+   *  overlapping curves, and a project shorter than its two fades combined would overlap them. As
+   *  separate gains they simply multiply, which dips the middle — predictable, and the honest
+   *  answer to asking for more fade than there is material.
+   *
+   *  They sit LAST, after Glue and saturation, so they fade those too, and the final one becomes
+   *  the graph's `output` — the meter shows the mix fading rather than the level before it. */
+  const fadeIn = masterFadeInSpec(project, window);
+  const fadeOut = masterFadeSpec(project, window);
+  let masterFadeIn: GainNode | null = null;
+  let masterFadeOut: GainNode | null = null;
+  if (fadeIn) {
+    masterFadeIn = ctx.createGain();
+    masterFadeIn.gain.setValueCurveAtTime(
+      fadeInCurve(fadeIn.shape, FADE_CURVE_POINTS, fadeIn.fromT, fadeIn.toT),
+      startAt + fadeIn.atS,
+      fadeIn.durS,
     );
-    output.connect(masterFade);
-    output = masterFade;
+    output.connect(masterFadeIn);
+    output = masterFadeIn;
+  }
+  if (fadeOut) {
+    masterFadeOut = ctx.createGain();
+    masterFadeOut.gain.setValueCurveAtTime(
+      fadeOutCurve(fadeOut.shape, FADE_CURVE_POINTS, fadeOut.fromT, fadeOut.toT),
+      startAt + fadeOut.atS,
+      fadeOut.durS,
+    );
+    output.connect(masterFadeOut);
+    output = masterFadeOut;
   }
 
   output.connect(ctx.destination);
@@ -367,7 +384,8 @@ export function renderPlan(
     for (const n of sources) n.disconnect();
     for (const g of glueNodes) g.disconnect();
     saturator?.disconnect();
-    masterFade?.disconnect();
+    masterFadeIn?.disconnect();
+    masterFadeOut?.disconnect();
     throw err;
   }
 
@@ -381,7 +399,8 @@ export function renderPlan(
     masterEq: master.nodes,
     masterFilter: masterFilter.node,
     saturator,
-    masterFade,
+    masterFadeIn,
+    masterFadeOut,
     masterGain,
     sources,
     output,

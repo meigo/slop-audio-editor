@@ -121,6 +121,8 @@ export interface Project {
   masterFilter: TrackFilter;
   /** Master-bus saturation, 0 (off, and no node at all) to 1. */
   saturation: number;
+  /** Seconds of fade-in on the WHOLE MIX, from the project's start. 0 is none. */
+  fadeInS: number;
   /** Seconds of fade-out on the WHOLE MIX, anchored to the project's end. 0 is none. */
   fadeOutS: number;
   /** How far tracks marked `ducked` dip, in dB. One value for the whole project: the feature is
@@ -178,6 +180,7 @@ export function createProject(name = "Untitled"): Project {
     masterEq: { ...FLAT_EQ },
     masterFilter: { ...FILTER_OFF },
     saturation: 0,
+    fadeInS: 0,
     fadeOutS: 0,
     duckDepthDb: DEFAULT_DUCK_DEPTH_DB,
   };

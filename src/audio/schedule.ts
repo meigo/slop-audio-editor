@@ -217,7 +217,22 @@ export function planSchedule(
 /** Shape of the mix fade. Fixed, like ducking's timing: equal power holds the perceived loudness
  *  steady through the taper, which is what you want when EVERYTHING fades together rather than one
  *  clip crossing another. A per-project shape control would be a knob with no right answer. */
-const MASTER_FADE_SHAPE: FadeShape = "equalPower";
+export const MASTER_FADE_SHAPE: FadeShape = "equalPower";
+
+/**
+ * The mix fade-IN, clipped to the render window — or null when there is none to apply.
+ *
+ * Anchored to t = 0, which is the whole reason this one needed no design decision: a project's
+ * start cannot move, where its end follows the last clip.
+ */
+export function masterFadeInSpec(
+  project: Project,
+  window: { fromS: number; toS: number },
+): FadeSpec | null {
+  const lenS = Math.min(project.fadeInS, projectDurationS(project));
+  if (!(lenS > 0)) return null;
+  return fadeSpec(0, lenS, MASTER_FADE_SHAPE, window.fromS, window.toS, window.fromS);
+}
 
 /**
  * The mix fade-out, clipped to the render window — or null when there is none to apply.

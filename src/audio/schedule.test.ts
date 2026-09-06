@@ -9,7 +9,13 @@ import {
   setTrackMuted,
   splitAt,
 } from "../doc/edits";
-import { DECLICK_S, masterFadeSpec, planSchedule, playsContinuouslyInto } from "./schedule";
+import {
+  DECLICK_S,
+  masterFadeInSpec,
+  masterFadeSpec,
+  planSchedule,
+  playsContinuouslyInto,
+} from "./schedule";
 
 const NO_SOLO: ReadonlySet<string> = new Set();
 
@@ -351,5 +357,36 @@ describe("masterFadeSpec", () => {
     const spec = masterFadeSpec(tenSeconds(4), { fromS: 0, toS: 8 })!;
     expect(spec.durS).toBeCloseTo(2, 9);
     expect(spec.toT).toBeCloseTo(0.5, 9);
+  });
+});
+
+describe("masterFadeInSpec", () => {
+  const tenSeconds = (fadeInS: number): Project => {
+    const base = createProject();
+    const p = addClip(base, base.tracks[0].id, makeClip("s", 0, 10));
+    return { ...p, fadeInS };
+  };
+
+  it("is null when there is no fade", () => {
+    expect(masterFadeInSpec(tenSeconds(0), { fromS: 0, toS: 10 })).toBe(null);
+  });
+
+  it("starts at t = 0, an anchor that cannot move", () => {
+    const spec = masterFadeInSpec(tenSeconds(2), { fromS: 0, toS: 10 })!;
+    expect(spec.atS).toBeCloseTo(0, 9);
+    expect(spec.durS).toBeCloseTo(2, 9);
+    expect(spec.fromT).toBeCloseTo(0, 9);
+  });
+
+  // The mirror of the fade-out case: exporting the tail must not invent a fade-in at its edge.
+  it("does not appear in a range export that starts after it", () => {
+    expect(masterFadeInSpec(tenSeconds(2), { fromS: 5, toS: 10 })).toBe(null);
+  });
+
+  it("resumes partway when the window starts inside it", () => {
+    const spec = masterFadeInSpec(tenSeconds(4), { fromS: 1, toS: 10 })!;
+    expect(spec.atS).toBeCloseTo(0, 9);
+    expect(spec.durS).toBeCloseTo(3, 9);
+    expect(spec.fromT).toBeCloseTo(0.25, 9);
   });
 });

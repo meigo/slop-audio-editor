@@ -1016,6 +1016,20 @@ command}` that `ShortcutHelp.svelte` renders. `resolveShortcut` was deliberately
     during a scheduled fade would cancel one or the other. It sits LAST, after Glue and saturation,
     so it fades those too, and it becomes the graph's `output` — the meter shows the mix fading
     rather than the level before the fade.
+    There is a fade-IN too, anchored to t = 0 — an anchor that needs no decision at all, where the
+    end follows the last clip. Each fade gets its OWN gain node rather than two curves on one
+    param: `setValueCurveAtTime` throws on overlapping curves, and a project shorter than its two
+    fades combined would overlap them. As separate gains they simply multiply, dipping the middle,
+    which is the honest answer to asking for more fade than there is material.
+    Both are DRAWN, in `MasterFadeOverlay`, traced from the engine's own curves and its exported
+    shape constant (Gotcha 17's rule). Two sizing traps, both hit:
+    (a) An `<svg>` is a REPLACED element. With a width set and no explicit height, its `viewBox`
+    aspect ratio wins over `inset-y-0`, so the box came out exactly as tall as it was wide — the
+    curve's on-screen angle was fixed and a longer fade was a WIDER COPY of the same shape rather
+    than a shallower one. The height has to be explicit.
+    (b) It is as tall as the TRACKS (`tracks.length * trackHeightPx`), not the viewport. Below the
+    last lane there is nothing for a fade to apply to, and a curve sweeping through empty space
+    reads as a stray diagonal.
     The shape is fixed at equal power. Same argument as ducking's timing: a per-project shape
     control is a knob with no right answer. Measured on a 10 s project with a 4 s fade: 0.00 dB
     until 6 s, then −0.69 / −5.11 / −28.12 at 7 / 8.5 / 9.9 s, which is the equal-power taper

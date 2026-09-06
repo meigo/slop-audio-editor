@@ -434,6 +434,13 @@ export function setSaturation(p: Project, amount: number): Project {
   return p.saturation === next ? p : { ...p, saturation: next };
 }
 
+/** Fade-in on the whole mix, in seconds, from t = 0. Its anchor needs no decision at all — a
+ *  project always starts at zero, where the end moves whenever the last clip does. */
+export function setMasterFadeIn(p: Project, seconds: number): Project {
+  const next = Math.max(0, Math.min(seconds, projectDurationS(p)));
+  return p.fadeInS === next ? p : { ...p, fadeInS: next };
+}
+
 /** Fade-out on the whole mix, in seconds. Clamped to the project's own length — a fade longer than
  *  the material would start before anything is playing. */
 export function setMasterFadeOut(p: Project, seconds: number): Project {

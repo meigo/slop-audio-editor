@@ -77,6 +77,8 @@ export function applyDocumentDefaults(project: Project): void {
   if (typeof project.duckDepthDb !== "number") project.duckDepthDb = DEFAULT_DUCK_DEPTH_DB;
   project.masterEq = eqOrFlat(project.masterEq);
   project.masterFilter = filterOrOff(project.masterFilter);
+  project.fadeInS =
+    typeof project.fadeInS === "number" && project.fadeInS > 0 ? project.fadeInS : 0;
   project.fadeOutS =
     typeof project.fadeOutS === "number" && project.fadeOutS > 0 ? project.fadeOutS : 0;
   project.saturation =

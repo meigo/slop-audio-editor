@@ -6,6 +6,7 @@
   import KeyboardShortcuts from "./lib/KeyboardShortcuts.svelte";
   import SidePanel from "./lib/SidePanel.svelte";
   import Playhead from "./lib/Playhead.svelte";
+  import MasterFadeOverlay from "./lib/MasterFadeOverlay.svelte";
   import RangeOverlay from "./lib/RangeOverlay.svelte";
   import Ruler from "./lib/Ruler.svelte";
   import StatusBar from "./lib/StatusBar.svelte";
@@ -169,6 +170,7 @@
         {#each appState.project.tracks as track (track.id)}
           <TrackLane {track} />
         {/each}
+        <MasterFadeOverlay />
         <RangeOverlay />
       </TimelineViewport>
       <Playhead />
