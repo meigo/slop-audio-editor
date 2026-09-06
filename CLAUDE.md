@@ -870,10 +870,22 @@ command}` that `ShortcutHelp.svelte` renders. `resolveShortcut` was deliberately
     The header carries `data-track-header`, NOT `data-track-id`. The lanes already use the latter
     and `App.svelte`'s file-drop hit test resolves it with `closest("[data-track-id]")` — putting
     it on headers too would have quietly made that lookup ambiguous.
+    The gesture runs on WINDOW listeners, deliberately NOT `setPointerCapture`. Reordering live
+    moves the grip's own element — Svelte's keyed `{#each}` relocates the existing node rather
+    than rebuilding it, and taking a node out of the document RELEASES its pointer capture. With
+    capture, the first swap silently ended the drag and the grip had to be re-grabbed for every
+    single row. Any list that reorders under the pointer has this problem; capture only survives a
+    drag when the element stays put, which is why `clip-drag` can still use it (a clip moves by
+    CSS `left`, not by moving in the DOM).
+    That bug shipped, and the reason is worth keeping: it was "verified" in a browser with
+    `setPointerCapture`/`hasPointerCapture` STUBBED, because synthetic pointer events cannot
+    satisfy them. The stub replaced the exact mechanism that was broken, so the test passed on
+    code that failed on the first swap in real use. A stub that stands in for the thing under test
+    proves nothing. Without capture the gesture needs no stub at all, so it is now verified on the
+    real path: one continuous drag walks a track through every position, in both directions, and
+    collapses to one undo entry.
     `trackDropIndex` is pure and tested because every header is the same height, so the drop row
-    is arithmetic rather than hit-testing. Verified in a browser with `setPointerCapture` and
-    `hasPointerCapture` STUBBED — synthetic pointer events cannot satisfy them, and this harness
-    delivers no real button presses. Everything but that capture plumbing is the real code path.
+    is arithmetic rather than hit-testing.
 
 ## Testing
 

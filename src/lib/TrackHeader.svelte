@@ -79,20 +79,33 @@
    * sums to the master bus. That is why this reorders LIVE under the pointer instead of showing a
    * drop indicator, and why it is a "mix" gesture — rescheduling playback would cost an audible
    * gap for a change that cannot alter a single sample.
+   *
+   * Reordering live is also why the gesture runs on WINDOW listeners rather than pointer capture:
+   * the swap moves this element, and a moved element loses its capture. See `gripDown`.
    */
   let gripping = false;
+  /** Captured at pointer-down: the header column, which does NOT move during the drag. */
+  let gripColumn: HTMLElement | null = null;
 
   function gripDown(e: PointerEvent) {
     e.stopPropagation(); // or the row's click fires on release and steals the current track
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    gripColumn =
+      (e.currentTarget as HTMLElement).closest("[data-track-header]")?.parentElement ?? null;
+    if (!gripColumn) return;
     gripping = true;
     beginGesture("mix");
+    // WINDOW listeners, deliberately not `setPointerCapture`. Reordering live moves this very
+    // element: Svelte's keyed `{#each}` relocates the existing node rather than rebuilding it,
+    // and taking a node out of the document RELEASES its pointer capture. So the first swap
+    // silently ended the gesture and the grip had to be grabbed again for every row.
+    window.addEventListener("pointermove", gripMove);
+    window.addEventListener("pointerup", gripUp);
+    window.addEventListener("pointercancel", gripUp);
   }
 
   function gripMove(e: PointerEvent) {
-    if (!gripping) return;
-    const column = (e.currentTarget as HTMLElement).closest("[data-track-header]")?.parentElement;
-    const first = column?.querySelector("[data-track-header]")?.getBoundingClientRect();
+    if (!gripping || !gripColumn) return;
+    const first = gripColumn.querySelector("[data-track-header]")?.getBoundingClientRect();
     if (!first) return;
     amend((p) =>
       reorderTrack(
@@ -103,14 +116,13 @@
     );
   }
 
-  function gripUp(e: PointerEvent) {
+  function gripUp() {
     if (!gripping) return;
     gripping = false;
-    try {
-      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-    } catch {
-      // `pointercancel` releases it itself.
-    }
+    gripColumn = null;
+    window.removeEventListener("pointermove", gripMove);
+    window.removeEventListener("pointerup", gripUp);
+    window.removeEventListener("pointercancel", gripUp);
     endGesture();
   }
 </script>
@@ -134,9 +146,6 @@
       class="-ml-1 shrink-0 cursor-grab touch-none px-0.5 text-muted hover:text-text"
       title="Drag to reorder tracks"
       onpointerdown={gripDown}
-      onpointermove={gripMove}
-      onpointerup={gripUp}
-      onpointercancel={gripUp}
     >
       <GripVertical size={12} />
     </div>
