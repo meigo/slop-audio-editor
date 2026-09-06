@@ -4,6 +4,7 @@ import {
   DEFAULT_PANEL_WIDTH,
   MIN_PANEL_WIDTH,
   resizedPanelWidth,
+  trackDropIndex,
 } from "./panel-layout";
 
 describe("clampPanelWidth", () => {
@@ -58,5 +59,31 @@ describe("resizedPanelWidth", () => {
 
   it("returns the starting width when the pointer has not moved", () => {
     expect(resizedPanelWidth(DEFAULT_PANEL_WIDTH, 1000, 1000, VIEW)).toBe(DEFAULT_PANEL_WIDTH);
+  });
+});
+
+describe("trackDropIndex", () => {
+  const TOP = 100;
+  const H = 88;
+
+  it("gives the row the pointer is over", () => {
+    expect(trackDropIndex(TOP + 10, TOP, H, 4)).toBe(0);
+    expect(trackDropIndex(TOP + H + 10, TOP, H, 4)).toBe(1);
+    expect(trackDropIndex(TOP + 3 * H + 1, TOP, H, 4)).toBe(3);
+  });
+
+  it("swaps as the pointer crosses a row boundary, not before", () => {
+    expect(trackDropIndex(TOP + H - 1, TOP, H, 4)).toBe(0);
+    expect(trackDropIndex(TOP + H, TOP, H, 4)).toBe(1);
+  });
+
+  it("clamps above the first row and below the last", () => {
+    expect(trackDropIndex(TOP - 500, TOP, H, 4)).toBe(0);
+    expect(trackDropIndex(TOP + 99 * H, TOP, H, 4)).toBe(3);
+  });
+
+  it("survives a degenerate track list rather than returning NaN", () => {
+    expect(trackDropIndex(TOP, TOP, H, 0)).toBe(0);
+    expect(trackDropIndex(TOP, TOP, 0, 3)).toBe(0);
   });
 });

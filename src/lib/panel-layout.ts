@@ -42,3 +42,22 @@ export function resizedPanelWidth(
 ): number {
   return clampPanelWidth(gripStartW + (gripStartX - clientX), viewportW);
 }
+
+/**
+ * Which index a track header dragged to `pointerY` should land at.
+ *
+ * Every header is exactly `heightPx` tall, so this is arithmetic rather than hit-testing: the
+ * index is how many whole rows down from the first header's top the pointer sits, clamped to the
+ * track list. Taking the row under the POINTER (not under the dragged header's edge) is what
+ * makes the swap happen when the pointer crosses a row's midpoint the way it looks like it should.
+ */
+export function trackDropIndex(
+  pointerY: number,
+  firstHeaderTop: number,
+  heightPx: number,
+  count: number,
+): number {
+  if (count <= 0 || heightPx <= 0) return 0;
+  const raw = Math.floor((pointerY - firstHeaderTop) / heightPx);
+  return Math.max(0, Math.min(raw, count - 1));
+}

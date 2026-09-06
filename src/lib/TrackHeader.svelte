@@ -1,6 +1,13 @@
 <script lang="ts">
+  import { GripVertical } from "@lucide/svelte";
   import type { Track } from "../doc/document";
-  import { renameTrack, setTrackDucked, setTrackGain, setTrackMuted } from "../doc/edits";
+  import {
+    renameTrack,
+    reorderTrack,
+    setTrackDucked,
+    setTrackGain,
+    setTrackMuted,
+  } from "../doc/edits";
   import {
     amend,
     beginGesture,
@@ -13,6 +20,7 @@
     toggleSolo,
   } from "../state/appState.svelte";
   import Fader from "./Fader.svelte";
+  import { trackDropIndex } from "./panel-layout";
 
   const { track }: { track: Track } = $props();
 
@@ -58,6 +66,53 @@
     dragging = false;
     endGesture();
   }
+
+  /**
+   * Reorder by dragging the grip.
+   *
+   * A GRIP rather than the whole header: the header's click sets the current track and its name's
+   * double-click opens the rename editor, so a row-wide drag would need a movement threshold plus
+   * an exclusion for every control inside it — a pile of conditions that can only be got subtly
+   * wrong. A dedicated handle does one thing, shows that the row is draggable, and works on touch.
+   *
+   * Track order affects NO audio: nothing in the engine indexes tracks by position and everything
+   * sums to the master bus. That is why this reorders LIVE under the pointer instead of showing a
+   * drop indicator, and why it is a "mix" gesture — rescheduling playback would cost an audible
+   * gap for a change that cannot alter a single sample.
+   */
+  let gripping = false;
+
+  function gripDown(e: PointerEvent) {
+    e.stopPropagation(); // or the row's click fires on release and steals the current track
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    gripping = true;
+    beginGesture("mix");
+  }
+
+  function gripMove(e: PointerEvent) {
+    if (!gripping) return;
+    const column = (e.currentTarget as HTMLElement).closest("[data-track-header]")?.parentElement;
+    const first = column?.querySelector("[data-track-header]")?.getBoundingClientRect();
+    if (!first) return;
+    amend((p) =>
+      reorderTrack(
+        p,
+        track.id,
+        trackDropIndex(e.clientY, first.top, appState.trackHeightPx, p.tracks.length),
+      ),
+    );
+  }
+
+  function gripUp(e: PointerEvent) {
+    if (!gripping) return;
+    gripping = false;
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {
+      // `pointercancel` releases it itself.
+    }
+    endGesture();
+  }
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -70,9 +125,21 @@
   class:border-l-transparent={!isCurrent}
   class:border-l-accent={isCurrent}
   style="height: {appState.trackHeightPx}px"
+  data-track-header={track.id}
   onclick={() => setCurrentTrack(track.id)}
 >
   <div class="flex items-center gap-1">
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      class="-ml-1 shrink-0 cursor-grab touch-none px-0.5 text-muted hover:text-text"
+      title="Drag to reorder tracks"
+      onpointerdown={gripDown}
+      onpointermove={gripMove}
+      onpointerup={gripUp}
+      onpointercancel={gripUp}
+    >
+      <GripVertical size={12} />
+    </div>
     {#if renaming}
       <input
         bind:this={nameInput}

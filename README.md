@@ -38,6 +38,7 @@ under the voice, and export a mastered file — all locally, with no upload and 
   the timeline changes to match
 - Waveforms scaled by clip gain, so the picture shows what you will hear
 - In/out markers for looping a section, kept separate from the selection that bounds an export
+- Reorder tracks by dragging the grip in a track header
 - Three track heights, adjustable zoom, and two-finger pan/pinch on a trackpad or touchscreen
 
 ### Mixing
@@ -83,7 +84,7 @@ A few decisions shape the whole codebase:
 ```bash
 npm install
 npm run dev       # Vite dev server
-npm test          # Vitest — 515 tests
+npm test          # Vitest — 519 tests
 npm run check     # svelte-check
 npm run lint      # ESLint
 npm run format    # Prettier

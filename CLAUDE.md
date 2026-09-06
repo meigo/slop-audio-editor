@@ -852,6 +852,29 @@ command}` that `ShortcutHelp.svelte` renders. `resolveShortcut` was deliberately
     harness delivers no real button presses to the grip — a `left_click` on it produced only a
     `pointermove`. The clamp and the arithmetic are tested; the wiring between them needs a human.
 
+45. **Tracks reorder by dragging a GRIP, not the row — and `reorderTrack` had been sitting unused
+    with passing tests.** The pure edit existed in `edits.ts` with three tests and zero callers
+    outside them: another capability with no affordance, the same shape as clip-delete before the
+    context menu.
+    A dedicated handle rather than a row-wide drag. The header's click sets the current track and
+    the name's double-click opens the rename editor, so dragging the row would need a movement
+    threshold PLUS an exclusion for every control inside it (M/S/D, the fader, the name) — a pile
+    of conditions that can only be got subtly wrong. The grip does one thing, advertises that the
+    row moves, and works on touch. `gripDown` stops propagation or the row's click fires on
+    release and steals the current track.
+    **Track order affects NO audio.** Nothing in the engine indexes tracks by position; everything
+    sums to the master bus, and ducking derives from the ducked flag and clip positions. That is
+    why the drag reorders LIVE under the pointer instead of drawing a drop indicator, and why it
+    is a `"mix"` gesture: rescheduling playback would cost an audible gap for a change that cannot
+    alter a single sample. The whole drag is one undo entry.
+    The header carries `data-track-header`, NOT `data-track-id`. The lanes already use the latter
+    and `App.svelte`'s file-drop hit test resolves it with `closest("[data-track-id]")` — putting
+    it on headers too would have quietly made that lookup ambiguous.
+    `trackDropIndex` is pure and tested because every header is the same height, so the drop row
+    is arithmetic rather than hit-testing. Verified in a browser with `setPointerCapture` and
+    `hasPointerCapture` STUBBED — synthetic pointer events cannot satisfy them, and this harness
+    delivers no real button presses. Everything but that capture plumbing is the real code path.
+
 ## Testing
 
 Vitest, `node` environment, no DOM (`src/**/*.test.ts`, see `vite.config.ts`). Pure logic
