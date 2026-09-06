@@ -36,6 +36,29 @@ describe("scheduleDocumentSave", () => {
   });
 });
 
+describe("the shared connection", () => {
+  it("does not cache a failed open — the next save tries again", async () => {
+    // A fake `indexedDB` whose `open` always throws, so the observable is how many times it is
+    // ASKED: a memoised rejection would be reused by the second tick and ask once. (The warning
+    // count cannot tell the two apart — a cached rejection still warns on every tick.)
+    const openSpy = vi.fn(() => {
+      throw new Error("no IndexedDB here");
+    });
+    vi.stubGlobal("indexedDB", { open: openSpy });
+    try {
+      const { scheduleDocumentSave } = await freshAutosave();
+      scheduleDocumentSave(createProject());
+      await vi.runAllTimersAsync();
+      scheduleDocumentSave(createProject());
+      await vi.runAllTimersAsync();
+      expect(openSpy).toHaveBeenCalledTimes(2);
+      expect(warn).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
+
 describe("pauseDocumentSaves / resumeDocumentSaves", () => {
   it("holds a queued save until the replacement is fully written", async () => {
     // `loadInto` installs the new document before `openProjectFile` persists anything, so the

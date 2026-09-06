@@ -112,6 +112,19 @@
       <button
         class={MENU_ITEM}
         onclick={() => {
+          // Undoable, so it FEELS safe — but the previous project's audio is pruned from browser
+          // storage on the next reload, and undo history does not survive one. Ask while there is
+          // something to lose. `dirty` cannot decide this: a session restored from autosave is
+          // not dirty and has never been saved to a file.
+          if (
+            appState.project.tracks.some((t) => t.clips.length > 0) &&
+            !window.confirm(
+              "Start a new project? The open one stays undoable until you reload — after that its audio is removed from browser storage unless it was saved to a file.",
+            )
+          ) {
+            close();
+            return;
+          }
           commit(() => createProject());
           // The same reset `loadInto` does: a selection, in/out range or solo left over from the
           // old document would still be read by the export window and the transport.

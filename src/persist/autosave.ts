@@ -7,17 +7,41 @@ const DOC_STORE = "doc";
 const SRC_STORE = "sources";
 const DEBOUNCE_MS = 3000;
 
+/** The one open connection, shared by every call below.
+ *
+ *  Each call used to open its own and never close it — one more per 3 s autosave tick, for the
+ *  life of the session. Chrome tolerates that, but connections are not free, and an open one
+ *  blocks any future schema upgrade until it closes. Memoised as a PROMISE so concurrent callers
+ *  share the same open; dropped on failure so a transient error is retried rather than cached
+ *  for the rest of the session; and dropped again on `versionchange`/`close`, after closing, so
+ *  another tab upgrading the database is not blocked by this one. */
+let dbPromise: Promise<IDBDatabase> | null = null;
+
 function open(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
+  dbPromise ??= new Promise<IDBDatabase>((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains(DOC_STORE)) db.createObjectStore(DOC_STORE);
       if (!db.objectStoreNames.contains(SRC_STORE)) db.createObjectStore(SRC_STORE);
     };
-    req.onsuccess = () => resolve(req.result);
+    req.onsuccess = () => {
+      const db = req.result;
+      db.onversionchange = () => {
+        db.close();
+        dbPromise = null;
+      };
+      db.onclose = () => {
+        dbPromise = null;
+      };
+      resolve(db);
+    };
     req.onerror = () => reject(req.error);
+  }).catch((err: unknown) => {
+    dbPromise = null;
+    throw err;
   });
+  return dbPromise;
 }
 
 function tx(db: IDBDatabase, store: string, mode: IDBTransactionMode): IDBObjectStore {

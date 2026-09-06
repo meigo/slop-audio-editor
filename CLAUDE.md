@@ -197,7 +197,17 @@ from "./state/appState.svelte"`.** Importing it as bare `state` collides with th
 8. **Gesture classes decide whether a commit reschedules playback, and mute/solo deliberately
    don't use the non-rescheduling path.** `beginGesture()` (default, "structural") reschedules
    playback on `endGesture()`; `beginGesture("mix")` does not, so a fader can be ridden live during
-   playback without a dropout. Mute (via `commit`) and solo (via `toggleSolo`) always reschedule —
+   playback without a dropout.
+   A "mix" gesture DOES reschedule once, on release, when it turned something on for the first
+   time: `endGesture` asks `engine.needsRebuild(project)`, which reports a document asking for a
+   node the graph never built. Neutral builds nothing (flat EQ, centred pan, filter off, zero
+   drive), so sweeping away from neutral while playing had no node to write onto and was
+   inaudible until the next play — from the user's seat, a knob that did nothing. Only tracks that
+   HAVE nodes are considered, or a track with nothing in the window would rebuild forever.
+   The in/out marker DRAG is the other way round: `setPlayIn`/`setPlayOut` take `restart = false`
+   per pointermove and the ruler calls `reschedulePlayback` once on release — rebuilding per move
+   stuttered for the whole drag. Seeking keeps its per-move restart; following the pointer is what
+   scrubbing means. Mute (via `commit`) and solo (via `toggleSolo`) always reschedule —
    not because they're structural edits in the same sense as a trim, but because `planSchedule`
    drops muted/non-soloed tracks from the plan **entirely**. There is no live node to turn down for
    a track that was never scheduled, so a "mix"-style live gain tweak can't express mute/solo; only
@@ -317,6 +327,13 @@ spin forever.
     an undoable `commit`, so pruning against the empty document alone deletes the audio undo would
     need to restore — invisibly, because the in-memory pool still has it until the next reload,
     at which point the restored document references bytes that no longer exist in IndexedDB.
+    (d) `restoreAutosave` prunes every source the restored document does not reference, and
+    undo history does not survive a reload — so New project followed by a reload removes the
+    previous project's audio from browser storage for good, even though New is undoable and
+    FEELS safe. The New-project item therefore asks first whenever the document has any clip.
+    `dirty` cannot make that decision: a session restored from autosave is not dirty and was
+    never saved to a file. (This is the mechanism that emptied a verification session on
+    2026-09-06.)
     Why it matters: these two pull in opposite directions. Reset history too eagerly and undo
     stops working; prune too eagerly and undo comes back to dead audio. The rule that satisfies
     both: replacing the document clears history, and nothing reachable through history is ever an
@@ -420,6 +437,12 @@ spin forever.
     Before that, a range drew only its own wash, so the clip poking out past the wash's edge gave
     no sign it was about to move or delete in full. Same principle as Gotchas 15 and 17: what is
     drawn must be what will happen.
+    A range whose tracks are ALL gone is no range at all, and `liveRange` (`doc/selection.ts`) is
+    the one place that is decided: `exportWindow`, `statusSummary` and the export dialog's label
+    all ask it. They used to decide separately — the export ignored such a range while the status
+    line still called it the export window and the dialog still said "Selection". `RangeOverlay`
+    needs no special case; it draws per live track, which is exactly why the disagreement was
+    invisible.
     The trap: `ClipView.onPointerDown` runs BEFORE `startClipDrag` and used to overwrite
     `selection` unconditionally, so a range selection was already collapsed to the single clicked
     clip by the time the drag read it — the box you drew moved one clip. A plain (non-additive)
@@ -621,6 +644,12 @@ spin forever.
     stayed live through a write that may have taken seconds, and writing the loaded snapshot would
     roll any edit made in that time back on the next reload. Pausing is reversible; the failure
     path still uses the permanent `disableDocumentSaves`.
+    ONE IndexedDB connection, memoised as a promise in `open()`: every call used to open its own
+    and never close it — one more per 3 s tick for the life of the session, each able to block a
+    future schema upgrade. A failed open is NOT cached (the promise is dropped on rejection, so
+    the next save retries), and the connection is closed and dropped on `versionchange` so another
+    tab upgrading the database is not blocked. The test counts calls to `indexedDB.open`, because
+    the warning count cannot tell a cached rejection from a retried one.
     Still open: after a failed source write the in-memory session has ALREADY been swapped, so
     the user's next edit schedules a document save whose audio was never stored. The autosave is
     consistent until then. Closing that needs a session-level "autosave unavailable" state and a
@@ -639,7 +668,10 @@ spin forever.
     lives in `autosave.ts`. It recolours the SAVE button `warn` and rewrites its tooltip rather
     than adding an indicator: that is the button the user now needs to press, so the warning
     belongs on it, and reusing the glyph keeps the toolbar from shifting (Gotcha 25a).
-    The import path needs none of this: `importFiles` awaits `putSource` BEFORE the `commit` that
+    The import path needs none of this — though it resolves its target track at COMMIT time
+    (`resolveTrackId`), not at the call: decoding yields for seconds, the track can be deleted
+    meanwhile, and `addClip` on a dead id was a silent no-op with the source already stored, an
+    orphan with no clip. `importFiles` awaits `putSource` BEFORE the `commit` that
     adds the clip, so a failed write leaves a document that never referenced the missing source.
     Found only because the browser check looked at the document store after the failure rather
     than stopping at "the open threw". Verified again after the fix by clicking the real Add-track
