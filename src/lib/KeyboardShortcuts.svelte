@@ -22,6 +22,7 @@
     undoEdit,
     zoomToFit,
   } from "../state/appState.svelte";
+  import { MAX_PX_PER_S, MIN_PX_PER_S } from "./geometry";
   import { resolveShortcut } from "./shortcuts";
 
   const { onSave }: { onSave: () => void } = $props();
@@ -116,7 +117,10 @@
         return seekTo(next ?? appState.playheadS);
       }
       case "zoom":
-        appState.pxPerSecond = Math.min(2000, Math.max(2, appState.pxPerSecond * cmd.factor));
+        appState.pxPerSecond = Math.min(
+          MAX_PX_PER_S,
+          Math.max(MIN_PX_PER_S, appState.pxPerSecond * cmd.factor),
+        );
         return;
       case "zoomFit":
         return zoomToFit(cmd.scope);

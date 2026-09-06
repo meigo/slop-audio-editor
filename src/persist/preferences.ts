@@ -1,3 +1,4 @@
+import { DEFAULT_PX_PER_S, MAX_PX_PER_S, MIN_PX_PER_S } from "../lib/geometry";
 import { clampPanelWidth, DEFAULT_PANEL_WIDTH } from "../lib/panel-layout";
 const KEY = "slop-audio-editor.prefs";
 
@@ -18,7 +19,7 @@ export interface Preferences {
 }
 
 export const DEFAULT_PREFERENCES: Preferences = {
-  pxPerSecond: 60,
+  pxPerSecond: DEFAULT_PX_PER_S,
   snap: true,
   trackHeightPx: 88,
   lastFormat: "wav16",
@@ -50,7 +51,7 @@ function clamp(v: unknown, lo: number, hi: number, fallback: number): number {
 export function sanitisePreferences(raw: unknown): Preferences {
   const r = (typeof raw === "object" && raw !== null ? raw : {}) as Record<string, unknown>;
   return {
-    pxPerSecond: clamp(r.pxPerSecond, 2, 2000, DEFAULT_PREFERENCES.pxPerSecond),
+    pxPerSecond: clamp(r.pxPerSecond, MIN_PX_PER_S, MAX_PX_PER_S, DEFAULT_PREFERENCES.pxPerSecond),
     snap: typeof r.snap === "boolean" ? r.snap : DEFAULT_PREFERENCES.snap,
     trackHeightPx: clamp(r.trackHeightPx, 40, 300, DEFAULT_PREFERENCES.trackHeightPx),
     lastFormat: typeof r.lastFormat === "string" ? r.lastFormat : DEFAULT_PREFERENCES.lastFormat,

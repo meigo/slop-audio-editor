@@ -33,15 +33,31 @@
 
   const close = () => (appState.contextMenu = null);
 
+  /** Every id gets its own case and the default is a compile error, NOT an action. This used to
+   *  end in a bare `else deleteSelection()`, so adding a row to `contextItems` and forgetting a
+   *  branch here would have made the new row DELETE the selection — silently, and with no test
+   *  that could see it. The `never` makes that a build failure instead. */
   function run(item: ContextItem) {
     if (!item.enabled) return;
     close();
-    if (item.id === "cut") cutSelection();
-    else if (item.id === "copy") copySelection();
-    else if (item.id === "paste") pasteAtPlayhead();
-    else if (item.id === "duplicate") duplicateSelection();
-    else if (item.id === "zoomFit") zoomToFit("selection");
-    else deleteSelection();
+    switch (item.id) {
+      case "cut":
+        return cutSelection();
+      case "copy":
+        return copySelection();
+      case "paste":
+        return pasteAtPlayhead();
+      case "duplicate":
+        return duplicateSelection();
+      case "delete":
+        return deleteSelection();
+      case "zoomFit":
+        return zoomToFit("selection");
+      default: {
+        const unhandled: never = item.id;
+        throw new Error(`unhandled context item: ${String(unhandled)}`);
+      }
+    }
   }
 </script>
 
