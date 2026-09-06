@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { projectDurationS } from "../doc/document";
   import { engine, state as appState } from "../state/appState.svelte";
   import { playheadFollower, timeToPx } from "./geometry";
 
@@ -22,7 +23,15 @@
     const tick = () => {
       const { scrollS, pxPerSecond, timelineWidthPx } = appState;
       appState.playheadS = engine.positionS();
-      const flip = step(appState.playheadS, scrollS, pxPerSecond, timelineWidthPx);
+      // The project's end, so the last page sits flush with it instead of scrolling a page past
+      // the final clip and leaving most of the viewport empty.
+      const flip = step(
+        appState.playheadS,
+        scrollS,
+        pxPerSecond,
+        timelineWidthPx,
+        projectDurationS(appState.project),
+      );
       if (flip !== null) appState.scrollS = flip;
       raf = requestAnimationFrame(tick);
     };

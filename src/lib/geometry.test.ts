@@ -564,38 +564,73 @@ describe("fitView", () => {
 describe("pageFlipScroll", () => {
   // 100 px/s, a 1000 px viewport showing 0..10 s.
   it("flips a page when the playhead leaves the right edge while it was in view", () => {
-    const next = pageFlipScroll(10.2, 0, 100, 1000, true);
+    const next = pageFlipScroll(10.2, 0, 100, 1000, true, 600);
     expect(next).not.toBeNull();
     // The playhead lands a small margin in from the LEFT edge, so what plays next has the width.
     expect(timeToPx(10.2, next!, 100)).toBeCloseTo(PAGE_FLIP_MARGIN_PX, 6);
   });
 
   it("does nothing while the playhead is in view", () => {
-    expect(pageFlipScroll(5, 0, 100, 1000, true)).toBeNull();
+    expect(pageFlipScroll(5, 0, 100, 1000, true, 600)).toBeNull();
   });
 
   it("follows a loop restart back to the loop start — a crossing of the LEFT edge", () => {
     // Looping jumps the playhead from the end of the range to its start, which is behind the view
     // after a few flips. That is a crossing too: it was in view a frame ago and now is not.
     // Handling only the right edge left the playhead off-screen for every cycle after the first.
-    const next = pageFlipScroll(2, 20, 100, 1000, true);
+    const next = pageFlipScroll(2, 20, 100, 1000, true, 600);
     expect(next).not.toBeNull();
     expect(timeToPx(2, next!, 100)).toBeCloseTo(PAGE_FLIP_MARGIN_PX, 6);
   });
 
   it("lands a loop start near zero at zero", () => {
-    expect(pageFlipScroll(0, 20, 100, 1000, true)).toBe(0);
+    expect(pageFlipScroll(0, 20, 100, 1000, true, 600)).toBe(0);
   });
 
   it("does not fight a manual scroll — a playhead already out of view stays out", () => {
     // The user scrolled away to look at something; the view stays until the playhead next
     // CROSSES the right edge, which it cannot do from outside.
-    expect(pageFlipScroll(30, 0, 100, 1000, false)).toBeNull();
-    expect(pageFlipScroll(-1, 5, 100, 1000, false)).toBeNull();
+    expect(pageFlipScroll(30, 0, 100, 1000, false, 600)).toBeNull();
+    expect(pageFlipScroll(-1, 5, 100, 1000, false, 600)).toBeNull();
+  });
+
+  it("lands the LAST page flush with the end of the project, not a page past it", () => {
+    // 100 px/s in a 1000 px viewport = 10 s a page, and 22 s of project. Flipping at 20.2 s used
+    // to scroll to 20.06 and show 8 s of nothing after the last clip; the content end now sits on
+    // the right edge instead.
+    const next = pageFlipScroll(20.2, 10, 100, 1000, true, 22);
+    expect(next).toBeCloseTo(12, 6); // 22 - 10 s of viewport
+    expect(timeToPx(22, next!, 100)).toBeCloseTo(1000, 6); // project end AT the right edge
+  });
+
+  it("keeps the playhead on screen when it does that", () => {
+    // Safe by construction: the clamp only applies when the flip would show past the end, which
+    // means the end is less than a page ahead of the playhead.
+    const next = pageFlipScroll(20.2, 10, 100, 1000, true, 22)!;
+    const px = timeToPx(20.2, next, 100);
+    expect(px).toBeGreaterThanOrEqual(0);
+    expect(px).toBeLessThanOrEqual(1000);
+  });
+
+  it("does not pull a mid-project flip back", () => {
+    expect(pageFlipScroll(10.2, 0, 100, 1000, true, 600)).toBeCloseTo(9.96, 6);
+  });
+
+  it("shows the whole project when it is shorter than the viewport", () => {
+    // 4 s of project in a 10 s viewport: there is no page to flip to, so show it from 0.
+    expect(pageFlipScroll(3.5, 20, 100, 1000, true, 4)).toBe(0);
+  });
+
+  it("keeps following a playhead that is past the end of the audio", () => {
+    // A play range left over from a longer project can run the transport past the last clip.
+    // There is nothing to align the right edge to, so the plain flip wins and the playhead stays
+    // visible rather than being scrolled off in favour of content that has already finished.
+    const next = pageFlipScroll(11, 20, 100, 1000, true, 4)!;
+    expect(timeToPx(11, next, 100)).toBeCloseTo(PAGE_FLIP_MARGIN_PX, 6);
   });
 
   it("never flips to a negative scroll", () => {
-    expect(pageFlipScroll(0.1, 0, 100, 5, true)).toBe(0);
+    expect(pageFlipScroll(0.1, 0, 100, 5, true, 600)).toBe(0);
   });
 });
 
@@ -617,28 +652,28 @@ describe("playheadFollower", () => {
     // It takes no starting position on purpose: building it from `appState.playheadS` made that a
     // tracked read in the caller's `$effect`, which then re-ran every frame and rebuilt the
     // follower with its memory already at the jumped-to position.
-    expect(playheadFollower()(50, 0, 100, 1000)).toBeNull();
+    expect(playheadFollower()(50, 0, 100, 1000, 600)).toBeNull();
   });
 
   it("flips forward, then follows a loop restart back", () => {
     const step = playheadFollower();
-    expect(step(9, 4, 100, 1000)).toBeNull(); // first frame: no memory yet
-    expect(step(9.5, 4, 100, 1000)).toBeNull(); // in view of 4..14
-    const scrollAfterFlip = step(14.2, 4, 100, 1000); // crossed the right edge
+    expect(step(9, 4, 100, 1000, 600)).toBeNull(); // first frame: no memory yet
+    expect(step(9.5, 4, 100, 1000, 600)).toBeNull(); // in view of 4..14
+    const scrollAfterFlip = step(14.2, 4, 100, 1000, 600); // crossed the right edge
     expect(scrollAfterFlip).not.toBeNull();
-    expect(step(14.3, scrollAfterFlip!, 100, 1000)).toBeNull(); // settled in the new page
+    expect(step(14.3, scrollAfterFlip!, 100, 1000, 600)).toBeNull(); // settled in the new page
     // Loop restart: the playhead is assigned 2 s between frames, far behind the flipped view.
-    const back = step(2, scrollAfterFlip!, 100, 1000);
+    const back = step(2, scrollAfterFlip!, 100, 1000, 600);
     expect(back).not.toBeNull();
     expect(timeToPx(2, back!, 100)).toBeCloseTo(PAGE_FLIP_MARGIN_PX, 6);
   });
 
   it("still leaves a manual scroll alone", () => {
     const step = playheadFollower();
-    step(5, 0, 100, 1000); // first frame
-    step(5.1, 0, 100, 1000); // in view
+    step(5, 0, 100, 1000, 600); // first frame
+    step(5.1, 0, 100, 1000, 600); // in view
     // The user scrolls to 40 s; the playhead is now off-screen but did not move.
-    expect(step(5.2, 40, 100, 1000)).toBeNull();
-    expect(step(5.3, 40, 100, 1000)).toBeNull();
+    expect(step(5.2, 40, 100, 1000, 600)).toBeNull();
+    expect(step(5.3, 40, 100, 1000, 600)).toBeNull();
   });
 });

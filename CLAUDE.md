@@ -542,7 +542,11 @@ spin forever.
 24b. **The view follows a running playhead by PAGE FLIP, decided by a pure function, and the
     wiring cannot be verified from this harness.** `pageFlipScroll` (`geometry.ts`) returns a new
     scroll only when the playhead was in view a frame ago and is now past the right edge — it
-    CROSSED, in EITHER direction — and lands it `PAGE_FLIP_MARGIN_PX` in from the left. Backward
+    CROSSED, in EITHER direction — and lands it `PAGE_FLIP_MARGIN_PX` in from the left, except on
+    the LAST page, which is pulled flush with the project's end rather than scrolling a page past
+    the final clip and leaving most of the viewport empty. That clamp cannot hide the playhead: it
+    only bites when the flip would show past the end, which means the end is less than a page
+    ahead of the playhead. Backward
     is a loop restart: the playhead jumps from the end of the range to its start, behind the view
     after a few flips, and handling only the right edge left it off-screen for every cycle after
     the first (found by the user on the first try). A playhead that is off-screen

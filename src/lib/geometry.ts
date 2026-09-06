@@ -270,6 +270,13 @@ export function isInView(
  * from the end of the range to its start — behind the view after a few flips. Handling only the
  * right edge left the playhead off-screen for every cycle after the first, and `wasInView` then
  * stayed false, so it never came back.
+ *
+ * The LAST page is pulled flush with `contentEndS` rather than scrolling a full page past it: a
+ * flip that lands two seconds before the end otherwise left most of the viewport empty. That
+ * cannot hide the playhead, by construction — the clamp only bites when the flip would show past
+ * the end, which means the end is less than a page ahead of the playhead, so the clamped scroll
+ * is still behind it. A playhead somehow beyond the content (a play range left over from a longer
+ * project) keeps the plain flip, since there is nothing to align to.
  */
 export function pageFlipScroll(
   playheadS: number,
@@ -277,10 +284,14 @@ export function pageFlipScroll(
   pxPerSecond: number,
   widthPx: number,
   wasInView: boolean,
+  contentEndS: number,
 ): number | null {
   if (!wasInView) return null;
   if (isInView(playheadS, scrollS, pxPerSecond, widthPx)) return null;
-  return Math.max(0, playheadS - PAGE_FLIP_MARGIN_PX / pxPerSecond);
+  const target = playheadS - PAGE_FLIP_MARGIN_PX / pxPerSecond;
+  const lastPage = contentEndS - widthPx / pxPerSecond;
+  const flush = playheadS <= contentEndS ? Math.min(target, lastPage) : target;
+  return Math.max(0, flush);
 }
 
 /**
@@ -303,13 +314,14 @@ export function playheadFollower(): (
   scrollS: number,
   pxPerSecond: number,
   widthPx: number,
+  contentEndS: number,
 ) => number | null {
   let lastS: number | null = null;
-  return (nowS, scrollS, pxPerSecond, widthPx) => {
+  return (nowS, scrollS, pxPerSecond, widthPx, contentEndS) => {
     // No memory yet on the very first frame, so it cannot have crossed anything.
     const wasInView = lastS !== null && isInView(lastS, scrollS, pxPerSecond, widthPx);
     lastS = nowS;
-    return pageFlipScroll(nowS, scrollS, pxPerSecond, widthPx, wasInView);
+    return pageFlipScroll(nowS, scrollS, pxPerSecond, widthPx, wasInView, contentEndS);
   };
 }
 
