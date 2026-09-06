@@ -64,6 +64,8 @@ export interface RenderedGraph {
   trackEqs: Map<string, EqNodes>;
   /** Only tracks whose filter is NOT off appear here — the rest built no node to adjust. */
   trackFilters: Map<string, BiquadFilterNode>;
+  /** Null when the master filter is off — in that case no biquad was built. */
+  masterFilter: BiquadFilterNode | null;
   /** Only tracks that are actually panned. The pair is [left, right] channel gains. */
   trackPans: Map<string, { left: GainNode; right: GainNode }>;
   masterGain: GainNode;
@@ -148,16 +150,18 @@ export function renderPlan(
    *
    *  Cascaded linear filters commute, so where this sits relative to the EQ makes no difference
    *  to the result; it goes after for no deeper reason than reading order. */
-  function withFilter(input: AudioNode, trackId: string, filter: TrackFilter): AudioNode {
-    if (filter.kind === "off") return input;
+  function buildFilter(
+    input: AudioNode,
+    filter: TrackFilter,
+  ): { tail: AudioNode; node: BiquadFilterNode | null } {
+    if (filter.kind === "off") return { tail: input, node: null };
     const n = ctx.createBiquadFilter();
     n.type = filter.kind;
     n.frequency.value = filter.hz;
     n.Q.value = FILTER_Q;
     eqNodes.push(n);
-    trackFilters.set(trackId, n);
     input.connect(n);
-    return n;
+    return { tail: n, node: n };
   }
 
   /**
@@ -202,7 +206,8 @@ export function renderPlan(
   // Master EQ sits between the fader and Glue, so Glue's compressor reacts to the shaped signal
   // rather than fighting it — the usual order for a mastering chain.
   const master = buildEq(masterGain, project.masterEq);
-  let output: AudioNode = master.tail;
+  const masterFilter = buildFilter(master.tail, project.masterFilter);
+  let output: AudioNode = masterFilter.tail;
 
   // When Glue is off, this is the ENTIRE master chain — bit-identical to the graph before Glue
   // existed. The nodes below are only ever created when `project.glue` is true.
@@ -226,7 +231,7 @@ export function renderPlan(
     const trim = ctx.createGain();
     trim.gain.value = GLUE_TRIM_GAIN;
 
-    master.tail.connect(highpass);
+    masterFilter.tail.connect(highpass);
     highpass.connect(lowpass);
     lowpass.connect(compressor);
     compressor.connect(trim);
@@ -234,7 +239,7 @@ export function renderPlan(
     glueNodes.push(highpass, lowpass, compressor, trim);
     output = trim;
   } else {
-    master.tail.connect(ctx.destination);
+    masterFilter.tail.connect(ctx.destination);
   }
 
   const sources: AudioBufferSourceNode[] = [];
@@ -255,12 +260,9 @@ export function renderPlan(
         // equivalent, and this way one chain per track covers every clip on it.
         const trackEq = buildEq(trackGain, track?.eq ?? { lowDb: 0, midDb: 0, highDb: 0 });
         if (trackEq.nodes) trackEqs.set(sc.trackId, trackEq.nodes);
-        const filtered = withFilter(
-          trackEq.tail,
-          sc.trackId,
-          track?.filter ?? { kind: "off", hz: 0 },
-        );
-        const tail = withPan(filtered, sc.trackId, track?.pan ?? 0);
+        const trackFilter = buildFilter(trackEq.tail, track?.filter ?? { kind: "off", hz: 0 });
+        if (trackFilter.node) trackFilters.set(sc.trackId, trackFilter.node);
+        const tail = withPan(trackFilter.tail, sc.trackId, track?.pan ?? 0);
         const points = duck.get(sc.trackId);
         if (points && points.length > 0) {
           // A SEPARATE node from the fader's. Writing the envelope onto `trackGain` itself would
@@ -333,6 +335,7 @@ export function renderPlan(
     trackFilters,
     trackPans,
     masterEq: master.nodes,
+    masterFilter: masterFilter.node,
     masterGain,
     sources,
     output,

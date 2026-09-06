@@ -450,6 +450,12 @@ spin forever.
     `snapBandDb` detents it to exactly flat within ±0.5 dB. That detent is not cosmetic: a band
     left at −0.07 dB is not `isFlatEq`, so it would silently keep three biquads in the graph
     forever. A whole sweep collapses to ONE undo entry via the `dragging` flag.
+    The master bus has the SAME one-knob filter, `project.masterFilter`, built by the same
+    `buildFilter` and sitting between the master EQ and Glue. It is independent of Glue's own
+    FIXED band-limit — that one is part of what Glue IS, this one is a control — and independent
+    of a track's filter: measured through `renderPlan`, a master high-pass at 80 Hz gives -3.0 dB
+    at the corner and -24.1 at 20 Hz, and a track AND master both at 80 Hz cascade to exactly
+    double (-6.0 and -48.2).
     It follows the CURRENT track (`currentTrackId()`), not the selection, because it is a track
     property — the same rule the `M`/`⇧S` shortcuts follow (Gotcha 14). That is why it lives on
     the right of the Inspector and stays visible when no clip is selected.

@@ -418,3 +418,11 @@ export function setTrackPan(p: Project, trackId: string, pan: number): Project {
   const next = Math.max(-1, Math.min(1, pan));
   return mapTrack(p, trackId, (t) => (t.pan === next ? t : { ...t, pan: next }));
 }
+
+/** Master-bus filter. Same shape as `setTrackFilter`, including the no-op guard. */
+export function setMasterFilter(p: Project, filter: TrackFilter): Project {
+  const next: TrackFilter =
+    filter.kind === "off" ? { kind: "off", hz: 0 } : { kind: filter.kind, hz: filter.hz };
+  const cur = p.masterFilter;
+  return cur.kind === next.kind && cur.hz === next.hz ? p : { ...p, masterFilter: next };
+}

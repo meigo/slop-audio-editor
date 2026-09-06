@@ -191,6 +191,15 @@ export class AudioEngine {
     nodes.right.gain.value = right;
   }
 
+  /** Live master-filter sweep. Same caveat as the rest: does nothing when the filter was OFF at
+   *  schedule time, because no node was built then. */
+  setMasterFilter(filter: TrackFilter): void {
+    const node = this.#graph?.masterFilter;
+    if (!node || filter.kind === "off") return;
+    node.type = filter.kind;
+    node.frequency.value = filter.hz;
+  }
+
   setMasterGain(gain: number): void {
     if (this.#graph) this.#graph.masterGain.gain.value = gain;
   }

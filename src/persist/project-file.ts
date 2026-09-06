@@ -63,19 +63,25 @@ function eqOrFlat(eq: unknown): EqBands {
   };
 }
 
+/** Coerces a possibly-absent filter into a real one. Shared by tracks and the master bus so a
+ *  document saved before either existed cannot install `undefined` where the UI reads `kind`. */
+function filterOrOff(filter: unknown): TrackFilter {
+  const f = filter as Partial<TrackFilter> | undefined;
+  return (f?.kind === "highpass" || f?.kind === "lowpass") && typeof f.hz === "number" && f.hz > 0
+    ? { kind: f.kind, hz: f.hz }
+    : { kind: "off", hz: 0 };
+}
+
 export function applyDocumentDefaults(project: Project): void {
   if (typeof project.glue !== "boolean") project.glue = false;
   if (typeof project.duckDepthDb !== "number") project.duckDepthDb = DEFAULT_DUCK_DEPTH_DB;
   project.masterEq = eqOrFlat(project.masterEq);
+  project.masterFilter = filterOrOff(project.masterFilter);
   for (const t of project.tracks) {
     if (typeof t.ducked !== "boolean") t.ducked = false;
     t.eq = eqOrFlat(t.eq);
     if (typeof t.pan !== "number" || !Number.isFinite(t.pan)) t.pan = 0;
-    const f = t.filter as Partial<TrackFilter> | undefined;
-    t.filter =
-      (f?.kind === "highpass" || f?.kind === "lowpass") && typeof f.hz === "number" && f.hz > 0
-        ? { kind: f.kind, hz: f.hz }
-        : { kind: "off", hz: 0 };
+    t.filter = filterOrOff(t.filter);
     for (const c of t.clips) {
       if (typeof c.speed !== "number" || !(c.speed > 0)) c.speed = 1;
     }

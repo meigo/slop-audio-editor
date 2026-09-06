@@ -1,6 +1,13 @@
 <script lang="ts">
-  import { EQ_HIGH_HZ, EQ_LOW_HZ, EQ_MAX_DB, EQ_MID_HZ, type EqBands } from "../doc/document";
-  import { setDuckDepth, setGlue, setMasterEq } from "../doc/edits";
+  import {
+    EQ_HIGH_HZ,
+    EQ_LOW_HZ,
+    EQ_MAX_DB,
+    EQ_MID_HZ,
+    type EqBands,
+    type TrackFilter,
+  } from "../doc/document";
+  import { setDuckDepth, setGlue, setMasterEq, setMasterFilter } from "../doc/edits";
   import {
     amend,
     beginGesture,
@@ -10,6 +17,7 @@
     state as appState,
   } from "../state/appState.svelte";
   import BandSlider from "./BandSlider.svelte";
+  import FilterSlider from "./FilterSlider.svelte";
   import NumberField from "./NumberField.svelte";
 
   let dragging = false;
@@ -21,6 +29,15 @@
     }
     amend((p) => setMasterEq(p, patch));
     engine.setMasterEq(appState.project.masterEq);
+  }
+
+  function onFilter(filter: TrackFilter) {
+    if (!dragging) {
+      dragging = true;
+      beginGesture("mix");
+    }
+    amend((p) => setMasterFilter(p, filter));
+    engine.setMasterFilter(appState.project.masterFilter);
   }
 
   function onBandCommit() {
@@ -66,6 +83,12 @@
       onCommit={onBandCommit}
     />
     <!-- Below the EQ because that is the signal order: fader, EQ, then Glue. -->
+    <FilterSlider
+      filter={appState.project.masterFilter}
+      title="Sweepable filter on the whole mix. Left is a high-pass, right a low-pass, centre off. Separate from Glue's own fixed band-limit."
+      onInput={onFilter}
+      onCommit={onBandCommit}
+    />
     <button
       class="col-span-3 mt-1 rounded border px-2 py-1 text-xs {appState.project.glue
         ? 'border-accent bg-accent/20 text-text'

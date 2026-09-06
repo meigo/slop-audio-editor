@@ -101,6 +101,7 @@ function fakeProject(trackIds: string[]): Project {
     glue: false,
     duckDepthDb: -12,
     masterEq: { lowDb: 0, midDb: 0, highDb: 0 },
+    masterFilter: { kind: "off" as const, hz: 0 },
     tracks: trackIds.map((id) => ({
       id,
       name: id,
@@ -352,5 +353,60 @@ describe("track pan", () => {
     const r = n?.right.gain.value ?? 0;
     expect(l ** 2 + r ** 2).toBeCloseTo(2, 6);
     expect(l).toBeCloseTo(1, 3); // unity at centre, so the bypass and the network agree
+  });
+});
+
+describe("master filter", () => {
+  const clip = fakeScheduledClip();
+  const pool = { get: (): Source => fakeSource("s1") };
+  const withMaster = (masterFilter: Project["masterFilter"]): Project => ({
+    ...fakeProject(["t1"]),
+    masterFilter,
+  });
+
+  it("builds NOTHING when off", () => {
+    const { ctx, biquads } = makeFakeCtx();
+    renderPlan(ctx, [clip], pool, withMaster({ kind: "off", hz: 0 }), 0, WINDOW);
+    expect(biquads.length).toBe(0);
+  });
+
+  it("builds one biquad and retains it for live sweeping", () => {
+    const { ctx, biquads } = makeFakeCtx();
+    const graph = renderPlan(
+      ctx,
+      [clip],
+      pool,
+      withMaster({ kind: "highpass", hz: 90 }),
+      0,
+      WINDOW,
+    );
+    expect(biquads.map((b) => [b.type, b.frequency.value])).toEqual([["highpass", 90]]);
+    expect(graph.masterFilter?.frequency.value).toBe(90);
+  });
+
+  it("is independent of the master EQ and of a track's own filter", () => {
+    const { ctx, biquads } = makeFakeCtx();
+    const base = fakeProject(["t1"]);
+    renderPlan(
+      ctx,
+      [clip],
+      pool,
+      {
+        ...base,
+        masterEq: { lowDb: 2, midDb: 0, highDb: 0 },
+        masterFilter: { kind: "lowpass", hz: 8000 },
+        tracks: base.tracks.map((t) => ({ ...t, filter: { kind: "highpass" as const, hz: 100 } })),
+      },
+      0,
+      WINDOW,
+    );
+    // Track filter, then the master's three EQ bands, then the master filter.
+    expect(biquads.map((b) => b.type)).toEqual([
+      "lowshelf",
+      "peaking",
+      "highshelf",
+      "lowpass",
+      "highpass",
+    ]);
   });
 });

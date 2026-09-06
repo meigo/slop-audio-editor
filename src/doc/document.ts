@@ -116,6 +116,9 @@ export interface Project {
   /** Master-bus EQ, the same three fixed bands as a track's. Sits between the master fader and
    *  Glue, so the compressor reacts to the shaped signal rather than fighting it. */
   masterEq: EqBands;
+  /** Master-bus filter, the same one knob a track has. Independent of Glue's FIXED band-limit:
+   *  that one is part of what Glue is, this one is a control. */
+  masterFilter: TrackFilter;
   /** How far tracks marked `ducked` dip, in dB. One value for the whole project: the feature is
    *  meant to stay a single toggle plus a single strength, not a per-track mixer. 0 disables it. */
   duckDepthDb: number;
@@ -169,6 +172,7 @@ export function createProject(name = "Untitled"): Project {
     masterGain: 1,
     glue: false,
     masterEq: { ...FLAT_EQ },
+    masterFilter: { ...FILTER_OFF },
     duckDepthDb: DEFAULT_DUCK_DEPTH_DB,
   };
 }

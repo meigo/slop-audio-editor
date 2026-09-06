@@ -51,7 +51,7 @@ under the voice, and export a mastered file — all locally, with no upload and 
   Derived from clip positions, not a sidechain, so the dip is already at full depth on the voice's
   first consonant — and it is drawn on the clip
 - **Match loudness**: sets clip gains so everything sits at the group's median LUFS
-- Master gain, master EQ, and **Glue** — a fixed band-limit and gentle bus compressor
+- Master gain, master EQ, a master filter, and **Glue** — a fixed band-limit and gentle bus compressor
 - Live peak meter, per channel, so a hard-panned mix cannot read low
 - Undo/redo across every edit, 100 steps deep
 
