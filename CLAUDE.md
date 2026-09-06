@@ -385,6 +385,11 @@ spin forever.
     moves the whole group when you grab a member. `grabbedGroup` also accepts a **range**
     selection, resolving it through `clipsInRange` (overlap-based, so a clip the range only partly
     covers still moves in full — a clip cannot be half-moved).
+    A range also OUTLINES the clips it covers, through `isClipSelected` (`doc/selection.ts`) —
+    the one place the "on this track and overlapping" rule now lives, `clipsInRange` included.
+    Before that, a range drew only its own wash, so the clip poking out past the wash's edge gave
+    no sign it was about to move or delete in full. Same principle as Gotchas 15 and 17: what is
+    drawn must be what will happen.
     The trap: `ClipView.onPointerDown` runs BEFORE `startClipDrag` and used to overwrite
     `selection` unconditionally, so a range selection was already collapsed to the single clicked
     clip by the time the drag read it — the box you drew moved one clip. A plain (non-additive)

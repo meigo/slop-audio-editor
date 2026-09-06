@@ -5,6 +5,7 @@ import {
   clipsInRange,
   editPoints,
   fitSpan,
+  isClipSelected,
   nextEditPoint,
   NO_SELECTION,
   prevEditPoint,
@@ -122,5 +123,47 @@ describe("fitSpan", () => {
     // A stale id is the same situation as no selection: there is nothing to frame.
     const p = scene();
     expect(fitSpan(p, { kind: "clips", clipIds: ["gone"] })).toEqual({ fromS: 0, toS: 8 });
+  });
+});
+
+describe("isClipSelected", () => {
+  it("selects a clip the range only partly covers — it moves and deletes in full", () => {
+    const p = scene();
+    const a = p.tracks[0].clips[0]; // 0-2
+    const range = { fromS: 1, toS: 6, trackIds: [p.tracks[0].id] };
+    expect(isClipSelected({ kind: "range", range }, p.tracks[0].id, a)).toBe(true);
+  });
+
+  it("ignores a clip on a track the range does not cover", () => {
+    const p = scene();
+    const b = p.tracks[1].clips[0]; // 3-4 on track B
+    const range = { fromS: 0, toS: 10, trackIds: [p.tracks[0].id] };
+    expect(isClipSelected({ kind: "range", range }, p.tracks[1].id, b)).toBe(false);
+  });
+
+  it("does not select a clip that merely touches the range's edge", () => {
+    const p = scene();
+    const a = p.tracks[0].clips[0]; // 0-2
+    const range = { fromS: 2, toS: 6, trackIds: [p.tracks[0].id] };
+    expect(isClipSelected({ kind: "range", range }, p.tracks[0].id, a)).toBe(false);
+  });
+
+  it("agrees with clipsInRange, which is the set the edits act on", () => {
+    const p = scene();
+    const range = { fromS: 1, toS: 6, trackIds: p.tracks.map((t) => t.id) };
+    const viaSet = new Set(clipsInRange(p, range));
+    for (const t of p.tracks) {
+      for (const c of t.clips) {
+        expect(isClipSelected({ kind: "range", range }, t.id, c)).toBe(viaSet.has(c.id));
+      }
+    }
+  });
+
+  it("falls back to plain id membership for a clip selection, and never selects for none", () => {
+    const p = scene();
+    const a = p.tracks[0].clips[0];
+    expect(isClipSelected({ kind: "clips", clipIds: [a.id] }, p.tracks[0].id, a)).toBe(true);
+    expect(isClipSelected({ kind: "clips", clipIds: [] }, p.tracks[0].id, a)).toBe(false);
+    expect(isClipSelected(NO_SELECTION, p.tracks[0].id, a)).toBe(false);
   });
 });

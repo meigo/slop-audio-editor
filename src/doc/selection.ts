@@ -1,4 +1,4 @@
-import { clipEndS, projectDurationS, type Project } from "./document";
+import { clipEndS, projectDurationS, type Clip, type Project } from "./document";
 
 export interface TimeRange {
   fromS: number;
@@ -12,18 +12,41 @@ export type Selection =
 
 export const NO_SELECTION: Selection = { kind: "none" };
 
+/** Whether a range covers a clip: on one of its tracks, and OVERLAPPING it — touching edges do
+ *  not count. The single definition of that rule; everything else asks this. */
+export function rangeCoversClip(range: TimeRange, trackId: string, clip: Clip): boolean {
+  if (!(range.toS > range.fromS)) return false;
+  if (!range.trackIds.includes(trackId)) return false;
+  return clip.startS < range.toS && clipEndS(clip) > range.fromS;
+}
+
 /** Every clip on the range's tracks that OVERLAPS it — touching edges do not count. */
 export function clipsInRange(p: Project, range: TimeRange): string[] {
-  if (!(range.toS > range.fromS)) return [];
-  const tracks = new Set(range.trackIds);
   const out: string[] = [];
   for (const t of p.tracks) {
-    if (!tracks.has(t.id)) continue;
     for (const c of t.clips) {
-      if (c.startS < range.toS && clipEndS(c) > range.fromS) out.push(c.id);
+      if (rangeCoversClip(range, t.id, c)) out.push(c.id);
     }
   }
   return out;
+}
+
+/**
+ * Whether a clip is part of what the current selection acts on.
+ *
+ * A RANGE selects the clips it covers, in full — `deleteRange`, a group drag and the context menu
+ * all act on exactly these (a clip the range only partly covers still moves or deletes whole,
+ * since a clip cannot be half-moved). So the outline has to say so too: before this, a range
+ * showed only its own wash, and the clip sticking out past its edge gave no hint that it was
+ * about to move with the rest.
+ *
+ * Takes the clip rather than the project so a component can ask about the one clip it draws,
+ * without building a set of every selected id on every render.
+ */
+export function isClipSelected(selection: Selection, trackId: string, clip: Clip): boolean {
+  if (selection.kind === "clips") return selection.clipIds.includes(clip.id);
+  if (selection.kind === "range") return rangeCoversClip(selection.range, trackId, clip);
+  return false;
 }
 
 /** Sorted, de-duplicated clip boundaries on the given tracks, always including 0. These are what

@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Clip } from "../doc/document";
-  import { clipsInRange } from "../doc/selection";
+  import { isClipSelected } from "../doc/selection";
   import { focusPanel, pool, setCurrentTrack, state as appState } from "../state/appState.svelte";
   import { startClipDrag } from "./clip-drag.svelte";
   import { armLongPress, endLongPress, moveLongPress } from "./long-press";
@@ -34,9 +34,10 @@
 
   const x = $derived(timeToPx(clip.startS, appState.scrollS, appState.pxPerSecond));
   const w = $derived(clip.durS * appState.pxPerSecond);
-  const selected = $derived(
-    appState.selection.kind === "clips" && appState.selection.clipIds.includes(clip.id),
-  );
+  // A RANGE selects the clips it covers, in full — the same set every edit acts on. Before this
+  // the outline only followed a clip selection, so a range showed its wash and nothing else, and
+  // a clip poking out past the wash's edge gave no hint it was about to move with the rest.
+  const selected = $derived(isClipSelected(appState.selection, trackId, clip));
   // A source can be missing (e.g. a project opened without its media): render a labelled clip
   // rather than throwing, so one bad clip does not take down the whole timeline.
   const name = $derived(pool.get(clip.sourceId)?.name ?? "missing audio");
@@ -66,11 +67,7 @@
    *  the selection is kept so the action applies to the whole group. That is what makes "select
    *  three, right-click, delete" work. */
   function selectForMenu() {
-    const sel = appState.selection;
-    const covered =
-      (sel.kind === "clips" && sel.clipIds.includes(clip.id)) ||
-      (sel.kind === "range" && clipsInRange(appState.project, sel.range).includes(clip.id));
-    if (!covered) appState.selection = { kind: "clips", clipIds: [clip.id] };
+    if (!selected) appState.selection = { kind: "clips", clipIds: [clip.id] };
     setCurrentTrack(trackId);
     focusPanel("clip");
   }
@@ -87,11 +84,7 @@
     // move every clip the range covers. Overwriting it here would collapse the selection to this
     // one clip before `startClipDrag` ever sees it, and the box you drew would move one clip.
     const sel = appState.selection;
-    if (
-      !additive &&
-      sel.kind === "range" &&
-      clipsInRange(appState.project, sel.range).includes(clip.id)
-    ) {
+    if (!additive && sel.kind === "range" && selected) {
       startClipDrag(e, clip.id, trackId, z);
       return;
     }
