@@ -154,6 +154,10 @@ export function startClipDrag(
  * calls `beginGesture`/`amend`/`endGesture` — it only ever assigns `appState.selection`.
  */
 export function startRangeDrag(e: PointerEvent, trackId: string): void {
+  // Primary button only. `pointerdown` fires for a RIGHT-click too, before `contextmenu` — so
+  // opening the lane menu used to clear the selection first, and every item the menu is there to
+  // offer (Delete, Cut, Copy) was greyed out by the act of opening it. Touch reports button 0.
+  if (e.button !== 0) return;
   const target = e.currentTarget as HTMLElement;
   const pointerId = e.pointerId;
   const rect = target.getBoundingClientRect();

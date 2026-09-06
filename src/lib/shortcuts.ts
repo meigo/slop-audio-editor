@@ -310,3 +310,47 @@ export const GESTURES: readonly GestureDoc[] = [
 export const GESTURE_GROUPS: readonly GestureDoc["group"][] = [
   ...new Set(GESTURES.map((g) => g.group)),
 ];
+
+/**
+ * Is this event aimed at something the user is TYPING into?
+ *
+ * `input` covers range sliders, checkboxes and buttons as well as text boxes, and the faders,
+ * band sliders, filter, pan and drive controls are all `type="range"`. Treating those as typing
+ * surfaces meant that after clicking or riding any of them — focus stays on a slider — Space, S,
+ * M and even undo silently did nothing. `NumberField` is a `type="text"` input and must keep
+ * blocking, which is why the test is on the TYPE rather than on the tag alone.
+ */
+export function isTypingTarget(el: {
+  tagName?: string;
+  type?: string;
+  isContentEditable?: boolean;
+}): boolean {
+  if (el.isContentEditable) return true;
+  const tag = (el.tagName ?? "").toUpperCase();
+  if (tag === "TEXTAREA" || tag === "SELECT") return true;
+  if (tag !== "INPUT") return false;
+  const type = (el.type ?? "text").toLowerCase();
+  return !NON_TYPING_INPUT_TYPES.has(type);
+}
+
+/** Input types that are controls, not text: a keystroke on one of these belongs to the app. */
+const NON_TYPING_INPUT_TYPES = new Set([
+  "range",
+  "checkbox",
+  "radio",
+  "button",
+  "submit",
+  "reset",
+  "color",
+  "file",
+]);
+
+/**
+ * May this command fire again from a held key's auto-repeat?
+ *
+ * Nudge and zoom are meant to repeat — that is how you walk a clip along. A toggle is not: holding
+ * Space used to call `togglePlay` on every repeat, so playback stuttered instead of starting.
+ */
+export function repeatsOnHold(kind: Command["kind"]): boolean {
+  return kind === "nudge" || kind === "zoom" || kind === "jumpEdit";
+}

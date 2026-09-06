@@ -483,8 +483,14 @@ export function resetSessionState(): void {
 }
 
 /** Copy, then paste at the playhead on the current track. Two undo entries, because that is what
- *  the two operations genuinely are — and the paste is the one worth undoing. */
+ *  the two operations genuinely are — and the paste is the one worth undoing.
+ *
+ *  The guard matches `copySelection`'s: without it, ⌘D on a time range (or on nothing) copied
+ *  nothing and pasted whatever was last on the clipboard — an edit the user never asked for, with
+ *  an undo entry to match. The context menu already disabled Duplicate for those selections; the
+ *  keyboard path did not. */
 export function duplicateSelection(): void {
+  if (state.selection.kind !== "clips" || state.selection.clipIds.length === 0) return;
   copySelection();
   pasteAtPlayhead();
 }

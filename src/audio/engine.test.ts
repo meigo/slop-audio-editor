@@ -1,15 +1,35 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createProject } from "../doc/document";
+import { createProject, FILTER_OFF, type Project } from "../doc/document";
+import { FILTER_HP_MIN_HZ } from "../lib/geometry";
 import type { Source, SourcePool } from "./pool";
 
 /** Minimal fakes for the slice of the Web Audio API `AudioEngine`/`renderPlan` touch. Real
  *  `AudioContext` is unavailable under Vitest's default (non-browser) environment, and
  *  `currentTime` needs to be directly controllable to test the schedule lead-in. */
 class FakeNode {
-  connect(_dest?: unknown, _output?: number): FakeNode {
+  disconnectCalls = 0;
+  connect(dest?: unknown, _output?: number): FakeNode {
+    // Record what ends up wired to the destination: `stop()` must let go of THAT node, whatever
+    // the master chain happens to end in.
+    if (dest instanceof FakeDestinationNode) dest.inputs.push(this);
     return this;
   }
-  disconnect(): void {}
+  disconnect(): void {
+    this.disconnectCalls++;
+  }
+}
+class FakeDestinationNode extends FakeNode {
+  inputs: FakeNode[] = [];
+}
+class FakeWaveShaperNode extends FakeNode {
+  curve: Float32Array | null = null;
+  oversample = "none";
+}
+class FakeBiquadNode extends FakeNode {
+  type = "";
+  frequency = { value: 0 };
+  gain = { value: 0 };
+  Q = { value: 0 };
 }
 class FakeGainNode extends FakeNode {
   gain = { value: 1, setValueCurveAtTime: (): void => {} };
@@ -48,7 +68,9 @@ class FakeBufferSourceNode extends FakeNode {
 }
 class FakeAudioContext {
   currentTime = 0;
-  destination = new FakeNode();
+  destination = new FakeDestinationNode();
+  shapers: FakeWaveShaperNode[] = [];
+  biquads: FakeBiquadNode[] = [];
   resume = vi.fn(async (): Promise<void> => {});
   createGain(): FakeGainNode {
     return new FakeGainNode();
@@ -63,6 +85,19 @@ class FakeAudioContext {
   }
   createChannelSplitter(): FakeChannelSplitterNode {
     return new FakeChannelSplitterNode();
+  }
+  createChannelMerger(): FakeNode {
+    return new FakeNode();
+  }
+  createWaveShaper(): FakeWaveShaperNode {
+    const n = new FakeWaveShaperNode();
+    this.shapers.push(n);
+    return n;
+  }
+  createBiquadFilter(): FakeBiquadNode {
+    const n = new FakeBiquadNode();
+    this.biquads.push(n);
+    return n;
   }
 }
 
@@ -173,6 +208,56 @@ describe("AudioEngine.peakLevel", () => {
     engine.play(createProject(), emptyPool(), 0, 10, new Set());
     fakeCtx.channelSignal = [1.4, 1.4];
     expect(engine.peakLevel()).toBeCloseTo(1.4, 6);
+    engine.stop();
+  });
+});
+
+/** A project whose MASTER chain runs past `masterGain`, so the graph's terminal node is not the
+ *  fader: saturation builds a waveshaper and the master filter a biquad. Master-bus nodes are
+ *  built whether or not any clip is scheduled, which a track's own filter is not — the track path
+ *  goes through the same `applyFilter`, and is exercised in a browser instead. */
+function shapedProject(): Project {
+  return { ...createProject(), saturation: 0.5, masterFilter: { kind: "highpass", hz: 500 } };
+}
+
+describe("AudioEngine.stop", () => {
+  it("lets go of the node wired to the destination, not just the master fader", () => {
+    // With Glue, saturation, mix fades, master EQ or the master filter on, `output !== masterGain`
+    // and that tail stays connected to the destination with no JS reference once `#graph` is
+    // dropped. Chrome keeps destination-connected nodes alive, so every reschedule leaked another
+    // master chain for the rest of the session.
+    const engine = new AudioEngine();
+    engine.play(shapedProject(), emptyPool(), 0, 10, new Set());
+    const terminal = fakeCtx.destination.inputs.at(-1)!;
+    expect(terminal).not.toBeUndefined();
+
+    engine.stop();
+    expect(terminal.disconnectCalls).toBeGreaterThan(0);
+  });
+});
+
+describe("AudioEngine live mix changes, turning something OFF", () => {
+  it("bypasses the waveshaper when drive returns to zero", () => {
+    // The node was BUILT this time round, so an early return leaves the last curve in the graph:
+    // preview keeps saturating while the document — and any export — says off.
+    const engine = new AudioEngine();
+    engine.play(shapedProject(), emptyPool(), 0, 10, new Set());
+    const shaper = fakeCtx.shapers.at(-1)!;
+    expect(shaper.curve).not.toBeNull();
+
+    engine.setSaturation(0);
+    expect(shaper.curve).toBeNull(); // a null curve IS the Web Audio bypass
+    engine.stop();
+  });
+
+  it("opens the filter fully when it returns to off", () => {
+    const engine = new AudioEngine();
+    engine.play(shapedProject(), emptyPool(), 0, 10, new Set());
+    const biquad = fakeCtx.biquads.at(-1)!;
+    expect(biquad.frequency.value).toBe(500);
+
+    engine.setMasterFilter(FILTER_OFF);
+    expect(biquad.frequency.value).toBe(FILTER_HP_MIN_HZ); // out of the way, not left at 500 Hz
     engine.stop();
   });
 });

@@ -255,6 +255,17 @@ describe("declick at a seam between contiguous clips", () => {
     expect(b.fadeIn).not.toBeNull();
   });
 
+  it("declicks a seam where one side carries a user fade — that IS a step", () => {
+    // A fade-out on the head takes it to silence at the cut while the tail starts at full level.
+    // The samples either side are still contiguous, so the old test (source, gain, speed) called
+    // the seam continuous and suppressed the tail's ramp.
+    const p = splitOnce();
+    const faded = setClipFade(p, p.tracks[0].clips[0].id, { fadeOutS: 1 });
+    const [a, b] = planSchedule(faded, 0, 100, NO_SOLO);
+    expect(a.fadeOut).not.toBeNull(); // its own fade, not a declick
+    expect(b.fadeIn).toMatchObject({ durS: DECLICK_S });
+  });
+
   it("declicks between two different sources butted together", () => {
     const base = createProject();
     let p = addClip(base, base.tracks[0].id, makeClip("a", 0, 15));

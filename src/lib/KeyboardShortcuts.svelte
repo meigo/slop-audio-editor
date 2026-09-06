@@ -23,18 +23,16 @@
     zoomToFit,
   } from "../state/appState.svelte";
   import { MAX_PX_PER_S, MIN_PX_PER_S } from "./geometry";
-  import { resolveShortcut } from "./shortcuts";
+  import { isTypingTarget, repeatsOnHold, resolveShortcut } from "./shortcuts";
 
   const { onSave }: { onSave: () => void } = $props();
 
-  /** A shortcut must never fire while the user is typing into the inspector or a rename field. */
-  function isTextTarget(t: EventTarget | null): boolean {
-    const el = t as HTMLElement | null;
-    return !!el && (el.tagName === "INPUT" || el.tagName === "SELECT" || el.isContentEditable);
-  }
-
   function onKeyDown(e: KeyboardEvent) {
-    if (isTextTarget(e.target)) return;
+    // A shortcut must never fire while the user is typing into the inspector or a rename field —
+    // but a slider is not a typing surface, and treating one as such killed every shortcut for as
+    // long as a fader kept focus. `isTypingTarget` is pure and tested.
+    const el = e.target as HTMLElement | null;
+    if (el && isTypingTarget(el)) return;
 
     // While ANY modal is up, the only keys that do anything are the ones that dismiss it. Editing
     // the project behind a dialog you cannot see the result through is not a feature — and the
@@ -54,6 +52,9 @@
 
     const cmd = resolveShortcut(e);
     if (!cmd) return;
+    // Auto-repeat from a held key drives nudge and zoom deliberately; a toggle it just stutters,
+    // and a held Space restarted playback dozens of times a second.
+    if (e.repeat && !repeatsOnHold(cmd.kind)) return;
     e.preventDefault();
 
     switch (cmd.kind) {

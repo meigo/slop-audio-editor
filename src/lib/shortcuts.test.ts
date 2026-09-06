@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   GESTURE_GROUPS,
   GESTURES,
+  isTypingTarget,
+  repeatsOnHold,
   resolveShortcut,
   SHORTCUTS,
   type KeyEventLike,
@@ -186,5 +188,43 @@ describe("GESTURES", () => {
 
   it("orders the groups by first appearance, with none left stranded", () => {
     expect(new Set(GESTURES.map((g) => g.group))).toEqual(new Set(GESTURE_GROUPS));
+  });
+});
+
+describe("isTypingTarget", () => {
+  it("blocks shortcuts for real text entry", () => {
+    expect(isTypingTarget({ tagName: "INPUT", type: "text" })).toBe(true);
+    expect(isTypingTarget({ tagName: "INPUT", type: "number" })).toBe(true);
+    expect(isTypingTarget({ tagName: "TEXTAREA" })).toBe(true);
+    expect(isTypingTarget({ tagName: "SELECT" })).toBe(true);
+    expect(isTypingTarget({ tagName: "DIV", isContentEditable: true })).toBe(true);
+  });
+
+  it("lets shortcuts through for sliders and other non-text inputs", () => {
+    // Every fader, band, filter, pan and drive control is a range input. Blocking on those meant
+    // Space stopped working the moment you touched the mixer.
+    expect(isTypingTarget({ tagName: "INPUT", type: "range" })).toBe(false);
+    expect(isTypingTarget({ tagName: "INPUT", type: "checkbox" })).toBe(false);
+    expect(isTypingTarget({ tagName: "BUTTON" })).toBe(false);
+    expect(isTypingTarget({ tagName: "DIV" })).toBe(false);
+  });
+
+  it("treats an input with no type as text, the HTML default", () => {
+    expect(isTypingTarget({ tagName: "input" })).toBe(true);
+  });
+});
+
+describe("repeatsOnHold", () => {
+  it("lets movement commands repeat", () => {
+    expect(repeatsOnHold("nudge")).toBe(true);
+    expect(repeatsOnHold("zoom")).toBe(true);
+  });
+
+  it("stops toggles repeating — a held Space stuttered playback", () => {
+    expect(repeatsOnHold("togglePlay")).toBe(false);
+    expect(repeatsOnHold("toggleMute")).toBe(false);
+    expect(repeatsOnHold("toggleSolo")).toBe(false);
+    expect(repeatsOnHold("toggleLoop")).toBe(false);
+    expect(repeatsOnHold("delete")).toBe(false);
   });
 });

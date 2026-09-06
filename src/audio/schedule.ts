@@ -104,6 +104,11 @@ export function playsContinuouslyInto(prev: Clip, next: Clip): boolean {
   return (
     prev.sourceId === next.sourceId &&
     prev.gain === next.gain &&
+    // A fade on either side of the seam is a real gain discontinuity: the head reaches silence at
+    // the cut while the tail starts at full level. The samples are still contiguous, which is
+    // exactly why this has to be checked separately from `sourceId`.
+    prev.fadeOutS === 0 &&
+    next.fadeInS === 0 &&
     // Two halves at DIFFERENT speeds are a genuine discontinuity in pitch, so they get their
     // declick ramps even though the samples are adjacent.
     prev.speed === next.speed &&

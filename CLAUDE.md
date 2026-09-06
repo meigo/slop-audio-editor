@@ -179,6 +179,21 @@ from "./state/appState.svelte"`.** Importing it as bare `state` collides with th
    sources that no longer exist — one bad import would destroy the whole open session, including
    its own autosave backup.
 
+7b. **A live "mix" setter must handle the value going back to NEUTRAL, not just changing.**
+    `setSaturation` and the filter setters used to return early when the new value was off/zero —
+    but the early return is only correct when NO node was built at schedule time. When one WAS
+    built, returning left the last curve or corner in the graph while the document (and any
+    export) said off: the preview/export divergence everything else here exists to prevent. A
+    waveshaper bypasses with `curve = null`; a biquad has no true bypass once wired in, so
+    `applyFilter` parks the corner at the far end of its own travel (20 Hz high-pass, 20 kHz
+    low-pass) and the next reschedule builds no node at all. EQ and pan never had the hole,
+    because writing 0 dB / centre gains is already neutral.
+    `stop()` disconnects `graph.output`, not just `masterGain`. `output` is whatever ends the
+    master chain — the fader when nothing is on, otherwise Glue's trim, the saturator or a
+    mix-fade gain — and it is the node wired to the destination. Chrome keeps destination-connected
+    nodes alive, so dropping `#graph` without disconnecting it leaked a whole master chain on
+    every reschedule.
+
 8. **Gesture classes decide whether a commit reschedules playback, and mute/solo deliberately
    don't use the non-rescheduling path.** `beginGesture()` (default, "structural") reschedules
    playback on `endGesture()`; `beginGesture("mix")` does not, so a fader can be ridden live during
@@ -651,6 +666,12 @@ command}` that `HelpOverlay.svelte` renders. `resolveShortcut` was deliberately 
     documented. A switch statement cannot be reflected over; sweeping is what makes this
     detectable at all. It works: the first draft of the table lumped cut/copy/paste into one row
     and (b) failed with two undocumented commands.
+    `isTypingTarget` and `repeatsOnHold` live beside the parser and are tested with it. The first
+    exists because every fader, band, filter, pan and drive control is an `input type="range"`:
+    blocking shortcuts for every INPUT meant that after touching the mixer — focus stays on the
+    slider — Space, M, S and undo silently did nothing. The second because a held key auto-repeats,
+    which is right for nudge and zoom and wrong for a toggle: a held Space restarted playback
+    dozens of times a second.
     What NO test can catch is a wrong `label` — "Undo" written next to ⌘Y. That stays on the
     author.
     The overlay opens on `?` (a normal `showHelp` command, so its own key is documented like
@@ -802,6 +823,11 @@ command}` that `HelpOverlay.svelte` renders. `resolveShortcut` was deliberately 
     kept, so "select three, right-click, delete" works. `contextItems` and `clampMenuPosition` are
     pure and unit-tested; the menu FLIPS to the other side of the pointer at a viewport edge
     rather than sliding along it, because sliding leaves it covering the clip that was clicked.
+    `startRangeDrag` ignores non-primary buttons. `pointerdown` fires for a RIGHT-click too, before
+    `contextmenu`, so opening the lane menu cleared the selection first and greyed out every item
+    it exists to offer. `duplicateSelection` carries the same guard `copySelection` does, or ⌘D on
+    a time range pasted whatever was last on the clipboard — an edit nobody asked for, with an
+    undo entry to match.
     Long-press (500 ms, cancelled by 8 px of movement) opens it on touch. That same pointerdown
     also starts a clip drag, which is deliberately left running: a drag that never moves commits
     nothing, thanks to the exact-equality no-op guards in `edits.ts`, and a cancel path through

@@ -3,8 +3,8 @@ import { getAudioContext } from "./context";
 import type { SourcePool } from "./pool";
 import { renderPlan, SCHEDULE_LEAD_S, type RenderedGraph } from "./render";
 import { peakAmplitude } from "./peak";
-import { panGains } from "../lib/geometry";
 import { planSchedule } from "./schedule";
+import { FILTER_HP_MIN_HZ, FILTER_LP_MAX_HZ, panGains } from "../lib/geometry";
 import { saturationCurve } from "./saturation";
 
 /** The app always renders stereo: `AudioContext`'s default destination, and
@@ -134,6 +134,11 @@ export class AudioEngine {
       s.disconnect();
     }
     this.#graph.masterGain.disconnect();
+    // `output` is whatever ends the master chain — the fader itself when nothing is on, otherwise
+    // Glue's trim, the saturator or a mix-fade gain. Only that node is wired to the destination,
+    // and Chrome keeps destination-connected nodes alive: dropping `#graph` without this left a
+    // whole master chain behind on every reschedule, for the rest of the session.
+    this.#graph.output.disconnect();
     this.#splitter?.disconnect();
     for (const a of this.#analysers) a.disconnect();
     this.#splitter = null;
@@ -176,9 +181,8 @@ export class AudioEngine {
    *  sweeping across from high-pass to low-pass needs no new node. */
   setTrackFilter(trackId: string, filter: TrackFilter): void {
     const node = this.#graph?.trackFilters.get(trackId);
-    if (!node || filter.kind === "off") return;
-    node.type = filter.kind;
-    node.frequency.value = filter.hz;
+    if (!node) return; // nothing was built this time round; the next reschedule will build it
+    applyFilter(node, filter);
   }
 
   /** Live pan sweep, like the EQ and filter. Does nothing when the track was CENTRED at schedule
@@ -196,18 +200,17 @@ export class AudioEngine {
    *  schedule time, because no node was built then. */
   setMasterFilter(filter: TrackFilter): void {
     const node = this.#graph?.masterFilter;
-    if (!node || filter.kind === "off") return;
-    node.type = filter.kind;
-    node.frequency.value = filter.hz;
+    if (!node) return;
+    applyFilter(node, filter);
   }
 
-  /** Live saturation change. Like the EQ and filters, does nothing when saturation was OFF at
-   *  schedule time, since no waveshaper was built then. */
+  /** Live saturation change. Does nothing when saturation was OFF at schedule time, since no
+   *  waveshaper was built then — but when one WAS built, returning to zero must bypass it rather
+   *  than leave the last curve in place. A null curve is the Web Audio bypass. */
   setSaturation(amount: number): void {
     const node = this.#graph?.saturator;
-    const curve = saturationCurve(amount);
-    if (!node || !curve) return;
-    node.curve = curve;
+    if (!node) return;
+    node.curve = saturationCurve(amount);
   }
 
   setMasterGain(gain: number): void {
@@ -223,4 +226,24 @@ export class AudioEngine {
     }
     return peakAmplitude(this.#meterBufs);
   }
+}
+
+/**
+ * Write a filter setting onto a retained biquad, INCLUDING "off".
+ *
+ * A biquad's `type` can change in place, so a sweep across the centre needs no new node. Off is
+ * the case that used to early-return: the node existed, so the graph kept the last corner while
+ * the document — and any export — said off, which is the preview/export divergence the rest of
+ * this file exists to avoid. There is no true bypass for a node already wired in, so the corner
+ * goes to the far end of its own travel: at 20 Hz a high-pass and at 20 kHz a low-pass are within
+ * a fraction of a dB of flat across the audible band, and the next reschedule builds no node at
+ * all.
+ */
+function applyFilter(node: BiquadFilterNode, filter: TrackFilter): void {
+  if (filter.kind === "off") {
+    node.frequency.value = node.type === "lowpass" ? FILTER_LP_MAX_HZ : FILTER_HP_MIN_HZ;
+    return;
+  }
+  node.type = filter.kind;
+  node.frequency.value = filter.hz;
 }
