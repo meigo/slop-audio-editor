@@ -259,12 +259,17 @@ export function isInView(
 /**
  * The scroll that keeps a running playhead on screen, or null when nothing should change.
  *
- * PAGE flip, not continuous scroll: the view jumps one screen when the playhead crosses the right
- * edge, and otherwise holds still — cheaper, nothing drifts, and it does not fight the user's own
+ * PAGE flip, not continuous scroll: the view jumps one screen when the playhead crosses an edge,
+ * and otherwise holds still — cheaper, nothing drifts, and it does not fight the user's own
  * scrolling while they audition. That last part is what `wasInView` carries: the flip only fires
- * when the playhead was in view a moment ago and is now past the right edge, i.e. it CROSSED. A
- * playhead that is off-screen because the user scrolled away stays off-screen — the view is
- * theirs until the playhead comes back to it.
+ * when the playhead was in view a moment ago and is not now, i.e. it CROSSED. A playhead that is
+ * off-screen because the user scrolled away stays off-screen — the view is theirs until the
+ * playhead comes back to it.
+ *
+ * EITHER edge. Forward is the ordinary case; backward is a loop restart, which jumps the playhead
+ * from the end of the range to its start — behind the view after a few flips. Handling only the
+ * right edge left the playhead off-screen for every cycle after the first, and `wasInView` then
+ * stayed false, so it never came back.
  */
 export function pageFlipScroll(
   playheadS: number,
@@ -274,7 +279,7 @@ export function pageFlipScroll(
   wasInView: boolean,
 ): number | null {
   if (!wasInView) return null;
-  if (timeToPx(playheadS, scrollS, pxPerSecond) <= widthPx) return null;
+  if (isInView(playheadS, scrollS, pxPerSecond, widthPx)) return null;
   return Math.max(0, playheadS - PAGE_FLIP_MARGIN_PX / pxPerSecond);
 }
 

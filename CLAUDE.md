@@ -542,7 +542,10 @@ spin forever.
 24b. **The view follows a running playhead by PAGE FLIP, decided by a pure function, and the
     wiring cannot be verified from this harness.** `pageFlipScroll` (`geometry.ts`) returns a new
     scroll only when the playhead was in view a frame ago and is now past the right edge — it
-    CROSSED — and lands it `PAGE_FLIP_MARGIN_PX` in from the left. A playhead that is off-screen
+    CROSSED, in EITHER direction — and lands it `PAGE_FLIP_MARGIN_PX` in from the left. Backward
+    is a loop restart: the playhead jumps from the end of the range to its start, behind the view
+    after a few flips, and handling only the right edge left it off-screen for every cycle after
+    the first (found by the user on the first try). A playhead that is off-screen
     because the user scrolled away stays off-screen: the view is theirs until the playhead comes
     back to it, which is what keeps auto-scroll from fighting a manual one. Page flip rather than
     continuous scroll because nothing drifts and the picture holds still while you audition.

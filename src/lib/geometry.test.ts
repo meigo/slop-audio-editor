@@ -573,6 +573,19 @@ describe("pageFlipScroll", () => {
     expect(pageFlipScroll(5, 0, 100, 1000, true)).toBeNull();
   });
 
+  it("follows a loop restart back to the loop start — a crossing of the LEFT edge", () => {
+    // Looping jumps the playhead from the end of the range to its start, which is behind the view
+    // after a few flips. That is a crossing too: it was in view a frame ago and now is not.
+    // Handling only the right edge left the playhead off-screen for every cycle after the first.
+    const next = pageFlipScroll(2, 20, 100, 1000, true);
+    expect(next).not.toBeNull();
+    expect(timeToPx(2, next!, 100)).toBeCloseTo(PAGE_FLIP_MARGIN_PX, 6);
+  });
+
+  it("lands a loop start near zero at zero", () => {
+    expect(pageFlipScroll(0, 20, 100, 1000, true)).toBe(0);
+  });
+
   it("does not fight a manual scroll — a playhead already out of view stays out", () => {
     // The user scrolled away to look at something; the view stays until the playhead next
     // CROSSES the right edge, which it cannot do from outside.
