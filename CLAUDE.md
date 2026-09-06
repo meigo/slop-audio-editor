@@ -496,7 +496,11 @@ spin forever.
     into the middle of audio is the same discontinuity). `declickSpec` caps the ramp at half the
     audible span, because a clip may be as short as `MIN_CLIP_S` (10 ms) — only two declicks long
     — and the existing one-sample-gap guard then keeps the two spans from touching, which
-    `setValueCurveAtTime` throws on.
+    `setValueCurveAtTime` throws on. The `MIN_CLIP_S` floor never wins over a NEIGHBOUR: a clip
+    already under the floor (only a sub-10 ms import makes one) sits butted against the next, and
+    `setClipSpeed`/`trimClipEnd` applied the floor after the neighbour clamp, growing it straight
+    into that clip. Non-overlap is the invariant everything else stands on; the floor is a
+    courtesy.
     A seam only counts as joined when the OTHER half is actually IN the render window: the window
     is half-open, so a neighbour that merely touches `fromS`/`toS` is never scheduled, and
     suppressing the ramp against audio that will not play is how a split — with the playhead left
@@ -534,6 +538,22 @@ spin forever.
     the right of the Inspector and stays visible when no clip is selected.
     Measured through `mixdown`: mid −9 dB reads exactly −9.00 dB at 1200 Hz with the other bands
     within 0.23 dB, and returning to flat restores 0.00 dB exactly.
+
+24b. **The view follows a running playhead by PAGE FLIP, decided by a pure function, and the
+    wiring cannot be verified from this harness.** `pageFlipScroll` (`geometry.ts`) returns a new
+    scroll only when the playhead was in view a frame ago and is now past the right edge — it
+    CROSSED — and lands it `PAGE_FLIP_MARGIN_PX` in from the left. A playhead that is off-screen
+    because the user scrolled away stays off-screen: the view is theirs until the playhead comes
+    back to it, which is what keeps auto-scroll from fighting a manual one. Page flip rather than
+    continuous scroll because nothing drifts and the picture holds still while you audition.
+    `Playhead.svelte`'s frame loop reads `wasInView` BEFORE advancing the position; that order is
+    the whole mechanism. The loop is `requestAnimationFrame`, which is frozen in a background tab
+    (the same reason the meter cannot be watched here), and the MCP tab is background — so the
+    four lines of wiring rest on the pure function's tests and a read-through, not on a browser.
+    Keyboard zoom (`+`/`−`) anchors on the playhead when it is on screen, else the view's centre,
+    through `pinchUpdate` — the same arithmetic as the two-finger gesture with a spread ratio of
+    the zoom factor. It used to anchor at the left edge, which zoomed the thing you were looking
+    at out of view.
 
 25. **Colour comes from the shared slop palette, and component markup names ROLES, never hexes.**
     `src/app.css` declares the roles as Tailwind `@theme` `--color-*` tokens — `ground`, `panel`,
@@ -800,6 +820,14 @@ command}` that `HelpOverlay.svelte` renders. `resolveShortcut` was deliberately 
     the trigger to dismiss counts as "outside" and the menu closes and instantly reopens; it
     listens in the CAPTURE phase because the timeline's own pointer handlers stop propagation.
 
+36b. **32-bit float WAV carries the non-PCM header: an 18-byte `fmt` with `cbSize` 0 and a
+    `fact` chunk, so its samples start at `FLOAT_DATA_OFFSET` (58), not 44.** IEEE float is a
+    non-PCM format and the spec asks for both; most readers shrug at the PCM-style 44-byte header,
+    strict ones refuse the file. 16-bit keeps its 44 bytes.
+    `setOut` on a project that has SHRUNK under an existing range pulls `fromS` down with `toS`
+    rather than inverting the range, and gives the range up when the project cannot hold one —
+    in/out markers are session state and are not reconciled when clips are deleted.
+
 37. **16-bit WAV export is dithered, and the same change had to fix that it TRUNCATED.**
     `setInt16` truncates toward zero on its own, so `encodeWav` biased every sample toward silence
     by up to a full LSB and collapsed everything below one LSB to code 0 — a deadband that is the
@@ -857,7 +885,12 @@ command}` that `HelpOverlay.svelte` renders. `resolveShortcut` was deliberately 
     live in `appState` so the keyboard and the menu cannot drift. `deleteClips`/`deleteRange` were
     reachable only from `KeyboardShortcuts.svelte`'s switch, which meant a clip could not be
     deleted on a device without a keyboard — the app could import, arrange, mix and export, but not
-    remove anything. `deleteSelection` and `duplicateSelection` moved into `appState` FIRST, and
+    remove anything. a `commit` that lands INSIDE an open gesture — Delete pressed mid-drag — closes the
+    gesture first and reopens it after, so what the drag had done so far, the keyboard edit, and
+    the rest of the drag are three entries in chronological order (recording the drag's base after
+    the edit put them out of order: the first undo restored the pre-drag state and the second
+    undid the edit into a mid-drag snapshot). `deleteSelection` and `duplicateSelection` moved
+    into `appState` FIRST, and
     the keyboard path now calls them; a second implementation behind the menu is exactly the kind
     of copy that drifts.
     Items are DISABLED, never hidden: a menu that changes shape between openings moves its own
