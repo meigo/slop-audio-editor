@@ -1,5 +1,11 @@
 <script lang="ts">
-  import { setPlayIn, setPlayOut, seekTo, state as appState } from "../state/appState.svelte";
+  import {
+    reschedulePlayback,
+    setPlayIn,
+    setPlayOut,
+    seekTo,
+    state as appState,
+  } from "../state/appState.svelte";
   import { formatTime, pxToTime, rulerTicks, timeToPx } from "./geometry";
   import { hitTestRuler } from "./hit-test";
 
@@ -42,10 +48,13 @@
     );
     el!.setPointerCapture(e.pointerId);
 
+    // A marker drag moves the range on every pointermove but reschedules playback ONCE, on
+    // release: rebuilding the graph per move stuttered for the whole drag. Seeking keeps its
+    // per-move restart — following the pointer IS what scrubbing means.
     function apply(clientX: number) {
       const atS = timeAtClientX(clientX);
-      if (zone === "in") setPlayIn(atS);
-      else if (zone === "out") setPlayOut(atS);
+      if (zone === "in") setPlayIn(atS, false);
+      else if (zone === "out") setPlayOut(atS, false);
       else seekTo(atS);
     }
 
@@ -62,6 +71,7 @@
     // marker) with no button down. `clip-drag` has documented the same failure for a while.
     function onUp(ev: PointerEvent) {
       if (ev.pointerId !== e.pointerId) return;
+      if (zone !== "seek") reschedulePlayback();
       if (el?.hasPointerCapture(ev.pointerId)) el.releasePointerCapture(ev.pointerId);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);

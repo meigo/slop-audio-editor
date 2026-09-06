@@ -32,7 +32,10 @@ describe("statusSummary", () => {
   });
 
   it("reports a time range with its duration", () => {
-    const sel = { kind: "range" as const, range: { fromS: 1, toS: 3.5, trackIds: ["t"] } };
+    const sel = {
+      kind: "range" as const,
+      range: { fromS: 1, toS: 3.5, trackIds: [twoTracks.tracks[0].id] },
+    };
     expect(statusSummary(twoTracks, sel, null)).toContain("00:01.000–00:03.500 (2.500 s)");
   });
 
@@ -40,8 +43,18 @@ describe("statusSummary", () => {
   // and it is easy to paint by accident with a stray drag on a lane. The status line names it,
   // mirroring the "in/out" label on the markers that look similar but never reach a file.
   it("labels a range selection as the export window", () => {
-    const sel = { kind: "range" as const, range: { fromS: 1, toS: 3.5, trackIds: ["t"] } };
+    const sel = {
+      kind: "range" as const,
+      range: { fromS: 1, toS: 3.5, trackIds: [twoTracks.tracks[0].id] },
+    };
     expect(statusSummary(twoTracks, sel, null)).toContain("export 00:01.000–00:03.500");
+  });
+
+  it("does not call a range the export window when none of its tracks exist", () => {
+    // `exportWindow` ignores such a range; saying "export 1–3.5" here would describe a window the
+    // export does not use.
+    const sel = { kind: "range" as const, range: { fromS: 1, toS: 3.5, trackIds: ["gone"] } };
+    expect(statusSummary(twoTracks, sel, null)).not.toContain("export");
   });
 
   it("does not call a clip selection an export window — it does not bound the export", () => {

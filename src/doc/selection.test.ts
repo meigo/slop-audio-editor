@@ -6,6 +6,7 @@ import {
   editPoints,
   fitSpan,
   isClipSelected,
+  liveRange,
   nextEditPoint,
   NO_SELECTION,
   prevEditPoint,
@@ -165,5 +166,26 @@ describe("isClipSelected", () => {
     expect(isClipSelected({ kind: "clips", clipIds: [a.id] }, p.tracks[0].id, a)).toBe(true);
     expect(isClipSelected({ kind: "clips", clipIds: [] }, p.tracks[0].id, a)).toBe(false);
     expect(isClipSelected(NO_SELECTION, p.tracks[0].id, a)).toBe(false);
+  });
+});
+
+describe("liveRange", () => {
+  it("returns the range while any of its tracks still exists", () => {
+    const p = scene();
+    const range = { fromS: 1, toS: 2, trackIds: [p.tracks[0].id, "gone"] };
+    expect(liveRange(p, { kind: "range", range })).toBe(range);
+  });
+
+  it("returns null for a range none of whose tracks exist — it is no window at all", () => {
+    // Session state outlives the track it was drawn on. Three readers used to decide this
+    // separately: the export ignored such a range, the status line still called it the export
+    // window, and the dialog still said "Selection".
+    const range = { fromS: 1, toS: 2, trackIds: ["gone"] };
+    expect(liveRange(scene(), { kind: "range", range })).toBeNull();
+  });
+
+  it("returns null for a clip selection or none", () => {
+    expect(liveRange(scene(), { kind: "clips", clipIds: ["x"] })).toBeNull();
+    expect(liveRange(scene(), NO_SELECTION)).toBeNull();
   });
 });

@@ -1,4 +1,10 @@
-import { projectDurationS, type EqBands, type Project, type TrackFilter } from "../doc/document";
+import {
+  isFlatEq,
+  projectDurationS,
+  type EqBands,
+  type Project,
+  type TrackFilter,
+} from "../doc/document";
 import { getAudioContext } from "./context";
 import type { SourcePool } from "./pool";
 import { renderPlan, SCHEDULE_LEAD_S, type RenderedGraph } from "./render";
@@ -145,6 +151,31 @@ export class AudioEngine {
     this.#analysers = [];
     this.#meterBufs = [];
     this.#graph = null;
+  }
+
+  /**
+   * Does the document now ask for a node this graph never built?
+   *
+   * Every live setter below writes onto a RETAINED node and does nothing when there is none —
+   * which is right while the setting was neutral at schedule time, since neutral builds nothing.
+   * It stops being right the moment the setting leaves neutral: nothing is there to receive it.
+   * `endGesture` asks this on release of a "mix" gesture and reschedules once if so. Only tracks
+   * that HAVE nodes are considered — a track with nothing in the window built nothing and never
+   * will, and treating it as stale would rebuild on every release.
+   */
+  needsRebuild(project: Project): boolean {
+    const g = this.#graph;
+    if (!g) return false;
+    if (!isFlatEq(project.masterEq) && !g.masterEq) return true;
+    if (project.masterFilter.kind !== "off" && !g.masterFilter) return true;
+    if (project.saturation > 0 && !g.saturator) return true;
+    for (const t of project.tracks) {
+      if (!g.trackGains.has(t.id)) continue;
+      if (!isFlatEq(t.eq) && !g.trackEqs.has(t.id)) return true;
+      if (t.filter.kind !== "off" && !g.trackFilters.has(t.id)) return true;
+      if (t.pan !== 0 && !g.trackPans.has(t.id)) return true;
+    }
+    return false;
   }
 
   /** Live mix change — no rescheduling. */

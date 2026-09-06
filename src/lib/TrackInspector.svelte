@@ -107,7 +107,7 @@
       />
       <PanSlider
         pan={track.pan}
-        title="Stereo position. Equal power, so the perceived level stays the same as it moves — centre sits at −3 dB on both sides."
+        title="Stereo position. Constant power as it moves, with centre at unity — so hard left or right lands +3 dB in that channel, which the meter shows."
         onInput={onPan}
         onCommit={onBandCommit}
       />

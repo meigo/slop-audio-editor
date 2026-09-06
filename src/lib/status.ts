@@ -1,6 +1,6 @@
 import { projectDurationS, type Project } from "../doc/document";
 import type { PlayRange } from "../doc/play-range";
-import type { Selection } from "../doc/selection";
+import { liveRange, type Selection } from "../doc/selection";
 import { formatTime } from "./geometry";
 
 const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? "" : "s"}`;
@@ -20,13 +20,17 @@ export function statusSummary(
 
   if (selection.kind === "clips" && selection.clipIds.length > 0) {
     parts.push(`${plural(selection.clipIds.length, "clip")} selected`);
-  } else if (selection.kind === "range") {
+  } else {
     // Named, not just measured. A range is painted by dragging on a lane — easy to do by
     // accident — and it is the only state that silently changes what an export CONTAINS
     // (`exportWindow`). Without the word the line reported two bare timecodes and left the user
-    // to guess which of them bounded a file.
-    const { fromS, toS } = selection.range;
-    parts.push(`export ${formatTime(fromS)}–${formatTime(toS)} (${(toS - fromS).toFixed(3)} s)`);
+    // to guess which of them bounded a file. `liveRange`, the same test `exportWindow` makes, so
+    // a range whose track was deleted is not called an export window that the export ignores.
+    const range = liveRange(project, selection);
+    if (range) {
+      const { fromS, toS } = range;
+      parts.push(`export ${formatTime(fromS)}–${formatTime(toS)} (${(toS - fromS).toFixed(3)} s)`);
+    }
   }
 
   if (playRange) parts.push(`in/out ${formatTime(playRange.fromS)}–${formatTime(playRange.toS)}`);

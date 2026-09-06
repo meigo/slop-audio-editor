@@ -261,3 +261,42 @@ describe("AudioEngine live mix changes, turning something OFF", () => {
     engine.stop();
   });
 });
+
+describe("AudioEngine.needsRebuild", () => {
+  it("is false while nothing is playing, and false for a graph that matches the document", () => {
+    const engine = new AudioEngine();
+    expect(engine.needsRebuild(shapedProject())).toBe(false);
+    engine.play(shapedProject(), emptyPool(), 0, 10, new Set());
+    expect(engine.needsRebuild(shapedProject())).toBe(false);
+    engine.stop();
+  });
+
+  it("is true once the document asks for a master node the graph never built", () => {
+    // Neutral builds nothing, so sweeping the master EQ away from flat during playback had no
+    // biquad to write onto — and a "mix" gesture never rescheduled, so the sweep was inaudible
+    // until the next play.
+    const engine = new AudioEngine();
+    engine.play(createProject(), emptyPool(), 0, 10, new Set());
+    const shaped: Project = { ...createProject(), masterEq: { lowDb: 3, midDb: 0, highDb: 0 } };
+    expect(engine.needsRebuild(shaped)).toBe(true);
+    expect(engine.needsRebuild({ ...createProject(), saturation: 0.3 })).toBe(true);
+    expect(
+      engine.needsRebuild({ ...createProject(), masterFilter: { kind: "lowpass", hz: 800 } }),
+    ).toBe(true);
+    engine.stop();
+  });
+
+  it("ignores a track that built no nodes at all", () => {
+    // No clip in the window means no track chain; asking for its EQ is not a missing node, and
+    // treating it as one would rebuild on every release forever.
+    const engine = new AudioEngine();
+    const p = createProject();
+    engine.play(p, emptyPool(), 0, 10, new Set());
+    const withEq: Project = {
+      ...p,
+      tracks: p.tracks.map((t) => ({ ...t, eq: { lowDb: 6, midDb: 0, highDb: 0 } })),
+    };
+    expect(engine.needsRebuild(withEq)).toBe(false);
+    engine.stop();
+  });
+});

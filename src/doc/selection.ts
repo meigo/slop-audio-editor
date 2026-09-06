@@ -101,3 +101,20 @@ export function fitSpan(p: Project, selection: Selection): { fromS: number; toS:
   }
   return { fromS: 0, toS: projectDurationS(p) };
 }
+
+/**
+ * The time-range selection, or null when there is none — including a range none of whose tracks
+ * still exist.
+ *
+ * A range is session state and outlives the document it was drawn on (delete the track it sits
+ * on, and it is still "selected"). Everything that reads a range as a TIME WINDOW must agree on
+ * whether such a range counts: the export window ignored it while the status line still called it
+ * the export and the dialog still labelled it "Selection" — three readers, two answers. This is
+ * the one answer. `RangeOverlay` needs no special case: it draws per live track, so a dead range
+ * already draws nothing, which is exactly why the disagreement was invisible.
+ */
+export function liveRange(p: Project, selection: Selection): TimeRange | null {
+  if (selection.kind !== "range") return null;
+  const live = new Set(p.tracks.map((t) => t.id));
+  return selection.range.trackIds.some((id) => live.has(id)) ? selection.range : null;
+}

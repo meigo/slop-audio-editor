@@ -10,6 +10,7 @@
   import { measureMix, normaliseBuffer, NORMALISE_TARGETS } from "../export/normalise";
   import { limitBuffer } from "../export/limiter";
   import { mixdown } from "../export/mixdown";
+  import { liveRange } from "../doc/selection";
   import { pool, state as appState } from "../state/appState.svelte";
   import { formatTime } from "./geometry";
 
@@ -66,7 +67,9 @@
   let reductionDb = $state<number | null>(null);
 
   const range = $derived(exportWindow(appState.project, appState.selection));
-  const isSelection = $derived(appState.selection.kind === "range");
+  // The same test `exportWindow` makes, or the label could say "Selection" over a whole-project
+  // window when the selected range's track has been deleted.
+  const isSelection = $derived(liveRange(appState.project, appState.selection) !== null);
 
   async function run() {
     busy = true;

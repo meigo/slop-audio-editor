@@ -1,5 +1,5 @@
 import { projectDurationS, type Project } from "../doc/document";
-import type { Selection } from "../doc/selection";
+import { liveRange, type Selection } from "../doc/selection";
 
 export type ExportFormat = "wav16" | "wav32" | "mp3" | "m4a" | "webm";
 
@@ -28,23 +28,12 @@ export const FORMAT_MIME: Record<ExportFormat, string> = {
 };
 
 /** The export range: the time-range selection if there is one, otherwise the whole project.
- *  A CLIP selection is not a time range and does not narrow the export.
- *
- *  A range naming no track that still exists is treated as no range at all. The selection is
- *  session state and outlives the document it was drawn on (`resetSessionState` clears it on
- *  Open and New, and this is the belt to that pair of braces): one carried over from another
- *  project would narrow this export to a window the user cannot even see, since `RangeOverlay`
- *  matches the same dead ids and draws nothing. Resolving id-keyed session state at the point of
- *  USE is the rule `activeSoloed` already follows. */
+ *  A CLIP selection is not a time range and does not narrow the export, and a range naming no
+ *  live track is no range at all — `liveRange` is the one place that rule lives, shared with the
+ *  status line and the export dialog so the three cannot disagree. */
 export function exportWindow(p: Project, selection: Selection): { fromS: number; toS: number } {
-  if (selection.kind === "range" && selection.range.trackIds.some((id) => hasTrack(p, id))) {
-    return { fromS: selection.range.fromS, toS: selection.range.toS };
-  }
-  return { fromS: 0, toS: projectDurationS(p) };
-}
-
-function hasTrack(p: Project, trackId: string): boolean {
-  return p.tracks.some((t) => t.id === trackId);
+  const range = liveRange(p, selection);
+  return range ? { fromS: range.fromS, toS: range.toS } : { fromS: 0, toS: projectDurationS(p) };
 }
 
 export function exportFilename(projectName: string, ext: string): string {

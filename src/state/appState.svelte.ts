@@ -196,7 +196,12 @@ export function endGesture(): void {
   if (gestureBase && gestureBase !== state.project) {
     history = record(history, gestureBase);
     state.dirty = true;
-    if (gestureKind === "structural") restartIfPlaying();
+    // A "mix" gesture never reschedules — unless it turned something on that the graph has no
+    // node for. Neutral builds nothing (a flat EQ, a centred pan, a filter that is off, zero
+    // drive), so sweeping away from neutral while playing had nowhere to write and was inaudible
+    // until the next play: from the user's seat, a knob that did nothing. One rebuild on release
+    // is the cost; the sweep itself stays dropout-free.
+    if (gestureKind === "structural" || engine.needsRebuild(state.project)) restartIfPlaying();
   }
   gestureBase = null;
   gestureKind = "structural";
@@ -277,14 +282,25 @@ export function togglePlay(): void {
 /** Move (or create) the IN marker to `atS` (the playhead by default — the shortcut calls this
  *  with no argument; `Ruler`'s drag passes the pointer position instead). Reschedules if playing,
  *  so a marker moved mid-playback takes effect immediately rather than only on the next play. */
-export function setPlayIn(atS: number = state.playheadS): void {
+export function setPlayIn(atS: number = state.playheadS, restart = true): void {
   state.playRange = setIn(state.playRange, atS, projectDurationS(state.project));
-  restartIfPlaying();
+  if (restart) restartIfPlaying();
 }
 
-/** Move (or create) the OUT marker to `atS`. See `setPlayIn`. */
-export function setPlayOut(atS: number = state.playheadS): void {
+/** Move (or create) the OUT marker to `atS`. See `setPlayIn`.
+ *
+ *  `restart = false` is for a DRAG: the ruler calls this on every pointermove, and rescheduling
+ *  per move rebuilt the whole graph — each rebuild with its 50 ms lead — so dragging a marker
+ *  during playback stuttered for the length of the drag. The drag reschedules once, on release,
+ *  through `reschedulePlayback`. */
+export function setPlayOut(atS: number = state.playheadS, restart = true): void {
   state.playRange = setOut(state.playRange, atS, projectDurationS(state.project));
+  if (restart) restartIfPlaying();
+}
+
+/** Rebuild the playback graph from the current position, if playing. For a gesture that changed
+ *  the schedule without rescheduling per step — a marker drag. */
+export function reschedulePlayback(): void {
   restartIfPlaying();
 }
 
@@ -367,7 +383,13 @@ export async function importFiles(
       // reload. Both callers of `importFiles` — drag-and-drop in App.svelte and the toolbar's
       // "Import audio" button — await it inside a try/catch and surface the failure visibly.
       await putSource({ id: source.id, name: source.name, bytes: source.bytes });
-      commit((p) => addClip(p, trackId, makeClip(source.id, at, source.durationS)));
+      // Resolved at COMMIT time, not captured: decoding yields for seconds and the UI stays live,
+      // so the target track can be deleted while the banner is up. `addClip` on a dead id was a
+      // silent no-op — the source was already stored, the clip never appeared, and the bytes sat
+      // as an orphan until the next restore pruned them.
+      commit((p) =>
+        addClip(p, resolveTrackId(p, trackId), makeClip(source.id, at, source.durationS)),
+      );
       at += source.durationS;
     } finally {
       state.importing = null;

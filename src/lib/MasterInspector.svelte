@@ -4,6 +4,7 @@
     EQ_LOW_HZ,
     EQ_MAX_DB,
     EQ_MID_HZ,
+    projectDurationS,
     type EqBands,
     type Project,
     type TrackFilter,
@@ -95,6 +96,13 @@
   }
 
   const ducking = $derived(appState.project.tracks.some((t) => t.ducked));
+
+  /** Clamped to the project's length, the same way `masterFadeInSpec`/`masterFadeSpec` and the
+   *  overlay clamp them. The STORED value can exceed it once clips are deleted, and the field
+   *  then read 6.00 while the picture and the audio both did 3. */
+  const durationS = $derived(projectDurationS(appState.project));
+  const fadeInShown = $derived(Math.min(appState.project.fadeInS, durationS));
+  const fadeOutShown = $derived(Math.min(appState.project.fadeOutS, durationS));
 </script>
 
 <!-- What applies to the WHOLE project. The meter and the master fader stay in the toolbar on
@@ -163,7 +171,7 @@
     <h3 class="col-span-3 text-[11px] tracking-wide text-muted uppercase">Mix fades</h3>
     <NumberField
       label="in"
-      value={appState.project.fadeInS}
+      value={fadeInShown}
       suffix="s"
       title="Fades the WHOLE MIX up from the project's start — everything playing, together. Anchored to t = 0, which cannot move."
       onInput={(v) => onFade(setMasterFadeIn, v)}
@@ -171,7 +179,7 @@
     />
     <NumberField
       label="out"
-      value={appState.project.fadeOutS}
+      value={fadeOutShown}
       suffix="s"
       title="Fades the WHOLE MIX at the end of the project — everything still playing, together. Anchored to the project end, so a range export of the middle does not invent one."
       onInput={(v) => onFade(setMasterFadeOut, v)}
