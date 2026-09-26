@@ -4,6 +4,12 @@ Handoff index for `slop-audio-editor`, a browser-based multitrack audio editor. 
 touching the code; read `docs/superpowers/specs/2026-09-03-slop-audio-editor-design.md` for the
 full design rationale behind anything that seems surprising below.
 
+## App icon
+
+`public/favicon.svg` is the shared slop mark in green `#66ff80`: the family blue `#667fff` turned
+to hue 130°, with the same saturation and lightness. The rule and every app's colour are in
+`../SLOP-FAVICON-COLOURS.md`.
+
 ## Commands
 
 ```bash
